@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj": {}
+    "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\services\\Services\\Services.csproj": {}
   },
   "projects": {
-    "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj": {
+    "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\services\\Services\\Services.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj",
-        "projectName": "tourneyAPI",
-        "projectPath": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj",
+        "projectUniqueName": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\services\\Services\\Services.csproj",
+        "projectName": "Services",
+        "projectPath": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\services\\Services\\Services.csproj",
         "packagesPath": "C:\\Users\\nicho\\.nuget\\packages\\",
-        "outputPath": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\obj\\",
+        "outputPath": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\services\\Services\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -49,18 +49,6 @@
       "frameworks": {
         "net8.0": {
           "targetAlias": "net8.0",
-          "dependencies": {
-            "Microsoft.EntityFrameworkCore.Design": {
-              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
-              "suppressParent": "All",
-              "target": "Package",
-              "version": "[9.0.5, )"
-            },
-            "Microsoft.EntityFrameworkCore.Sqlite": {
-              "target": "Package",
-              "version": "[9.0.5, )"
-            }
-          },
           "imports": [
             "net461",
             "net462",
@@ -73,9 +61,6 @@
           "assetTargetFallback": true,
           "warn": true,
           "frameworkReferences": {
-            "Microsoft.AspNetCore.App": {
-              "privateAssets": "none"
-            },
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }

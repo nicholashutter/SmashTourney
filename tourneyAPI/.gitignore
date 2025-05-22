@@ -1,0 +1,32 @@
+# .NET build artifacts
+bin/
+obj/
+*.user
+*.rsuser
+*.suo
+*.ncrunchsolution
+*.ncrunchproject
+*.vspscc
+*.vssscc
+
+# Entity Framework migrations
+Migrations/
+*.efbundle
+
+# Rider IDE files
+.idea/
+
+# Visual Studio Code settings
+.vscode/
+
+# NuGet dependencies
+*.nupkg
+packages/
+project.lock.json
+project.assets.json
+
+# User-specific files
+*.swp
+*.swn
+*.bak
+Thumbs.db

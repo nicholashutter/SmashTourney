@@ -1,26 +1,19 @@
 ﻿namespace Services;
 
-//using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using DTO;
+using Entities;
 
+public class AppDBContext : DbContext
+{       
+    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<Player> Players { get; set; } = null!;
+    public DbSet<Game> Games { get; set; } = null!;
 
-public class AppDBContext
-{
-    //copilot suggested scaffold 
-    /*
-    public AppDbContext(DbContextOptions<AppDbContext> options)
-            : base(options)
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
+        optionsBuilder.UseSqlite(""); 
     }
-        
-        public DbSet<User> Users { get; set; } = null!;
-        public DbSet<Player> Players { get; set; } = null!;
-        public DbSet<Game> Games { get; set; } = null!;
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            base.OnModelCreating(modelBuilder);
-            // Configure EF Core conventions or fluent API mappings as needed.
-        }
-        */
 }
 
