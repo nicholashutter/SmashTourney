@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: url('smash.png') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .profile {
+            background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black background */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            width: 80%;
+            max-width: 600px;
+        }
+        .profile-picture {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 20px;
+        }
+        .character-select-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .selected-character {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin-top: 20px;
+        }
+        .return-link {
+            display: block;
+            margin-top: 10px;
+            text-decoration: none;
+            color: #ccc;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="profile">
+        <img src="profile-picture.jpg" alt="Profile Picture" class="profile-picture">
+        <h2>User's Profile</h2>
+        <img src="" alt="Selected Character" class="selected-character" id="selectedCharacter">
+        <button class="character-select-button" onclick="openCharacterSelect()">Select Character</button>
+        <a href="TourneyMenu.html" class="return-link">Return to Main Menu</a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectedCharacter = localStorage.getItem('selectedCharacter');
+            if (selectedCharacter) {
+                document.getElementById('selectedCharacter').src = selectedCharacter;
+            }
+        });
+
+        function openCharacterSelect() {
+            window.location.href = 'characterselect.html';
+        }
+    </script>
+</body>
+</html>

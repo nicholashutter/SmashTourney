@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Tourney</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: url('smash.png') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Shadow for container */
+            max-width: 400px;
+            width: 90%;
+        }
+        .title {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            font-size: 1.2em;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            font-size: 1em;
+            border: none;
+            border-radius: 5px;
+            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
+        }
+        .form-group input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .form-group input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        .cancel-link {
+            display: block;
+            margin-top: 10px;
+            text-decoration: none;
+            color: #ccc;
+            font-size: 0.9em;
+        }
+    </style>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const form = document.getElementById('createTourneyForm');
+            form.addEventListener('submit', function(event) {
+                event.preventDefault(); // Prevent default form submission
+
+                // Retrieve form data
+                const sessionCode = form['session-code'].value;
+                const ruleset = form['ruleset'].value;
+                const maxPlayers = form['max-players'].value;
+
+                // Determine which page to redirect based on ruleset
+                let redirectUrl;
+                if (ruleset === 'single') {
+                    redirectUrl = `SingleElimination.html?session-code=${sessionCode}&max-players=${maxPlayers}`;
+                } else if (ruleset === 'double') {
+                    redirectUrl = `DoubleElimination.html?session-code=${sessionCode}&max-players=${maxPlayers}`;
+                } else {
+                    console.error('Invalid ruleset selection');
+                    return;
+                }
+
+                // Redirect to the selected tournament type page
+                window.location.href = redirectUrl;
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h2 class="title">Create Tourney</h2>
+        <form id="createTourneyForm" action="#">
+            <div class="form-group">
+                <label for="session-code">Session Code:</label>
+                <input type="text" id="session-code" name="session-code" maxlength="4" required>
+            </div>
+            <div class="form-group">
+                <label for="ruleset">Ruleset:</label>
+                <select id="ruleset" name="ruleset" required>
+                    <option value="single">Single Elimination</option>
+                    <option value="double">Double Elimination</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="max-players">Max Players:</label>
+                <input type="number" id="max-players" name="max-players" min="2" required>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Host Tourney">
+                <a href="TourneyMenu.html" class="cancel-link">Cancel and Return to Main Menu</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

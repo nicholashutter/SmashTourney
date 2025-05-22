@@ -1,0 +1,1 @@
+Simple React and CPP full stack project boostrapped with bootstrap framework for tracking tournaments in Smash Ultimate game. No fees charged or profit made copyright is owned by its respective copyright holders. 

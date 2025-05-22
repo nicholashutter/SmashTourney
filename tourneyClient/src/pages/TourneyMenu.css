@@ -1,0 +1,75 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background: url('../resources/rawMarkup/smash.png') no-repeat center center fixed;
+    background-size: cover;
+    color: white;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+.container {
+    text-align: center;
+
+}
+.title {
+    font-size: 2.5em;
+    margin-bottom: 30px;
+    text-shadow: 2px 2px 4px #000;
+}
+.menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+.menu-button {
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-size: 1.5em;
+    padding: 15px 30px;
+    margin: 10px 0;
+    width: 14em;
+    
+    cursor: pointer;
+    background: grey;
+    background-size: 600% 600%;
+    transition: transform 0.2s, background-position 1s;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+.menu-button:hover {
+    transform: scale(1.05);
+    background: linear-gradient(45deg, #ff0000, #ff8800, #ffff00, #88ff00, #00ff00, #00ff88, #00ffff, #0088ff, #0000ff, #8800ff, #ff00ff, #ff0088);
+    background-size: 600% 600%;
+    animation: gradientAnimation 10s ease infinite;
+}
+.play-button {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-size: 0.75em;
+    padding: 5px 10px;
+    background: grey;
+    cursor: pointer;
+    transition: transform 0.2s, background-position 1s;
+}
+.play-button:hover {
+    transform: scale(1.05);
+    background: linear-gradient(45deg, #ff0000, #ff8800, #ffff00, #88ff00, #00ff00, #00ff88, #00ffff, #0088ff, #0000ff, #8800ff, #ff00ff, #ff0088);
+    background-size: 600% 600%;
+    animation: gradientAnimation 10s ease infinite;
+}
+@keyframes gradientAnimation {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
+}

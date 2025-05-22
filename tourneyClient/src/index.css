@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+
+
+body {
+  font-family: 'Arial', sans-serif;
+  background: url('./assets/images/background/smash.png') no-repeat center center fixed;
+  background-size: cover; 
+}

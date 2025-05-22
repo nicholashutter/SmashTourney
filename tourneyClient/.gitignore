@@ -1,0 +1,49 @@
+# C++ Build Artifacts (MinGW)
+api/build/
+api/CMakeCache.txt
+api/CMakeFiles/
+
+C:\Development\Full Stack\Smash Tourney Project\V6\smashTourney\smashTourney\api\build\_deps
+*.cmake
+api/Makefile
+api/compile_commands.json 
+
+# Windows Executable
+*.exe
+
+# Object Files and Libraries
+*.obj
+*.o
+*.a
+*.lib
+*.dll 
+
+# CMake Packaging (if used)
+_CPack_Packages/
+CPackConfig.cmake
+CPackSourceConfig.cmake
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

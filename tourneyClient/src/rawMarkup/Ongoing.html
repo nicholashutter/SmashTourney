@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matchup Display</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: url('smash.png') no-repeat center center fixed;
+            background-size: cover;
+            background-color: #f0f0f0;
+            animation: fadeInBackground 2s ease-in-out;
+        }
+        .matchup-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: rgba(255, 255, 255, 0.5);
+            padding: 10px;
+            border: 2px solid #000;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 1s ease-in-out;
+        }
+        .player-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: rgba(255, 255, 255, 0.5);
+            padding: 10px;
+            border: 2px solid #000;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .player-box#player1-box {
+            animation: moveToCenter 3s ease-in-out infinite;
+        }
+        .player-box#player2-box {
+            animation: moveToCenter2 3s ease-in-out infinite;
+        }
+        .player {
+            font-size: 1.5em;
+            margin: 5px;
+            display: flex;
+            align-items: center;
+        }
+        .vs {
+            font-size: 2em;
+            margin: 10px;
+            animation: bounce 2s infinite;
+        }
+        .vote-buttons {
+            margin-left: 5px;
+        }
+        .vote-buttons img {
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            margin: 0 3px;
+        }
+        @keyframes fadeInBackground {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes moveToCenter {
+            0% { transform: translateY(1vw); }
+            50% { transform: translateY(0); }
+            100% { transform: translateY(1vw); }
+        }
+        @keyframes moveToCenter2 {
+            0% { transform: translateY(-1vw); }
+            50% { transform: translateY(0); }
+            100% { transform: translateY(-1vw); }
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-20px); }
+            60% { transform: translateY(-10px); }
+        }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+        .crash {
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        /* Media queries for mobile devices */
+        @media (max-width: 768px) {
+            .matchup-container {
+                padding: 10px;
+            }
+            .player-box {
+                padding: 5px;
+            }
+            .player {
+                font-size: 1.2em;
+                margin: 5px;
+            }
+            .vs {
+                font-size: 1.5em;
+                margin: 10px;
+            }
+            .vote-buttons img {
+                width: 20px;
+                height: 20px;
+                margin: 0 2px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .player-box {
+                padding: 5px;
+            }
+            .player {
+                font-size: 1em;
+                margin: 3px;
+            }
+            .vs {
+                font-size: 1.2em;
+                margin: 5px;
+            }
+            .vote-buttons img {
+                width: 15px;
+                height: 15px;
+                margin: 0 1px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="matchup-container">
+        <div class="player-box" id="player1-box">
+            <div class="player" id="player1">
+                <span id="player1-name">Player 1</span>
+                <div class="vote-buttons">
+                    <img src="thumbsup.png" alt="Thumbs Up" onclick="vote('player1', 'Win')">
+                    <img src="thumbsdown.png" alt="Thumbs Down" onclick="vote('player1', 'Loss')">
+                </div>
+            </div>
+        </div>
+        <div class="vs">VS</div>
+        <div class="player-box" id="player2-box">
+            <div class="player" id="player2">
+                <span id="player2-name">Player 2</span>
+                <div class="vote-buttons">
+                   <img src="thumbsup.png" alt="Thumbs Up" onclick="vote('player2', 'Win')">
+                   <img src="thumbsdown.png" alt="Thumbs Down" onclick="vote('player2', 'Loss')">
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
