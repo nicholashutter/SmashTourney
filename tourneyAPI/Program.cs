@@ -1,5 +1,6 @@
 using Routers;
 using Serilog;
+using Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,8 +12,10 @@ var loggerConfig = new LoggerConfiguration()
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilog(loggerConfig);
 
+builder.Services.AddDbContext<AppDBContext>();
+
 var app = builder.Build();
 
-HelloWorld.Map(app);
+UserRouter.Map(app);
 
 app.Run();
