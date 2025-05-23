@@ -2,13 +2,16 @@ namespace Routers;
 
 using Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging; 
 using Services;
 using System;
 
 public static class GameRouter
 {
-    public static void Map(WebApplication app, ILogger logger)
+    public static void Map(WebApplication app)
     {
+        var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AppLog"); 
+
         var GameRoutes = app.MapGroup("/Games");
 
         GameRoutes.MapGet("/", async (HttpContext context, AppDBContext db) =>
