@@ -1,4 +1,5 @@
 # .NET build artifacts
+Logs/
 bin/
 obj/
 *.user
