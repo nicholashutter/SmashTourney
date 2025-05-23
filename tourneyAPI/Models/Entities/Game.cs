@@ -1,8 +1,10 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Entities;
 
 public class Game
 {
-    public Guid SessionID { get; set; }
+    public Guid Id { get; set; }
     public List<Player> CurrentPlayers { get; set; } = new List<Player>();
     public DateTime CurrentDate { get; set; } = DateTime.UtcNow;
     public int CurrentRound { get; set; } = 0;

@@ -1,7 +1,6 @@
 using Routers;
 using Serilog;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 var loggerConfig = new LoggerConfiguration()

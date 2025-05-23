@@ -3,7 +3,6 @@
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
-using DTO;
 using Entities;
 
 public class AppDBContext : DbContext
@@ -17,8 +16,7 @@ public class AppDBContext : DbContext
     public AppDBContext()
     {
         var folder = Environment.SpecialFolder.LocalApplicationData;
-        var path = System.IO.Path.Combine(Environment.GetFolderPath(folder), "DB");
-        Directory.CreateDirectory(path);
+        var path = Environment.GetFolderPath(folder);
         DbPath = System.IO.Path.Join(path, "tourneyDB.db");
     }
 

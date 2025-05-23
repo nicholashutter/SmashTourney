@@ -2,8 +2,6 @@ C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\t
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\testhost.exe
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\appsettings.Development.json
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\appsettings.json
-C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Models\DTO\obj\DTO.csproj.nuget.dgspec.json
-C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Models\DTO\obj\project.assets.json
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Models\Entities\obj\Entities.csproj.nuget.dgspec.json
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Models\Entities\obj\project.assets.json
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Routers\obj\project.assets.json
