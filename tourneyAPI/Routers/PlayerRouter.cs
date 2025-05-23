@@ -1,30 +1,28 @@
-﻿namespace Routers;
+namespace Routers;
 
 using Entities;
 using Microsoft.EntityFrameworkCore;
 using Services;
 using System;
-public static class UserRouter
-{
 
+public static class PlayerRouter
+{
     public static void Map(WebApplication app, ILogger logger)
     {
-        var UserRoutes = app.MapGroup("/Users");
+        var PlayerRoutes = app.MapGroup("/Players");
 
-
-        UserRoutes.MapGet("/", async (HttpContext context, AppDBContext db) =>
+        PlayerRoutes.MapGet("/", async (HttpContext context, AppDBContext db) =>
         {
-
-            logger.LogInformation("Request Type: Get \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
+            logger.LogInformation("Request Type: Get \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
 
             try
             {
-                var Users = await db.Users.ToListAsync();
+                var Players = await db.Players.ToListAsync();
 
 
                 context.Response.StatusCode = StatusCodes.Status200OK;
-                logger.LogInformation("Users Retrieved Successfully \n Time: {Timestamp}", DateTime.UtcNow);
-                await context.Response.WriteAsJsonAsync(Users);
+                logger.LogInformation("Players Retrieved Successfully \n Time: {Timestamp}", DateTime.UtcNow);
+                await context.Response.WriteAsJsonAsync(Players);
             }
             catch (Exception e)
             {
@@ -33,26 +31,27 @@ public static class UserRouter
                 await context.Response.WriteAsJsonAsync(e.ToString());
             }
         });
-        UserRoutes.MapPost("/", async (HttpContext context, AppDBContext db) =>
+
+        PlayerRoutes.MapPost("/", async (HttpContext context, AppDBContext db) =>
         {
-            logger.LogInformation("Request Type: Post \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
+            logger.LogInformation("Request Type: Post \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
 
             try
             {
-                var newUser = await context.Request.ReadFromJsonAsync<User>();
+                var newPlayer = await context.Request.ReadFromJsonAsync<Player>();
 
-                if (newUser is null)
+                if (newPlayer is null)
                 {
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    logger.LogWarning("Warning: newUser is null\n Time: {Timestamp}", DateTime.UtcNow);
+                    logger.LogWarning("Warning: newPlayer is null\n Time: {Timestamp}", DateTime.UtcNow);
                     return Results.BadRequest("Invalid JSON Payload");
                 }
                 else
                 {
-                    db.Add(newUser);
+                    db.Add(newPlayer);
                     await db.SaveChangesAsync();
                     context.Response.StatusCode = StatusCodes.Status201Created;
-                    logger.LogInformation("User Created Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
+                    logger.LogInformation("Player Created Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
                     return Results.Created();
                 }
 
@@ -67,29 +66,29 @@ public static class UserRouter
 
         });
 
-        UserRoutes.MapPut("/", async (HttpContext context, AppDBContext db) =>
+        PlayerRoutes.MapPut("/", async (HttpContext context, AppDBContext db) =>
         {
-            logger.LogInformation("Request Type: Put \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
+            logger.LogInformation("Request Type: Put \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
 
             try
             {
-                var updateUser = await context.Request.ReadFromJsonAsync<User>();
+                var updatePlayer = await context.Request.ReadFromJsonAsync<Player>();
 
-                if (updateUser is null)
+                if (updatePlayer is null)
                 {
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    logger.LogWarning("Warning: updateUser is null\n Time: {Timestamp}", DateTime.UtcNow);
+                    logger.LogWarning("Warning: updatePlayer is null\n Time: {Timestamp}", DateTime.UtcNow);
                     return Results.BadRequest("Invalid JSON Payload");
                 }
                 else
                 {
-                    db.Update(updateUser);
-
+                    db.Add(updatePlayer);
                     await db.SaveChangesAsync();
-                    context.Response.StatusCode = StatusCodes.Status200OK;
-                    logger.LogInformation("User Updated Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.Accepted();
+                    context.Response.StatusCode = StatusCodes.Status202Accepted;
+                    logger.LogInformation("Player Updated Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
+                    return Results.Created();
                 }
+
 
             }
             catch (Exception e)
@@ -98,29 +97,27 @@ public static class UserRouter
                 logger.LogError("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
                 return Results.BadRequest("Unknown Error Occured");
             }
-
         });
-
-        app.MapDelete("/", async (HttpContext context, AppDBContext db) =>
+        
+        PlayerRoutes.MapDelete("/", async (HttpContext context, AppDBContext db) =>
         {
-            logger.LogInformation("Request Type: Put \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
-
+            logger.LogInformation("Request Type: Delete \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
             try
             {
-                var deleteUser = await context.Request.ReadFromJsonAsync<User>();
+                var deletePlayer = await context.Request.ReadFromJsonAsync<Player>();
 
-                if (deleteUser is null)
+                if (deletePlayer is null)
                 {
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    logger.LogWarning("Warning: deleteUser is null\n Time: {Timestamp}", DateTime.UtcNow);
+                    logger.LogWarning("Warning: deletePlayer is null\n Time: {Timestamp}", DateTime.UtcNow);
                     return Results.BadRequest("Invalid JSON Payload");
                 }
                 else
                 {
-                    db.Users.Remove(deleteUser);
+                    db.Players.Remove(deletePlayer);
                     context.Response.StatusCode = StatusCodes.Status202Accepted;
                     await db.SaveChangesAsync();
-                    return Results.Accepted("User Delete Success");
+                    return Results.Accepted("Player Delete Success");
                 }
             }
             catch (Exception e)
@@ -130,7 +127,5 @@ public static class UserRouter
                 return Results.BadRequest("Unknown Error Occured");
             }
         });
-
-
     }
 }

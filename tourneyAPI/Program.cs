@@ -9,6 +9,9 @@ var loggerConfig = new LoggerConfiguration()
 .Enrich.FromLogContext()
 .CreateLogger();
 
+
+
+
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilog(loggerConfig);
 
@@ -16,6 +19,10 @@ builder.Services.AddDbContext<AppDBContext>();
 
 var app = builder.Build();
 
-UserRouter.Map(app);
+var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Application Logger");
+
+UserRouter.Map(app, logger);
+PlayerRouter.Map(app, logger);
+
 
 app.Run();

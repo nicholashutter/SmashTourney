@@ -1,0 +1,28 @@
+namespace Enums; 
+public enum Archetype
+{
+    ALL_ROUNDER,
+    RUSHDOWN,
+    PRESSURER,
+    HIT_AND_RUN,
+    MIX_UP,
+    ZONE_BREAKER,
+    DOMINATING,
+    POWERHOUSE,
+    FOOTSIES,
+    GLASS_CANNON,
+    TAG_TEAM,
+    FIGHTING_GAME_CHARACTER,
+    ZONER,
+    BAIT_AND_PUNISH,
+    TRAPPER,
+    TURTLE,
+    KEEP_AWAY,
+    STAGE_CONTROL,
+    HALF_GRAPPLER,
+    HALF_HEALER,
+    DYNAMIC,
+    AURA,
+    FIRST_STRIKE,
+    PRECISION
+}
