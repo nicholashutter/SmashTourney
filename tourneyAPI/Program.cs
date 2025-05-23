@@ -23,6 +23,6 @@ var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("App
 
 UserRouter.Map(app, logger);
 PlayerRouter.Map(app, logger);
-
+GameRouter.Map(app, logger);
 
 app.Run();
