@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("tourneyAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+624cd2f089516637b4cb81af6071335f469e2ce4")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+46f9c481057b33de78c475057a191e5e7a4385cb")]
 [assembly: System.Reflection.AssemblyProductAttribute("tourneyAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("tourneyAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
