@@ -1,6 +1,8 @@
 ﻿namespace Services;
 
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
 using DTO;
 using Entities;
 
@@ -10,9 +12,19 @@ public class AppDBContext : DbContext
     public DbSet<Player> Players { get; set; } = null!;
     public DbSet<Game> Games { get; set; } = null!;
 
+    public string DbPath { get; }
+
+    public AppDBContext()
+    {
+        var folder = Environment.SpecialFolder.LocalApplicationData;
+        var path = System.IO.Path.Combine(Environment.GetFolderPath(folder), "DB");
+        Directory.CreateDirectory(path);
+        DbPath = System.IO.Path.Join(path, "tourneyDB.db");
+    }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseSqlite("");
+        optionsBuilder.UseSqlite($"Data Source={DbPath}");
     }
 
 }
