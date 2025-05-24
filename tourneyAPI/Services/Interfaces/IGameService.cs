@@ -1,11 +1,18 @@
 namespace Services;
 
+using System.Security;
 using Entities;
+using Microsoft.Extensions.Configuration.UserSecrets;
+
 public interface IGameService
 {
-    Task<bool> CreateNewGameAsync(Game newGame);
+    Task<Guid> CreateNewGameAsync(Game newGame);
     Task<Game?> GetGameByIdAsync(Guid Id);
     Task<IEnumerable<Game>?> GetAllGamesAsync();
+    bool UsersToPlayersAsync(List<Player> players);
+
+    bool AddUserToGame(User addUser);
+
     Task<bool> StartGameAsync(Game game);
     Task<bool> StartRoundAsync(Game game);
     Task<bool> EndRoundAsync(Game game);
