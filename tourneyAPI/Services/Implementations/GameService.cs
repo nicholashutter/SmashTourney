@@ -5,34 +5,28 @@ using System.Collections.Generic;
 using System.Data.Common; 
 using System.Threading.Tasks;
 using Entities;
+using Services; 
 using Microsoft.EntityFrameworkCore; 
 using Microsoft.Extensions.Logging; 
 public class GameService : IGameService
 {
     private readonly ILogger<GameService> _logger;
     private readonly AppDBContext _db;
-
-    private PlayerService _playerService;
-
-    private UserService _userService;
-
     private List<Game> _games;
     
     public List<User> _users;
     public List<Player> _players;
 
-    public GameService(ILogger<GameService> logger, AppDBContext db, PlayerService playerService, UserService userService)
+    public GameService(ILogger<GameService> logger, AppDBContext db, IPlayerService playerService, IUserService userService)
     {
         _logger = logger;
         _db = db;
-        _playerService = playerService;
-        _userService = userService;
         _games = new List<Game>();
         _users = new List<User>();
         _players = new List<Player>(); 
     }
 
-    public async Task<bool> CreateNewGameAsync(Game newGame)
+    public async Task<Guid?> CreateNewGameAsync(Game newGame)
     {
         _logger.LogInformation("Info: Create New Game Async");
 
@@ -46,13 +40,14 @@ public class GameService : IGameService
             {
                 await _db.Games.AddAsync(newGame);
                 await _db.SaveChangesAsync();
-                return true;
+                _games.Add(newGame); 
+                return newGame.Id;
             }
         }
         catch (NullReferenceException e)
         {
             _logger.LogError("Error: newGame is null. Unable to create new game\n {e}", e.ToString());
-            return false;
+            return null;
         }
     }
     
@@ -193,16 +188,6 @@ public class GameService : IGameService
     }
 
     public Task<bool> EndGameAsync(Game game)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<bool> AddPlayerToGameAsync(Game game, Player player)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<bool> RemovePlayerFromGameAsync(Game game, Guid playerId)
     {
         throw new NotImplementedException();
     }
