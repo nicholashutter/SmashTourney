@@ -15,7 +15,7 @@ public interface IGameService
     Task<bool> EndRoundAsync(Game game);
     Task<bool> LoadGameAsync(Game game);
     Task<bool> SaveGameAsync(Game saveGame);
-    bool AddLobbyToGame(List<Player> players);
+    bool AddPlayersToGame(List<Player> players, Guid gameId);
     bool AddUserToLobby(User addUser, Guid gameId);
     Task<bool> VoteHandlerAsync(Guid playerID, Guid playerToVoteForID);
 

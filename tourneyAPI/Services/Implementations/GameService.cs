@@ -15,14 +15,14 @@ public class GameService : IGameService
     private readonly AppDBContext _db;
     private List<Game> _games;
 
-    public List<User> _users;
+    public List<User> _lobby;
 
     public GameService(ILogger<GameService> logger, AppDBContext db, IPlayerRepository playerService, IUserRepository userService)
     {
         _logger = logger;
         _db = db;
         _games = new List<Game>();
-        _users = new List<User>();
+        _lobby = new List<User>();
     }
 
     public Guid CreateGame()
@@ -140,8 +140,10 @@ public class GameService : IGameService
         }
     }
 
-    //this input players list should come from the httprequest from the front end
-    public bool AddLobbyToGame(List<Player> players, Guid gameId)
+    //players list should come from the httprequest from the front end
+    //only adds users already in lobby to game if their UserId from the back end and 
+    //userId from the player object submitted by the front end agree
+    public bool AddPlayersToGame(List<Player> players, Guid gameId)
     {
         _logger.LogInformation("Info: Loading Users and Creating Their Corresponding Players");
         try
@@ -162,7 +164,7 @@ public class GameService : IGameService
                 throw new Exception();
             }
 
-            foreach (User user in _users)
+            foreach (User user in _lobby)
             {
                 foreach (Player player in players)
                 {
@@ -224,7 +226,7 @@ public class GameService : IGameService
                     }
                     else
                     {
-                        _users.Add(addUser);
+                        _lobby.Add(addUser);
                         _logger.LogInformation($"User {addUser.Username} Added To Game {gameId} lobby");
                         return true;
                     }
