@@ -3,16 +3,17 @@ namespace Services;
 using Entities;
 public interface IGameService
 {
-    Task<Game> CreateNewGameAsync(Game newGame);
-    Task<Game> GetGameByIdAsync(Guid Id);
-    Task StartGameAsync(Game game);
-    Task StartRoundAsync(Game game);
-    Task EndRoundAsync(Game game);
-    Task EndGameAsync(Game game);
+    Task<bool> CreateNewGameAsync(Game newGame);
+    Task<Game?> GetGameByIdAsync(Guid Id);
+    Task<IEnumerable<Game>?> GetAllGamesAsync();
+    Task<bool> StartGameAsync(Game game);
+    Task<bool> StartRoundAsync(Game game);
+    Task<bool> EndRoundAsync(Game game);
+    Task<bool> EndGameAsync(Game game);
     Task<bool> AddPlayerToGameAsync(Game game, Player player);
     Task<bool> RemovePlayerFromGameAsync(Game game, Guid playerId);
-    Task SaveGameAsync(Game game);
-    Task LoadGameAsync(Game game);
-    Task VoteHandlerAsync(Guid playerID, Guid playerToVoteForID);
+    Task<bool> SaveGameAsync(Game game);
+    Task<bool> LoadGameAsync(Game game);
+    Task<bool> VoteHandlerAsync(Guid playerID, Guid playerToVoteForID);
 
 }

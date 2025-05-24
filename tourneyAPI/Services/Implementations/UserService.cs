@@ -8,6 +8,7 @@ using System.Data.Common;
 using System.Threading.Tasks;
 using Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 
 public class UserService : IUserService
 {
@@ -21,7 +22,7 @@ public class UserService : IUserService
         _db = db;
     }
 
-    public async Task<User> GetUserByIdAsync(Guid id)
+    public async Task<User?> GetUserByIdAsync(Guid id)
     {
         _logger.LogInformation("Info: Get User By Id {id}", id);
 
@@ -43,11 +44,11 @@ public class UserService : IUserService
         catch (NullReferenceException e)
         {
             _logger.LogInformation("Error: User not found or otherwise null\n  {e}", e.ToString());
-            return foundUser;
+            return null;
         }
     }
 
-    public async Task<IEnumerable<User>> GetAllUsersAsync()
+    public async Task<IEnumerable<User>?> GetAllUsersAsync()
     {
         _logger.LogInformation("Info: Get All Users");
 
@@ -66,7 +67,7 @@ public class UserService : IUserService
         catch (NullReferenceException e)
         {
             _logger.LogWarning("All Users Returns Zero, Did You Just Reset The DB?");
-            return Users;
+            return null;
         }
     }
 
@@ -102,15 +103,25 @@ public class UserService : IUserService
 
         try
         {
-            if (updateUser == null)
+            if (updateUser is null)
             {
                 throw new NullReferenceException();
             }
             else
             {
-                await _db.AddAsync(updateUser);
-                await _db.SaveChangesAsync();
-                return true;
+                var foundUser = await _db.Users.FindAsync(updateUser.Id);
+
+                if (foundUser is null)
+                {
+                    throw new NullReferenceException();
+                }
+                else
+                {
+                    _db.Update(foundUser);
+                    await _db.SaveChangesAsync();
+                    return true;
+                }
+
             }
         }
         catch (NullReferenceException e)
