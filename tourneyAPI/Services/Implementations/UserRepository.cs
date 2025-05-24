@@ -1,6 +1,7 @@
 
 namespace Services;
 
+/* UserRepository implements a repository layer for User Objects to persist them to the database */ 
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -10,13 +11,13 @@ using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 
-public class UserService : IUserService
+public class UserRepository : IUserRepository
 {
-    private readonly ILogger<GameService> _logger;
+    private readonly ILogger<UserRepository> _logger;
 
     private readonly AppDBContext _db;
 
-    public UserService(ILogger<GameService> logger, AppDBContext db)
+    public UserRepository(ILogger<UserRepository> logger, AppDBContext db)
     {
         _logger = logger;
         _db = db;

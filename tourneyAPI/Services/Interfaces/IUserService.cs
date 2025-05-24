@@ -2,7 +2,7 @@ namespace Services;
 
 using Entities;
 
-public interface IUserService
+public interface IUserRepository
 {
     Task<User?> GetUserByIdAsync(Guid id);
     Task<IEnumerable<User>?> GetAllUsersAsync();

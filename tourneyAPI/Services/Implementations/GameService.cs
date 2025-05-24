@@ -1,128 +1,50 @@
 namespace Services;
 
+/* GameService implements game operation logic */
 using System;
 using System.Collections.Generic;
-using System.Data.Common; 
+using System.Data.Common;
 using System.Threading.Tasks;
 using Entities;
-using Services; 
-using Microsoft.EntityFrameworkCore; 
-using Microsoft.Extensions.Logging; 
+using Services;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 public class GameService : IGameService
 {
     private readonly ILogger<GameService> _logger;
     private readonly AppDBContext _db;
     private List<Game> _games;
-    
-    public List<User> _users;
-    public List<Player> _players;
 
-    public GameService(ILogger<GameService> logger, AppDBContext db, IPlayerService playerService, IUserService userService)
+    public List<User> _users;
+
+    public GameService(ILogger<GameService> logger, AppDBContext db, IPlayerRepository playerService, IUserRepository userService)
     {
         _logger = logger;
         _db = db;
         _games = new List<Game>();
         _users = new List<User>();
-        _players = new List<Player>(); 
     }
 
-    public async Task<Guid?> CreateNewGameAsync(Game newGame)
+    public Guid CreateGame()
     {
-        _logger.LogInformation("Info: Create New Game Async");
-
-        try
-        {
-            if (newGame is null)
-            {
-                throw new NullReferenceException();
-            }
-            else
-            {
-                await _db.Games.AddAsync(newGame);
-                await _db.SaveChangesAsync();
-                _games.Add(newGame); 
-                return newGame.Id;
-            }
-        }
-        catch (NullReferenceException e)
-        {
-            _logger.LogError("Error: newGame is null. Unable to create new game\n {e}", e.ToString());
-            return null;
-        }
+        Game game = new Game();
+        _games.Add(game);
+        return game.Id;
     }
-    
-    //this input players list should come from the httprequest from the front end
-    public bool UsersToPlayersAsync(List<Player> players)
+
+    public bool EndGameAsync(Game game)
     {
-        _logger.LogInformation("Info: Loading Users and Creating Their Corresponding Players");
-        try
+        foreach (Game g in _games)
         {
-
-            foreach (User user in _users)
+            if (game.Id == g.Id)
             {
-                foreach (Player player in players)
-                {
-                    if (user.Id == player.UserId)
-                    {
-                        _players.Add(player);
-                    }
-                }
+                _games.Remove(game);
+                return true;
             }
-            _logger.LogInformation("Info: Players Created From Users");
-            return true;
         }
-        catch (Exception e)
-        {
-            _logger.LogInformation($"Error: Failed to Create Players from Users{e.ToString}");
-            return false; 
-        }
+        return false;
     }
 
-    public bool AddUserToGame(User addUser, Guid gameId)
-    {
-        _logger.LogInformation($"Info: Adding User {addUser.Username} to game.");
-        try
-        {
-            if (addUser is null)
-            {
-                _logger.LogError($"Unable to add User to game: addUser is null");
-
-                throw new NullReferenceException();
-            }
-            else
-            {
-                if (_games.Count is 0)
-                {
-                    throw new Exception();
-                }
-                else
-                {
-                    var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
-
-                    if (foundGame is null)
-                    {
-                        _logger.LogError($"Unable To Locate Game With GameId {gameId}");
-                        throw new NullReferenceException();
-                    }
-                    else
-                    {
-                        _users.Add(addUser);
-                        _logger.LogInformation($"User {addUser.Username} Added To Game {gameId}");
-                        return true; 
-                    }
-                }
-            }
-        }
-        catch (NullReferenceException)
-        {   
-            return false;
-        }
-        catch (Exception e)
-        {
-            _logger.LogWarning($"Unable to add User to game: _games.count is {_games.Count}: {e.ToString()}");
-            return false; 
-        }
-    }
 
     public async Task<Game?> GetGameByIdAsync(Guid Id)
     {
@@ -153,7 +75,7 @@ public class GameService : IGameService
     {
         _logger.LogInformation("Info: Get All Games");
 
-        var Games = new List<Game>(); 
+        var Games = new List<Game>();
 
         try
         {
@@ -187,19 +109,137 @@ public class GameService : IGameService
         throw new NotImplementedException();
     }
 
-    public Task<bool> EndGameAsync(Game game)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<bool> SaveGameAsync(Game game)
-    {
-        throw new NotImplementedException();
-    }
 
     public Task<bool> LoadGameAsync(Game game)
     {
         throw new NotImplementedException();
+    }
+
+    public async Task<bool> SaveGameAsync(Game saveGame)
+    {
+        _logger.LogInformation("Info: Create New Game Async");
+
+        try
+        {
+            if (saveGame is null)
+            {
+                throw new NullReferenceException();
+            }
+            else
+            {
+                await _db.Games.AddAsync(saveGame);
+                await _db.SaveChangesAsync();
+                _games.Add(saveGame);
+                return true;
+            }
+        }
+        catch (NullReferenceException e)
+        {
+            _logger.LogError("Error: newGame is null. Unable to create new game\n {e}", e.ToString());
+            return false;
+        }
+    }
+
+    //this input players list should come from the httprequest from the front end
+    public bool AddLobbyToGame(List<Player> players, Guid gameId)
+    {
+        _logger.LogInformation("Info: Loading Users and Creating Their Corresponding Players");
+        try
+        {
+            double index = -1;
+
+            for (int i = 0; i < _games.Count; i++)
+            {
+                if (_games[i].Id == gameId)
+                {
+                    index = i;
+                }
+            }
+
+            if (index == -1)
+            {
+                _logger.LogWarning($"Warning: Unable To Find Game With gameId {gameId}");
+                throw new Exception();
+            }
+
+            foreach (User user in _users)
+            {
+                foreach (Player player in players)
+                {
+                    if (user.Id == player.UserId)
+                    {
+                        if (index > 0)
+                        {
+                            _games[(int)index].AddPlayer(player);
+                        }
+                        else
+                        {
+                            throw new IndexOutOfRangeException();
+                        }
+
+                    }
+                }
+            }
+            _logger.LogInformation("Info: Players Created From Users");
+            return true;
+        }
+        catch (IndexOutOfRangeException)
+        {
+            _logger.LogError($"Error: Index Value out of bounds");
+            return false;
+        }
+        catch (Exception e)
+        {
+            _logger.LogInformation($"Error: Failed to Create Players from Users{e.ToString}");
+            return false;
+        }
+    }
+
+    //will only let authenticated users further inside the application if the gameID presented is valid
+    public bool AddUserToLobby(User addUser, Guid gameId)
+    {
+        _logger.LogInformation($"Info: Adding User {addUser.Username} to game lobby.");
+        try
+        {
+            if (addUser is null)
+            {
+                _logger.LogError($"Unable to add User to game: addUser is null");
+
+                throw new NullReferenceException();
+            }
+            else
+            {
+                if (_games.Count is 0)
+                {
+                    throw new Exception();
+                }
+                else
+                {
+                    var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
+
+                    if (foundGame is null)
+                    {
+                        _logger.LogError($"Unable To Locate Game With GameId {gameId}");
+                        throw new NullReferenceException();
+                    }
+                    else
+                    {
+                        _users.Add(addUser);
+                        _logger.LogInformation($"User {addUser.Username} Added To Game {gameId} lobby");
+                        return true;
+                    }
+                }
+            }
+        }
+        catch (NullReferenceException)
+        {
+            return false;
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning($"Unable to add User to game: _games.count is {_games.Count}: {e.ToString()}");
+            return false;
+        }
     }
 
     public Task<bool> VoteHandlerAsync(Guid playerID, Guid playerToVoteForID)

@@ -1,5 +1,8 @@
 namespace Services;
 
+
+/* PlayerrRepository implements a repository layer for Player Objects to persist them to the database */ 
+/* This class currently has no use and may get cut from the first release */ 
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -7,13 +10,13 @@ using Entities;
 using Microsoft.EntityFrameworkCore; 
 using Microsoft.Extensions.Logging; 
 
-public class PlayerService : IPlayerService
+public class PlayerRepository : IPlayerRepository
 {
     private readonly AppDBContext _db;
-    private readonly ILogger<PlayerService> _logger; 
+    private readonly ILogger<PlayerRepository> _logger; 
 
    
-    public PlayerService(AppDBContext db, ILogger<PlayerService> logger)
+    public PlayerRepository(AppDBContext db, ILogger<PlayerRepository> logger)
     {
         _db = db;
         _logger = logger;

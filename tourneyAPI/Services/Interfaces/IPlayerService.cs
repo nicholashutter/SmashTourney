@@ -1,7 +1,7 @@
 namespace Services;
 
 using Entities;
-public interface IPlayerService
+public interface IPlayerRepository
 {
     Task<bool> CreateAsync(Player newPlayer);
     Task<Player?> GetByIdAsync(Guid id);
