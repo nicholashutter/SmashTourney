@@ -5,8 +5,6 @@ public interface IGameService
 {
     Task<Game> CreateNewGameAsync(Game newGame);
     Task<Game> GetGameByIdAsync(Guid Id);
-
-
     Task StartGameAsync(Game game);
     Task StartRoundAsync(Game game);
     Task EndRoundAsync(Game game);
