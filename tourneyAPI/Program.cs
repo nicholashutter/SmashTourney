@@ -21,7 +21,7 @@ builder.Services.AddDbContext<AppDBContext>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<IPlayerService, PlayerService>();
-builder.Services.AddSingleton<IUserService, UserService>(); 
+builder.Services.AddScoped<IUserService, UserService>();
 
 
 var app = builder.Build();
