@@ -13,7 +13,7 @@ public interface IGameService
     Task<bool> StartGameAsync(Game game);
     Task<bool> StartRoundAsync(Game game);
     Task<bool> EndRoundAsync(Game game);
-    Task<bool> LoadGameAsync(Game game);
+    Task<bool> LoadGameAsync(Game loadGame);
     Task<bool> SaveGameAsync(Game saveGame);
     bool AddPlayersToGame(List<Player> players, Guid gameId);
     bool AddUserToLobby(User addUser, Guid gameId);

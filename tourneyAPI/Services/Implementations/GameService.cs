@@ -121,9 +121,36 @@ public class GameService : IGameService
     }
 
 
-    public Task<bool> LoadGameAsync(Game game)
+    public async Task<bool> LoadGameAsync(Game loadGame)
     {
-        throw new NotImplementedException();
+        _logger.LogInformation("Info: Create New Game Async");
+
+        await using (var _db = await _dbContextFactory.CreateDbContextAsync())
+        {
+            try
+            {
+                if (loadGame is null)
+                {
+                    _logger.LogError("Error: loadGame is null. Unable to create new game");
+                    throw new NullReferenceException();
+                }
+                else
+                {
+                    var foundGame = await _db.Games.FindAsync(loadGame);
+                    if (foundGame is null)
+                    {
+                        _logger.LogError("Error: foundGame is null. Unable to create new game");
+                        throw new NullReferenceException();
+                    }
+                    return true;
+                }
+            }
+            catch (NullReferenceException e)
+            {
+                _logger.LogError("Error: {e}", e.ToString());
+                return false;
+            }
+        }
     }
 
     public async Task<bool> SaveGameAsync(Game saveGame)
