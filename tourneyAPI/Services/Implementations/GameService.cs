@@ -9,18 +9,19 @@ using Entities;
 using Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore.Internal;
+
 public class GameService : IGameService
 {
     private readonly ILogger<GameService> _logger;
-    private readonly AppDBContext _db;
+    private readonly IDbContextFactory<AppDBContext> _dbContextFactory;
     private List<Game> _games;
-
     public List<User> _lobby;
 
-    public GameService(ILogger<GameService> logger, AppDBContext db, IPlayerRepository playerService, IUserRepository userService)
+    public GameService(ILogger<GameService> logger, IDbContextFactory<AppDBContext> dbContextFactory)
     {
         _logger = logger;
-        _db = db;
+        _dbContextFactory = dbContextFactory;
         _games = new List<Game>();
         _lobby = new List<User>();
     }
@@ -50,48 +51,58 @@ public class GameService : IGameService
     {
         _logger.LogInformation("Info: Get Game By Id {Id}", Id);
 
-        var foundGame = new Game();
-        try
+        await using (var _db = await _dbContextFactory.CreateDbContextAsync())
         {
-            foundGame = await _db.Games.FindAsync(Id);
+            var foundGame = new Game();
+            try
+            {
+                foundGame = await _db.Games.FindAsync(Id);
 
-            if (foundGame is null)
-            {
-                throw new NullReferenceException();
+                if (foundGame is null)
+                {
+                    throw new NullReferenceException();
+                }
+                else
+                {
+                    return foundGame;
+                }
             }
-            else
+            catch (NullReferenceException e)
             {
-                return foundGame;
+                _logger.LogInformation("Error: Game not found or otherwise null\n {e}", e.ToString());
+                return null;
             }
         }
-        catch (NullReferenceException e)
-        {
-            _logger.LogInformation("Error: Game not found or otherwise null\n {e}", e.ToString());
-            return null;
-        }
+
+
     }
 
     public async Task<IEnumerable<Game>?> GetAllGamesAsync()
     {
         _logger.LogInformation("Info: Get All Games");
 
-        var Games = new List<Game>();
-
-        try
+        await using (var _db = await _dbContextFactory.CreateDbContextAsync())
         {
-            Games = await _db.Games.ToListAsync();
+            var Games = new List<Game>();
 
-            if (Games.Count == 0)
+            try
             {
-                throw new NullReferenceException();
+                Games = await _db.Games.ToListAsync();
+
+                if (Games.Count == 0)
+                {
+                    throw new NullReferenceException();
+                }
+                return Games;
             }
-            return Games;
+            catch (NullReferenceException e)
+            {
+                _logger.LogWarning("All Games Returns Zero, Did You Just Reset The DB?");
+                return null;
+            }
         }
-        catch (NullReferenceException e)
-        {
-            _logger.LogWarning("All Games Returns Zero, Did You Just Reset The DB?");
-            return null;
-        }
+
+
     }
 
     public Task<bool> StartGameAsync(Game game)
@@ -119,25 +130,30 @@ public class GameService : IGameService
     {
         _logger.LogInformation("Info: Create New Game Async");
 
-        try
+        await using (var _db = await _dbContextFactory.CreateDbContextAsync())
         {
-            if (saveGame is null)
+            try
             {
-                throw new NullReferenceException();
+                if (saveGame is null)
+                {
+                    throw new NullReferenceException();
+                }
+                else
+                {
+                    await _db.Games.AddAsync(saveGame);
+                    await _db.SaveChangesAsync();
+                    _games.Add(saveGame);
+                    return true;
+                }
             }
-            else
+            catch (NullReferenceException e)
             {
-                await _db.Games.AddAsync(saveGame);
-                await _db.SaveChangesAsync();
-                _games.Add(saveGame);
-                return true;
+                _logger.LogError("Error: newGame is null. Unable to create new game\n {e}", e.ToString());
+                return false;
             }
         }
-        catch (NullReferenceException e)
-        {
-            _logger.LogError("Error: newGame is null. Unable to create new game\n {e}", e.ToString());
-            return false;
-        }
+
+
     }
 
     //players list should come from the httprequest from the front end
