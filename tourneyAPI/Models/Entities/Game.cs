@@ -1,6 +1,14 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Entities;
+
+public enum Votes
+{
+    ZERO,
+    ONE,
+    TWO
+}
 
 public class Game
 {
@@ -8,6 +16,7 @@ public class Game
     public List<Player> CurrentPlayers { get; set; } = new List<Player>();
     public DateTime CurrentDate { get; set; } = DateTime.UtcNow;
     public int CurrentRound { get; set; } = 0;
+    public Votes _votes { get; set; }
 
     public void AddPlayer(Player player)
     {

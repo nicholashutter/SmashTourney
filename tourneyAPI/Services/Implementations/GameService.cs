@@ -11,13 +11,37 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore.Internal;
 
+enum Votes
+{
+    ZERO,
+    ONE,
+    TWO
+
+}
+
+//TODO change all passing around game object references to 
+//grabbing from the _games list to make sure _games is single
+//source of truth
+//TODO rebuild db migration to account for addition of vote property
+//in game entity
+
 public class GameService : IGameService
 {
+    //internal logger 
     private readonly ILogger<GameService> _logger;
+
+    //internal reference to dbContextFactory which allows
+    //for local access to db inside of singleton class
     private readonly IDbContextFactory<AppDBContext> _dbContextFactory;
+
+    //list that holds all currently played games in memory
     private List<Game> _games;
+
+    //list that represents users authenticated but not in a specific game
     public List<User> _lobby;
 
+
+    //this class has a singleton lifetime and is created on application start
     public GameService(ILogger<GameService> logger, IDbContextFactory<AppDBContext> dbContextFactory)
     {
         _logger = logger;
@@ -26,27 +50,39 @@ public class GameService : IGameService
         _lobby = new List<User>();
     }
 
-    public Guid CreateGame()
+    //this method will be called by the route handler
+    public Task<Guid> CreateGame()
     {
-        Game game = new Game();
-        _games.Add(game);
-        return game.Id;
-    }
-
-    public bool EndGameAsync(Game game)
-    {
-        foreach (Game g in _games)
+        Task<Guid> result = Task.Run(() =>
         {
-            if (game.Id == g.Id)
+            Game game = new Game();
+            _games.Add(game);
+            return game.Id;
+        });
+        return result;
+    }
+
+    //this method will be called by the route handler
+    public Task<bool> EndGameAsync(Guid endGameId)
+    {
+        Task<bool> result = Task.Run(() =>
+        {
+            foreach (Game g in _games)
             {
-                _games.Remove(game);
-                return true;
+                if (endGameId == g.Id)
+                {
+                    _games.Remove(g);
+                    return true;
+                }
             }
-        }
-        return false;
+            return false;
+        });
+        return result;
     }
 
 
+    //this method should be called internally and 
+    //may get changed to private
     public async Task<Game?> GetGameByIdAsync(Guid Id)
     {
         _logger.LogInformation("Info: Get Game By Id {Id}", Id);
@@ -77,6 +113,7 @@ public class GameService : IGameService
 
     }
 
+    //this is a debugging method that can be called by route handler
     public async Task<IEnumerable<Game>?> GetAllGamesAsync()
     {
         _logger.LogInformation("Info: Get All Games");
@@ -105,24 +142,36 @@ public class GameService : IGameService
 
     }
 
-    public Task<bool> StartGameAsync()
+    //this route should be called by the route handler
+    //AddPlayersToGame() should have been called already
+    public Task<bool> StartGameAsync(Guid existingGameId)
     {
-
-        //AddPlayersToGame()
+        //GenerateBracket()
+        //result = GetGameByIdAsync(existingGameId)
+        //if result is null
+        //startRoundAsync
+        //else
+        //await LoadGameAsync
+        //startRound  
         throw new NotImplementedException();
     }
 
-    public Task<bool> StartRoundAsync(Game game)
+    public Task<bool> StartRoundAsync(Game currentGame)
     {
+        //load two new players
+        //increment currentGame.currentRound
         throw new NotImplementedException();
     }
 
-    public Task<bool> EndRoundAsync(Game game)
-    {
-        throw new NotImplementedException();
-    }
+    /* this might be redundant method
+        public Task<bool> EndRoundAsync(Game game)
+        {
+            throw new NotImplementedException();
+        } */
 
 
+    //LoadGameAsync will check against the db and attempt to restore
+    //game state from games persisted in db
     public async Task<bool> LoadGameAsync(Game loadGame)
     {
         _logger.LogInformation("Info: Create New Game Async");
@@ -155,6 +204,8 @@ public class GameService : IGameService
         }
     }
 
+    //route handler will call this method 
+    //SaveGame will persist current game state to the database
     public async Task<bool> SaveGameAsync(Game saveGame)
     {
         _logger.LogInformation("Info: Create New Game Async");
@@ -185,7 +236,9 @@ public class GameService : IGameService
 
     }
 
-    public Task<bool> GenerateBracket(Guid gameId)
+
+    //route handler will call this method
+    public Task<bool> GenerateBracketAsync(Guid gameId)
     {
         Task<bool> result = Task.Run(() =>
         {
@@ -205,10 +258,23 @@ public class GameService : IGameService
         return result;
     }
 
+    //should be called by route handler
+    public Task<bool> UpdateBracketAsync(Guid gameId)
+    {
+        Task<bool> result = Task.Run(() =>
+       {
+           //this method may or may not be needed
+           return true;
+       });
+
+        return result;
+    }
+
+    //route handler will call this method
     //players list should come from the httprequest from the front end
     //only adds users already in lobby to game if their UserId from the back end and 
     //userId from the player object submitted by the front end agree
-    public Task<bool> AddPlayersToGame(List<Player> players, Guid gameId)
+    public Task<bool> AddPlayersToGameAsync(List<Player> players, Guid gameId)
     {
         _logger.LogInformation("Info: Loading Users and Creating Their Corresponding Players");
 
@@ -320,7 +386,8 @@ public class GameService : IGameService
 
     }
 
-    public Task<bool> UpdatePlayerScore(Guid gameId, Player RoundWinner, Player RoundLoser)
+    //updatePlayerScore updates the score each round, in game
+    public Task<bool> UpdatePlayerScoreAsync(Guid gameId, Player RoundWinner, Player RoundLoser)
     {
         Task<bool> result = Task.Run(() =>
         {
@@ -333,12 +400,16 @@ public class GameService : IGameService
         return result;
     }
 
+    //updateUserScore updates the score either when the game ends
+    // , or is saved and does persist the changes to the db
+    //Should be called by route handler
     public Task<bool> UpdateUserScore(Guid gameId)
     {
         Task<bool> result = Task.Run(() =>
         {
             //create userService context
-            //foundGame is _games.FindAsync(gameId)
+            //foundGame is GetGameByIdAsync()
+            //if foundGame is not null
             //iterate over players, get their userIds
             //iterate over list<userIds> use current player score values
             //to increment or decrement all time User score values
@@ -350,8 +421,13 @@ public class GameService : IGameService
         return result;
     }
 
-    public Task<bool> VoteHandlerAsync(Guid playerID, Guid playerToVoteForID)
+    //should be called by route handler
+    public Task<bool> VoteHandlerAsync(Guid playerID, Player RoundWinner, Player RoundLoser)
     {
+        //player to vote for should come from front end
+        //only once two votes are received should the round move forward
+        //only players must be valid and in game for the vote to count
+        //both votes must agree on the winner for the vote to count
         throw new NotImplementedException();
     }
 }
