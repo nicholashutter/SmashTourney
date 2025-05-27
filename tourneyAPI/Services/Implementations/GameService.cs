@@ -156,7 +156,7 @@ public class GameService : IGameService
         throw new NotImplementedException();
     }
 
-    public Task<bool> StartRoundAsync(Game currentGame)
+    public Task<bool> StartRoundAsync(Game gameId)
     {
         //load two new players
         //increment currentGame.currentRound
@@ -172,7 +172,7 @@ public class GameService : IGameService
 
     //LoadGameAsync will check against the db and attempt to restore
     //game state from games persisted in db
-    public async Task<bool> LoadGameAsync(Game loadGame)
+    public async Task<bool> LoadGameAsync(Guid gameId)
     {
         _logger.LogInformation("Info: Create New Game Async");
 
@@ -180,21 +180,13 @@ public class GameService : IGameService
         {
             try
             {
-                if (loadGame is null)
+                var foundGame = await _db.Games.FindAsync(gameId);
+                if (foundGame is null)
                 {
-                    _logger.LogError("Error: loadGame is null. Unable to create new game");
+                    _logger.LogError("Error: foundGame is null. Unable to create new game");
                     throw new NullReferenceException();
                 }
-                else
-                {
-                    var foundGame = await _db.Games.FindAsync(loadGame);
-                    if (foundGame is null)
-                    {
-                        _logger.LogError("Error: foundGame is null. Unable to create new game");
-                        throw new NullReferenceException();
-                    }
-                    return true;
-                }
+                return true;
             }
             catch (NullReferenceException e)
             {
@@ -214,21 +206,23 @@ public class GameService : IGameService
         {
             try
             {
-                if (saveGame is null)
-                {
-                    throw new NullReferenceException();
-                }
-                else
+                bool flag = await _db.Games.ContainsAsync(saveGame);
+
+                if (flag is false)
                 {
                     await _db.Games.AddAsync(saveGame);
                     await _db.SaveChangesAsync();
-                    _games.Add(saveGame);
-                    return true;
                 }
+                else
+                {
+                    _db.Games.Update(saveGame);
+                }
+
+                return true;
             }
             catch (NullReferenceException e)
             {
-                _logger.LogError("Error: newGame is null. Unable to create new game\n {e}", e.ToString());
+                _logger.LogError("Error: {e}", e.ToString());
                 return false;
             }
         }

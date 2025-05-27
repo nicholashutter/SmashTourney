@@ -8,14 +8,14 @@ public interface IGameService
 {
     Task<Guid> CreateGame();
     Task<bool> EndGameAsync(Guid gameId);
-    Task<Game?> GetGameByIdAsync(Guid Id);
+    Task<Game?> GetGameByIdAsync(Guid getId);
     Task<IEnumerable<Game>?> GetAllGamesAsync();
     Task<bool> StartGameAsync(Guid existingGameId);
-    Task<bool> StartRoundAsync(Game currentGame);
+    Task<bool> StartRoundAsync(Guid gameId);
 
     /*
     Task<bool> EndRoundAsync(Game game); */ 
-    Task<bool> LoadGameAsync(Game loadGame);
+    Task<bool> LoadGameAsync(Guid gameId);
     Task<bool> SaveGameAsync(Game saveGame);
 
     Task<bool> GenerateBracketAsync(Guid gameId);
