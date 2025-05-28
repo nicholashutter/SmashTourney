@@ -11,12 +11,10 @@ public interface IGameService
     Task<Game?> GetGameByIdAsync(Guid getId);
     Task<IEnumerable<Game>?> GetAllGamesAsync();
     Task<bool> StartGameAsync(Guid existingGameId);
-    Task<bool> StartRoundAsync(Guid gameId);
-
-    /*
-    Task<bool> EndRoundAsync(Game game); */ 
+    Task<List<Player>> StartRoundAsync(Guid gameId);
+    Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser); 
     Task<bool> LoadGameAsync(Guid gameId);
-    Task<bool> SaveGameAsync(Game saveGame);
+    Task<bool> SaveGameAsync(Guid gameId);
 
     Task<bool> GenerateBracketAsync(Guid gameId);
 

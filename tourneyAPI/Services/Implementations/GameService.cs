@@ -19,9 +19,6 @@ enum Votes
 
 }
 
-//TODO change all passing around game object references to 
-//grabbing from the _games list to make sure _games is single
-//source of truth
 //TODO rebuild db migration to account for addition of vote property
 //in game entity
 
@@ -53,7 +50,7 @@ public class GameService : IGameService
     //this method will be called by the route handler
     public Task<Guid> CreateGame()
     {
-        Task<Guid> result = Task.Run(() =>
+        Task<Guid> result = Task.Run(async () =>
         {
             Game game = new Game();
             _games.Add(game);
@@ -156,18 +153,22 @@ public class GameService : IGameService
         throw new NotImplementedException();
     }
 
-    public Task<bool> StartRoundAsync(Game gameId)
+    public Task<List<Player>> StartRoundAsync(Guid gameId)
     {
         //load two new players
         //increment currentGame.currentRound
+        //return those players to the front end
         throw new NotImplementedException();
     }
 
-    /* this might be redundant method
-        public Task<bool> EndRoundAsync(Game game)
-        {
-            throw new NotImplementedException();
-        } */
+
+    public Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser)
+    {
+        //call voteHandlerAsync()
+        //call UpdatePlayerScoreAsync()
+        //call UpdateBracketAsync()
+        throw new NotImplementedException();
+    }
 
 
     //LoadGameAsync will check against the db and attempt to restore
@@ -198,7 +199,7 @@ public class GameService : IGameService
 
     //route handler will call this method 
     //SaveGame will persist current game state to the database
-    public async Task<bool> SaveGameAsync(Game saveGame)
+    public async Task<bool> SaveGameAsync(Guid gameId)
     {
         _logger.LogInformation("Info: Create New Game Async");
 
@@ -206,22 +207,29 @@ public class GameService : IGameService
         {
             try
             {
-                bool flag = await _db.Games.ContainsAsync(saveGame);
+                var foundGame = await _db.Games.FindAsync(gameId);
 
-                if (flag is false)
+                if (foundGame is not null)
                 {
-                    await _db.Games.AddAsync(saveGame);
+                    _db.Games.Update(foundGame);
                     await _db.SaveChangesAsync();
                 }
                 else
                 {
-                    _db.Games.Update(saveGame);
+                    throw new Exception();
                 }
 
                 return true;
             }
             catch (NullReferenceException e)
             {
+                _logger.LogError("Error: {e}", e.ToString());
+                return false;
+            }
+            catch (Exception e)
+            {
+
+                //TODO write custom exception classes to specify entityNotFound exception 
                 _logger.LogError("Error: {e}", e.ToString());
                 return false;
             }
@@ -327,6 +335,7 @@ public class GameService : IGameService
         return result;
     }
 
+    //called by route handler
     //will only let authenticated users further inside the application if the gameID presented is valid
     public Task<bool> AddUserToLobby(User addUser, Guid gameId)
     {
@@ -380,6 +389,8 @@ public class GameService : IGameService
 
     }
 
+    // called by endRoundAsync 
+    //this method may become private
     //updatePlayerScore updates the score each round, in game
     public Task<bool> UpdatePlayerScoreAsync(Guid gameId, Player RoundWinner, Player RoundLoser)
     {
@@ -396,7 +407,8 @@ public class GameService : IGameService
 
     //updateUserScore updates the score either when the game ends
     // , or is saved and does persist the changes to the db
-    //Should be called by route handler
+    //called by endRoundAsync
+    //may become private
     public Task<bool> UpdateUserScore(Guid gameId)
     {
         Task<bool> result = Task.Run(() =>
@@ -415,7 +427,8 @@ public class GameService : IGameService
         return result;
     }
 
-    //should be called by route handler
+    //called by endRoundAsync
+    //may become private
     public Task<bool> VoteHandlerAsync(Guid playerID, Player RoundWinner, Player RoundLoser)
     {
         //player to vote for should come from front end
