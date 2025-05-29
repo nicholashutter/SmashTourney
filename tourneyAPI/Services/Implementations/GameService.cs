@@ -3,13 +3,12 @@ namespace Services;
 /* GameService implements game operation logic */
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Threading.Tasks;
 using Entities;
 using Services;
+using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore.Internal;
 
 enum Votes
 {
@@ -38,7 +37,7 @@ public class GameService : IGameService
     public List<User> _lobby;
 
 
-    //this class has a singleton lifetime and is created on application start
+    //GameService has a singleton lifetime and is created on application start
     public GameService(ILogger<GameService> logger, IDbContextFactory<AppDBContext> dbContextFactory)
     {
         _logger = logger;
@@ -47,7 +46,7 @@ public class GameService : IGameService
         _lobby = new List<User>();
     }
 
-    //this method will be called by the route handler
+    //api route NewGame 
     public Task<Guid> CreateGame()
     {
         Task<Guid> result = Task.Run(async () =>
@@ -59,7 +58,7 @@ public class GameService : IGameService
         return result;
     }
 
-    //this method will be called by the route handler
+    //api route EndGame
     public Task<bool> EndGameAsync(Guid endGameId)
     {
         Task<bool> result = Task.Run(() =>
@@ -77,9 +76,7 @@ public class GameService : IGameService
         return result;
     }
 
-
-    //this method should be called internally and 
-    //may get changed to private
+    //api route GetGameById (debug)
     public async Task<Game?> GetGameByIdAsync(Guid Id)
     {
         _logger.LogInformation("Info: Get Game By Id {Id}", Id);
@@ -93,16 +90,16 @@ public class GameService : IGameService
 
                 if (foundGame is null)
                 {
-                    throw new NullReferenceException();
+                    throw new GameNotFoundException("GetGameByIdAsync");
                 }
                 else
                 {
                     return foundGame;
                 }
             }
-            catch (NullReferenceException e)
+            catch (GameNotFoundException e)
             {
-                _logger.LogInformation("Error: Game not found or otherwise null\n {e}", e.ToString());
+                _logger.LogInformation($"Error: Game not found or otherwise null\n {e}");
                 return null;
             }
         }
@@ -110,7 +107,8 @@ public class GameService : IGameService
 
     }
 
-    //this is a debugging method that can be called by route handler
+
+    //api route GetAllGames (debug)
     public async Task<IEnumerable<Game>?> GetAllGamesAsync()
     {
         _logger.LogInformation("Info: Get All Games");
@@ -125,13 +123,13 @@ public class GameService : IGameService
 
                 if (Games.Count == 0)
                 {
-                    throw new NullReferenceException();
+                    throw new EmptyGamesCollectionException("GetAllGamesAsync");
                 }
                 return Games;
             }
-            catch (NullReferenceException e)
+            catch (EmptyGamesCollectionException e)
             {
-                _logger.LogWarning("All Games Returns Zero, Did You Just Reset The DB?");
+                _logger.LogWarning($"All Games Returns Zero, Did You Just Reset The DB? \n {e}");
                 return null;
             }
         }
@@ -139,12 +137,20 @@ public class GameService : IGameService
 
     }
 
-    //this route should be called by the route handler
+    //api route StartGame
     //AddPlayersToGame() should have been called already
     public Task<bool> StartGameAsync(Guid existingGameId)
     {
-        //GenerateBracket()
-        //result = GetGameByIdAsync(existingGameId)
+
+        try
+        {
+            var foundGame = GetGameByIdAsync(existingGameId);
+            GenerateBracketAsync(existingGameId);
+        }
+        catch (Exception e)
+        {
+
+        }
         //if result is null
         //startRoundAsync
         //else
@@ -184,14 +190,13 @@ public class GameService : IGameService
                 var foundGame = await _db.Games.FindAsync(gameId);
                 if (foundGame is null)
                 {
-                    _logger.LogError("Error: foundGame is null. Unable to create new game");
-                    throw new NullReferenceException();
+                    throw new GameNotFoundException("LoadGameAsyn");
                 }
                 return true;
             }
-            catch (NullReferenceException e)
+            catch (GameNotFoundException e)
             {
-                _logger.LogError("Error: {e}", e.ToString());
+                _logger.LogError($"Error: foundGame is null. Unable to create new game \n {e}");
                 return false;
             }
         }
@@ -216,21 +221,16 @@ public class GameService : IGameService
                 }
                 else
                 {
-                    throw new Exception();
+                    throw new GameNotFoundException("SaveGameAsync");
                 }
 
                 return true;
             }
-            catch (NullReferenceException e)
-            {
-                _logger.LogError("Error: {e}", e.ToString());
-                return false;
-            }
-            catch (Exception e)
+            catch (GameNotFoundException e)
             {
 
                 //TODO write custom exception classes to specify entityNotFound exception 
-                _logger.LogError("Error: {e}", e.ToString());
+                _logger.LogError($"Error: {e}");
                 return false;
             }
         }
@@ -297,7 +297,7 @@ public class GameService : IGameService
                 if (index == -1)
                 {
                     _logger.LogWarning($"Warning: Unable To Find Game With gameId {gameId}");
-                    throw new Exception();
+                    throw new GameNotFoundException("AddPlayersToGameAsync");
                 }
 
                 foreach (User user in _lobby)
@@ -326,9 +326,9 @@ public class GameService : IGameService
                 _logger.LogError($"Error: Index Value out of bounds");
                 return false;
             }
-            catch (Exception e)
+            catch (GameNotFoundException e)
             {
-                _logger.LogInformation($"Error: Failed to Create Players from Users{e.ToString}");
+                _logger.LogInformation($"Error: Failed to Create Players from Users \n {e}");
                 return false;
             }
         });
@@ -349,7 +349,7 @@ public class GameService : IGameService
                 {
                     _logger.LogError($"Unable to add User to game: addUser is null");
 
-                    throw new NullReferenceException();
+                    throw new InvalidArgumentException("AddUserToLobby");
                 }
                 else
                 {
@@ -364,7 +364,7 @@ public class GameService : IGameService
                         if (foundGame is null)
                         {
                             _logger.LogError($"Unable To Locate Game With GameId {gameId}");
-                            throw new NullReferenceException();
+                            throw new GameNotFoundException("AddUserToLobby");
                         }
                         else
                         {
@@ -375,13 +375,14 @@ public class GameService : IGameService
                     }
                 }
             }
-            catch (NullReferenceException)
+            catch (GameNotFoundException e)
             {
+                _logger.LogError($"{e}");
                 return false;
             }
-            catch (Exception e)
+            catch (InvalidArgumentException e)
             {
-                _logger.LogWarning($"Unable to add User to game: _games.count is {_games.Count}: {e.ToString()}");
+                _logger.LogError($"{e}");
                 return false;
             }
         });

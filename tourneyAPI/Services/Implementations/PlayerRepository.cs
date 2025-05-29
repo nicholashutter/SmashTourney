@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Entities;
+using CustomExceptions;
 using Microsoft.EntityFrameworkCore; 
 using Microsoft.Extensions.Logging; 
 
@@ -30,7 +31,7 @@ public class PlayerRepository : IPlayerRepository
         {
             if (newPlayer is null)
             {
-                throw new NullReferenceException();
+                throw new PlayerNotFoundException("CreateAsync");
             }
             else
             {
@@ -39,9 +40,9 @@ public class PlayerRepository : IPlayerRepository
                 return true; 
             }
         }
-        catch (NullReferenceException e)
+        catch (PlayerNotFoundException e)
         {
-            _logger.LogError("Error: newPlayer is null. Unable to create newPlayer\n {e}", e.ToString());
+            _logger.LogError($"Error: newPlayer is null. Unable to create newPlayer\n {e}");
             return false; 
         }
     }
@@ -57,16 +58,16 @@ public class PlayerRepository : IPlayerRepository
 
             if (foundPlayer is null)
             {
-                throw new NullReferenceException();
+                throw new PlayerNotFoundException("GetByIdAsync");
             }
             else
             {
                 return foundPlayer;
             }
         }
-        catch (NullReferenceException e)
+        catch (PlayerNotFoundException e)
         {
-            _logger.LogInformation("Error: Player not found or otherwise null\n {e}", e.ToString());
+            _logger.LogInformation($"Error: Player not found or otherwise null\n {e}");
             return null;
         }
     }
@@ -83,18 +84,18 @@ public class PlayerRepository : IPlayerRepository
 
             if (Players.Count == 0)
             {
-                throw new NullReferenceException();
+                throw new EmptyPlayersCollectionException("GetAllAsync");
             }
             return Players;
         }
-        catch (NullReferenceException e)
+        catch (EmptyPlayersCollectionException e)
         {
-            _logger.LogWarning("All Players Returns Zero, Did You Just Reset The DB?");
+            _logger.LogWarning($"All Players Returns Zero, Did You Just Reset The DB? \n {e}");
             return null; 
         }
     }
 
-    public async Task<bool> UpdateAsync(Player updatePlayer) 
+    public async Task<bool> UpdateAsync(Player updatePlayer)
     {
         _logger.LogInformation("Info: Update Player Async");
 
@@ -102,35 +103,40 @@ public class PlayerRepository : IPlayerRepository
         {
             if (updatePlayer == null)
             {
-                throw new NullReferenceException();
+                throw new InvalidArgumentException("UpdateAsync");
             }
             else
             {
                 var foundPlayer = await _db.Users.FindAsync(updatePlayer.Id);
                 if (foundPlayer is null)
                 {
-                    throw new NullReferenceException();
+                    throw new PlayerNotFoundException("UpdateAsync");
                 }
                 else
                 {
                     _db.Update(foundPlayer);
                     await _db.SaveChangesAsync();
-                    return true; 
+                    return true;
                 }
             }
         }
-        catch (NullReferenceException e)
+        catch (PlayerNotFoundException e)
         {
-            _logger.LogError("Error: updatePlayer is null. Unable to updatePlayer\n {e}", e.ToString());
-            return false; 
+            _logger.LogError($"Error: updatePlayer is null. Unable to updatePlayer\n {e}");
+            return false;
+        }
+        catch (InvalidArgumentException e)
+        {
+            _logger.LogError("Error: {e}", e.ToString());
+            return false;
         }
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        _logger.LogInformation("Info: Delete Player Async"); 
+        _logger.LogInformation("Info: Delete Player Async");
 
-        var foundPlayer = new Player(); 
+        var foundPlayer = new Player();
 
         try
         {
@@ -138,7 +144,7 @@ public class PlayerRepository : IPlayerRepository
 
             if (foundPlayer == null)
             {
-                throw new NullReferenceException();
+                throw new PlayerNotFoundException("DeleteAsync");
             }
             else
             {
@@ -147,9 +153,9 @@ public class PlayerRepository : IPlayerRepository
                 return true;
             }
         }
-        catch (NullReferenceException e)
+        catch (PlayerNotFoundException e)
         {
-            _logger.LogWarning("Warning: Player not found. Unable to delete\n {e}", e.ToString());
+            _logger.LogWarning($"Warning: Player not found. Unable to delete\n {e}");
             return false;
         }
     }
