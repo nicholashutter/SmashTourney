@@ -13,7 +13,7 @@ public interface IGameService
     Task<bool> StartGameAsync(Guid existingGameId);
     Task<List<Player>> StartRoundAsync(Guid gameId);
     Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser); 
-    Task<bool> LoadGameAsync(Guid gameId);
+    Task<Game?> LoadGameAsync(Guid gameId);
     Task<bool> SaveGameAsync(Guid gameId);
 
     Task<bool> GenerateBracketAsync(Guid gameId);

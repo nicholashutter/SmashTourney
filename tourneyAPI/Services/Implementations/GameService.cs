@@ -17,10 +17,6 @@ enum Votes
     TWO
 
 }
-
-//TODO rebuild db migration to account for addition of vote property
-//in game entity
-
 public class GameService : IGameService
 {
     //internal logger 
@@ -49,7 +45,7 @@ public class GameService : IGameService
     //api route NewGame 
     public Task<Guid> CreateGame()
     {
-        Task<Guid> result = Task.Run(async () =>
+        Task<Guid> result = Task.Run(() =>
         {
             Game game = new Game();
             _games.Add(game);
@@ -139,26 +135,41 @@ public class GameService : IGameService
 
     //api route StartGame
     //AddPlayersToGame() should have been called already
-    public Task<bool> StartGameAsync(Guid existingGameId)
+    public async Task<bool> StartGameAsync(Guid existingGameId)
     {
 
         try
         {
-            var foundGame = GetGameByIdAsync(existingGameId);
-            GenerateBracketAsync(existingGameId);
+            var foundGame = await GetGameByIdAsync(existingGameId);
+            if (foundGame is null)
+            {
+                foundGame = await LoadGameAsync(existingGameId);
+                if (foundGame is null)
+                {
+                    throw new GameNotFoundException("StartGameAsync");
+                }
+            }
+            var success = await GenerateBracketAsync(existingGameId);
+            if (!success)
+            {
+                throw new InvalidFunctionResponseException("StartGameAsync");
+            }
+            return true;
         }
-        catch (Exception e)
+        catch (InvalidFunctionResponseException e)
         {
-
+            _logger.LogError($"{e}");
+            return false;
         }
-        //if result is null
-        //startRoundAsync
-        //else
-        //await LoadGameAsync
-        //startRound  
-        throw new NotImplementedException();
+        catch (GameNotFoundException e)
+        {
+            _logger.LogError($"{e}");
+            return false;
+        }
     }
 
+    //api route StartRound
+    //list of players should be unpacked by route and returned in HTTP response
     public Task<List<Player>> StartRoundAsync(Guid gameId)
     {
         //load two new players
@@ -167,7 +178,8 @@ public class GameService : IGameService
         throw new NotImplementedException();
     }
 
-
+    //api route EndRound
+    //can also be called by api route EndGame 
     public Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser)
     {
         //call voteHandlerAsync()
@@ -179,7 +191,7 @@ public class GameService : IGameService
 
     //LoadGameAsync will check against the db and attempt to restore
     //game state from games persisted in db
-    public async Task<bool> LoadGameAsync(Guid gameId)
+    public async Task<Game?> LoadGameAsync(Guid gameId)
     {
         _logger.LogInformation($"Info: Create New Game Async");
 
@@ -192,12 +204,12 @@ public class GameService : IGameService
                 {
                     throw new GameNotFoundException("LoadGameAsyn");
                 }
-                return true;
+                return foundGame;
             }
             catch (GameNotFoundException e)
             {
                 _logger.LogError($"Error: foundGame is null. Unable to create new game \n {e}");
-                return false;
+                return null;
             }
         }
     }
