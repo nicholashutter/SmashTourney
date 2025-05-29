@@ -1,19 +1,25 @@
-﻿namespace Entities;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Entities;
 
 public class User
 {
+        [Required]
         public Guid Id { get; set; }
-        public string Username { get; set; } = default!;
-        public string Email { get; set; } = default!;
-        public DateTime RegistrationDate { get; set; }
-        public DateTime? LastLoginDate { get; set; }
-        public int AllTimeMatches { get; set; }
-        public int AllTimeWins { get; set; }
-        public int AllTimeLosses { get; set; }
-        private string _passwordHash = "";
-        private string _passwordSalt = "";
+        [Required]
+        public string Username { get; set; } = "";
+        [Required]
+        public string Email { get; set; } = "";
+        [Required]
+        public DateTime RegistrationDate { get; set; } = DateTime.UtcNow;
+        public DateTime? LastLoginDate { get; set; } = DateTime.UtcNow;
+        public int AllTimeMatches { get; set; } = 0;
+        public int AllTimeWins { get; set; } = 0;
+        public int AllTimeLosses { get; set; } = 0;
 
-        public void SetPasswordHash(string hash) => _passwordHash = hash;
-        public void SetPasswordSalt(string salt) => _passwordSalt = salt;
+        [Required]
+        private string _passwordHash { get; set; } = "";
+        [Required]
+        private string _passwordSalt { get; set; } = "";
 
 }

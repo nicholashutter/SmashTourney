@@ -12,9 +12,14 @@ public enum Votes
 
 public class Game
 {
+    [Required]
     public Guid Id { get; set; }
     public List<Player> CurrentPlayers { get; set; } = new List<Player>();
+
+    [Required]
     public DateTime CurrentDate { get; set; } = DateTime.UtcNow;
+
+    [Required]
     public int CurrentRound { get; set; } = 0;
     public Votes _votes { get; set; }
 

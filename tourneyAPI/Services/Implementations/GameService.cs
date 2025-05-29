@@ -79,7 +79,7 @@ public class GameService : IGameService
     //api route GetGameById (debug)
     public async Task<Game?> GetGameByIdAsync(Guid Id)
     {
-        _logger.LogInformation("Info: Get Game By Id {Id}", Id);
+        _logger.LogInformation($"Info: Get Game By Id {Id}");
 
         await using (var _db = await _dbContextFactory.CreateDbContextAsync())
         {
@@ -111,7 +111,7 @@ public class GameService : IGameService
     //api route GetAllGames (debug)
     public async Task<IEnumerable<Game>?> GetAllGamesAsync()
     {
-        _logger.LogInformation("Info: Get All Games");
+        _logger.LogInformation($"Info: Get All Games");
 
         await using (var _db = await _dbContextFactory.CreateDbContextAsync())
         {
@@ -181,7 +181,7 @@ public class GameService : IGameService
     //game state from games persisted in db
     public async Task<bool> LoadGameAsync(Guid gameId)
     {
-        _logger.LogInformation("Info: Create New Game Async");
+        _logger.LogInformation($"Info: Create New Game Async");
 
         await using (var _db = await _dbContextFactory.CreateDbContextAsync())
         {
@@ -206,7 +206,7 @@ public class GameService : IGameService
     //SaveGame will persist current game state to the database
     public async Task<bool> SaveGameAsync(Guid gameId)
     {
-        _logger.LogInformation("Info: Create New Game Async");
+        _logger.LogInformation($"Info: Create New Game Async");
 
         await using (var _db = await _dbContextFactory.CreateDbContextAsync())
         {
@@ -278,7 +278,7 @@ public class GameService : IGameService
     //userId from the player object submitted by the front end agree
     public Task<bool> AddPlayersToGameAsync(List<Player> players, Guid gameId)
     {
-        _logger.LogInformation("Info: Loading Users and Creating Their Corresponding Players");
+        _logger.LogInformation($"Info: Loading Users and Creating Their Corresponding Players");
 
         Task<bool> result = Task.Run(() =>
         {
@@ -318,7 +318,7 @@ public class GameService : IGameService
                         }
                     }
                 }
-                _logger.LogInformation("Info: Players Created From Users");
+                _logger.LogInformation($"Info: Players Created From Users");
                 return true;
             }
             catch (IndexOutOfRangeException)
@@ -432,7 +432,6 @@ public class GameService : IGameService
     //may become private
     public Task<bool> VoteHandlerAsync(Guid playerID, Player RoundWinner, Player RoundLoser)
     {
-        //player to vote for should come from front end
         //only once two votes are received should the round move forward
         //only players must be valid and in game for the vote to count
         //both votes must agree on the winner for the vote to count
