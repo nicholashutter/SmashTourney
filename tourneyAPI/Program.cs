@@ -37,4 +37,19 @@ UserRouter.Map(app);
 PlayerRouter.Map(app);
 GameRouter.Map(app);
 
+Console.WriteLine("TourneyApp Running. Press Ctrl + C to End...");
+
+Console.CancelKeyPress += (sender, eventArgs) =>
+{
+    Console.WriteLine("\nShutting down...");
+    eventArgs.Cancel = true;
+    app.Lifetime.StopApplication();
+};
+
 app.Run();
+
+
+
+
+
+

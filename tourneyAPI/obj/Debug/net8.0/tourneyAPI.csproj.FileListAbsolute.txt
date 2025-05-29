@@ -240,6 +240,7 @@ C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\t
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\tourneyAPI.AssemblyInfo.cs
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\tourneyAPI.csproj.CoreCompileInputs.cache
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\tourneyAPI.MvcApplicationPartsAssemblyInfo.cache
+C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\tourneyAPI.sourcelink.json
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\staticwebassets.build.json
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\staticwebassets.development.json
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\staticwebassets\msbuild.tourneyAPI.Microsoft.AspNetCore.StaticWebAssets.props
@@ -254,4 +255,3 @@ C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\r
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\tourneyAPI.pdb
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\tourneyAPI.genruntimeconfig.cache
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\ref\tourneyAPI.dll
-C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\tourneyAPI.sourcelink.json

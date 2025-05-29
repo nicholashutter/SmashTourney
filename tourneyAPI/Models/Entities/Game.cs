@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Microsoft.Net.Http.Headers;
 
 namespace Entities;
 
@@ -17,21 +19,11 @@ public class Game
     public List<Player> CurrentPlayers { get; set; } = new List<Player>();
 
     [Required]
-    public DateTime CurrentDate { get; set; } = DateTime.UtcNow;
+    public DateTime currentDate { get; set; } = DateTime.UtcNow;
 
     [Required]
-    public int CurrentRound { get; set; } = 0;
-    public Votes _votes { get; set; }
+    public int currentRound { get; set; } = 0;
+    public Votes votes { get; set; } = Votes.ZERO;
 
-    public void AddPlayer(Player player)
-    {
-        CurrentPlayers.Add(player);
-    }
-
-    public void RemovePlayer(Guid playerId)
-    {
-        var player = CurrentPlayers.Find(p => p.Id == playerId);
-        if (player != null)
-            CurrentPlayers.Remove(player);
-    }
+    public int byes { get; set; } = 0;
 }

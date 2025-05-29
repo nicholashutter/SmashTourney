@@ -162,7 +162,7 @@ public class UserRepository : IUserRepository
         }
         catch (UserNotFoundException e)
         {
-            _logger.LogWarning("Warning: User not found. Unable to delete");
+            _logger.LogWarning($"Warning: User not found. Unable to delete {e}");
             return false;
         }
     }

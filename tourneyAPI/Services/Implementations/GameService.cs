@@ -257,15 +257,87 @@ public class GameService : IGameService
         Task<bool> result = Task.Run(() =>
         {
 
-            //get game from _games by guid
-            //operate on currentGame.Players()
-            //currentGame.players.Count to determine bracket size
-            //always round up to higher power of 2
-            //for every time we round up, we add one "bye"
-            //use null object pattern or dummy player "loserPlayer"
-            //who always loses and is randomly inserted bye number of times
-            //iterate through players by Id and swap indexs in players in place
-            //using Random() perform the processes a Random() number of times
+            try
+            {
+                var foundGame = _games.Find(g => g.Id == gameId);
+
+                if (foundGame is null)
+                {
+                    throw new GameNotFoundException("GenerateBracketAsync");
+                }
+
+                if (foundGame.CurrentPlayers.Count < 2)
+                {
+                    throw new BracketGenrationException($"Bracket size invalid {foundGame.CurrentPlayers.Count}");
+                }
+                else if (foundGame.CurrentPlayers.Count < 5)
+                {
+                    foundGame.byes = Math.Abs(foundGame.CurrentPlayers.Count - 4);
+                }
+                else if (foundGame.CurrentPlayers.Count < 9)
+                {
+                    foundGame.byes = Math.Abs(foundGame.CurrentPlayers.Count - 8);
+                }
+                else if (foundGame.CurrentPlayers.Count < 17)
+                {
+                    foundGame.byes = Math.Abs(foundGame.CurrentPlayers.Count - 16);
+                }
+                else if (foundGame.CurrentPlayers.Count < 33)
+                {
+                    foundGame.byes = Math.Abs(foundGame.CurrentPlayers.Count - 32);
+                }
+                else if (foundGame.CurrentPlayers.Count < 65)
+                {
+                    foundGame.byes = Math.Abs(foundGame.CurrentPlayers.Count - 64);
+                }
+                else if (foundGame.CurrentPlayers.Count < 129)
+                {
+                    foundGame.byes = Math.Abs(foundGame.CurrentPlayers.Count - 128);
+                }
+                else if (foundGame.CurrentPlayers.Count < 257)
+                {
+                    foundGame.byes = Math.Abs(foundGame.CurrentPlayers.Count - 256);
+                }
+                else
+                {
+                    throw new BracketGenrationException($"Bracket size invalid {foundGame.CurrentPlayers.Count}");
+                }
+
+                for (int i = 0; i < foundGame.byes; i++)
+                {
+
+                    //use null object pattern or dummy player 
+                    //who always loses and is randomly inserted bye number of times
+                    foundGame.CurrentPlayers.Add(new Player());
+                }
+
+                Random rnd = new Random();
+
+                int n = foundGame.CurrentPlayers.Count;
+                int l = rnd.Next(1, 10);
+
+                //Swap elements in place to randomize bracket order
+                //(No seed involved currently)
+                //perform randomization calculation 1 to 10 times
+                for (int i = 0; i < l; i++)
+                {
+                    while (n > 1)
+                    {
+                        n--;
+                        int k = rnd.Next(n + 1);
+                        (foundGame.CurrentPlayers[k], foundGame.CurrentPlayers[n]) = (foundGame.CurrentPlayers[n], foundGame.CurrentPlayers[k]);
+                    }
+
+                }
+
+
+
+            }
+            catch (GameNotFoundException e)
+            {
+                _logger.LogError($"{e}");
+                return false;
+            }
             return true;
         });
 
@@ -296,19 +368,10 @@ public class GameService : IGameService
         {
             try
             {
-                double index = -1;
+                var foundGame = _games.Find(g => g.Id == gameId);
 
-                for (int i = 0; i < _games.Count; i++)
+                if (foundGame is null)
                 {
-                    if (_games[i].Id == gameId)
-                    {
-                        index = i;
-                    }
-                }
-
-                if (index == -1)
-                {
-                    _logger.LogWarning($"Warning: Unable To Find Game With gameId {gameId}");
                     throw new GameNotFoundException("AddPlayersToGameAsync");
                 }
 
@@ -318,25 +381,12 @@ public class GameService : IGameService
                     {
                         if (user.Id == player.UserId)
                         {
-                            if (index > 0)
-                            {
-                                _games[(int)index].AddPlayer(player);
-                            }
-                            else
-                            {
-                                throw new IndexOutOfRangeException();
-                            }
-
+                            foundGame.CurrentPlayers.Add(player);
                         }
                     }
                 }
                 _logger.LogInformation($"Info: Players Created From Users");
                 return true;
-            }
-            catch (IndexOutOfRangeException)
-            {
-                _logger.LogError($"Error: Index Value out of bounds");
-                return false;
             }
             catch (GameNotFoundException e)
             {
