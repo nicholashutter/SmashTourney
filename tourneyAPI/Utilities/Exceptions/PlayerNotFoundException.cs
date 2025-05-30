@@ -9,7 +9,7 @@ public class PlayerNotFoundException : Exception
     }
 
     public PlayerNotFoundException(string TAG)
-        : base($"User Entity Not Found. Exception Originates At TAG {TAG}")
+        : base($"Player Entity Not Found. Exception Originates At TAG {TAG}")
     {
 
 

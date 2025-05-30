@@ -49,6 +49,7 @@ public class GameService : IGameService
         {
             Game game = new Game();
             _games.Add(game);
+            _logger.LogInformation($"Info: New Game with gameId {game.Id}");
             return game.Id;
         });
         return result;
@@ -57,13 +58,14 @@ public class GameService : IGameService
     //api route EndGame
     public Task<bool> EndGameAsync(Guid endGameId)
     {
-        Task<bool> result = Task.Run(() =>
+        Task<bool> result = Task.Run(async () =>
         {
             foreach (Game g in _games)
             {
                 if (endGameId == g.Id)
                 {
                     _games.Remove(g);
+                    _logger.LogInformation($"Info: Game with gameId {g.Id} removed"); 
                     return true;
                 }
             }
@@ -146,7 +148,11 @@ public class GameService : IGameService
                 foundGame = await LoadGameAsync(existingGameId);
                 if (foundGame is null)
                 {
-                    throw new GameNotFoundException("StartGameAsync");
+                    foundGame = _games.Find(g => g.Id == existingGameId);
+                    if (foundGame is null)
+                    {
+                        throw new GameNotFoundException("StartGameAsync");
+                    }
                 }
             }
             var success = await GenerateBracketAsync(existingGameId);
@@ -170,18 +176,63 @@ public class GameService : IGameService
 
     //api route StartRound
     //list of players should be unpacked by route and returned in HTTP response
-    public Task<List<Player>> StartRoundAsync(Guid gameId)
+    public List<Player>? StartRound(Guid gameId)
     {
-        //load two new players
-        //increment currentGame.currentRound
-        //return those players to the front end
-        throw new NotImplementedException();
+        try
+        {
+            var foundGame = _games.Find(g => g.Id == gameId);
+
+            if (foundGame is null)
+            {
+                throw new GameNotFoundException("StartRoundAsync");
+            }
+
+            //load two new players
+            List<Player> currentPlayers = new List<Player>();
+
+            //two players loaded into return array based on round counter
+            //so that two players are loaded every round and should stay in sync with bracket
+            var currentPlayerOne = foundGame.CurrentPlayers[foundGame.currentRound];
+            var currentPlayerTwo = foundGame.CurrentPlayers[foundGame.currentRound + 1];
+            currentPlayers.Add(currentPlayerOne);
+            currentPlayers.Add(currentPlayerTwo);
+
+            //players themselves also track their round so that round stays syncronized
+            currentPlayerOne.CurrentRound = currentPlayerOne.CurrentRound++;
+            currentPlayerTwo.CurrentRound = currentPlayerTwo.CurrentRound++;
+            //increment currentGame.currentRound
+            foundGame.currentRound = foundGame.currentRound++;
+
+            if (currentPlayerOne.CurrentRound != foundGame.currentRound)
+            {
+                throw new RoundMismatchException("StartRound");
+            }
+            else if (currentPlayerTwo.CurrentRound != foundGame.currentRound)
+            {
+                throw new RoundMismatchException("StartRound");
+            }
+            //return those players to the front end
+            return currentPlayers;
+
+        }
+        catch (GameNotFoundException e)
+        {
+            _logger.LogError($"{e}");
+            return null;
+        }
+        catch (RoundMismatchException e)
+        {
+            _logger.LogError($"{e}");
+            return null;
+        }
     }
 
     //api route EndRound
     //can also be called by api route EndGame 
     public Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser)
     {
+
+        //TODO
         //call voteHandlerAsync()
         //call UpdatePlayerScoreAsync()
         //call UpdateBracketAsync()
@@ -240,8 +291,6 @@ public class GameService : IGameService
             }
             catch (GameNotFoundException e)
             {
-
-                //TODO write custom exception classes to specify entityNotFound exception 
                 _logger.LogError($"Error: {e}");
                 return false;
             }
@@ -249,6 +298,7 @@ public class GameService : IGameService
 
 
     }
+
 
 
     //route handler will call this method
@@ -344,7 +394,11 @@ public class GameService : IGameService
         return result;
     }
 
-    //should be called by route handler
+
+
+    /*  
+
+     //should be called by route handler
     public Task<bool> UpdateBracketAsync(Guid gameId)
     {
         Task<bool> result = Task.Run(() =>
@@ -355,11 +409,14 @@ public class GameService : IGameService
 
         return result;
     }
+    */
 
     //route handler will call this method
     //players list should come from the httprequest from the front end
     //only adds users already in lobby to game if their UserId from the back end and 
     //userId from the player object submitted by the front end agree
+    
+
     public Task<bool> AddPlayersToGameAsync(List<Player> players, Guid gameId)
     {
         _logger.LogInformation($"Info: Loading Users and Creating Their Corresponding Players");
@@ -452,16 +509,32 @@ public class GameService : IGameService
 
     }
 
-    // called by endRoundAsync 
+    //called by endRoundAsync 
     //this method may become private
     //updatePlayerScore updates the score each round, in game
     public Task<bool> UpdatePlayerScoreAsync(Guid gameId, Player RoundWinner, Player RoundLoser)
     {
         Task<bool> result = Task.Run(() =>
         {
+            
+            //TODO
             //foundGame is _games.FindAsync(gameId)
+            try
+            {
+                var foundGame = _games.Find(g => g.Id == gameId);
+
+                if (foundGame is null)
+                {
+                    throw new GameNotFoundException("UpdatePlayerScoreAsync");
+                }
+            }
+            catch (GameNotFoundException e)
+            {
+                _logger.LogError($"{e}");
+            }
             //take RoundWinner and RoundLoser and increment their respective wins and losses
             //and other relevant fields
+
             return true;
         });
 
@@ -476,6 +549,7 @@ public class GameService : IGameService
     {
         Task<bool> result = Task.Run(() =>
         {
+            //TODO
             //create userService context
             //foundGame is GetGameByIdAsync()
             //if foundGame is not null
@@ -494,6 +568,7 @@ public class GameService : IGameService
     //may become private
     public Task<bool> VoteHandlerAsync(Guid playerID, Player RoundWinner, Player RoundLoser)
     {
+        //TODO
         //only once two votes are received should the round move forward
         //only players must be valid and in game for the vote to count
         //both votes must agree on the winner for the vote to count

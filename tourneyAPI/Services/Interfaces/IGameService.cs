@@ -11,14 +11,14 @@ public interface IGameService
     Task<Game?> GetGameByIdAsync(Guid getId);
     Task<IEnumerable<Game>?> GetAllGamesAsync();
     Task<bool> StartGameAsync(Guid existingGameId);
-    Task<List<Player>> StartRoundAsync(Guid gameId);
+    List<Player>? StartRound(Guid gameId);
     Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser); 
     Task<Game?> LoadGameAsync(Guid gameId);
     Task<bool> SaveGameAsync(Guid gameId);
 
     Task<bool> GenerateBracketAsync(Guid gameId);
 
-    Task<bool> UpdateBracketAsync(Guid gameId); 
+//    Task<bool> UpdateBracketAsync(Guid gameId); 
 
     Task<bool> AddPlayersToGameAsync(List<Player> players, Guid gameId);
     Task<bool> AddUserToLobby(User addUser, Guid gameId);
