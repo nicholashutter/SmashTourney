@@ -26,6 +26,6 @@ public interface IGameService
 
     Task<bool> UpdateUserScore(Guid gameId);
 
-    Task<bool> VoteHandlerAsync(Guid playerID, Player RoundWinner, Player RoundLoser);
+    Task<bool> VoteHandlerAsync(Guid gameId, Player RoundWinner, Player RoundLoser);
 
 }

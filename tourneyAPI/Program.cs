@@ -22,7 +22,7 @@ builder.Services.AddDbContextFactory<AppDBContext>();
 builder.Services.AddDbContext<AppDBContext>();
 
 
-//scoped services will be destroyed after the route handler that uses them closes 
+//scoped services will be destroyed after the function scope that uses them closes 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();

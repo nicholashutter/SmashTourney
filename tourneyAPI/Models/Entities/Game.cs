@@ -16,7 +16,7 @@ public class Game
 {
     [Required]
     public Guid Id { get; set; }
-    public List<Player> CurrentPlayers { get; set; } = new List<Player>();
+    public List<Player> currentPlayers { get; set; } = new List<Player>();
 
     [Required]
     public DateTime currentDate { get; set; } = DateTime.UtcNow;
