@@ -23,6 +23,9 @@ public class Game
 
     [Required]
     public int currentRound { get; set; } = 0;
+
+    public int currentMatch { get; set; } = 0; 
+
     public Votes votes { get; set; } = Votes.ZERO;
 
     public int byes { get; set; } = 0;
