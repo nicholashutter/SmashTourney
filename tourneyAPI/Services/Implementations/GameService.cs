@@ -39,9 +39,12 @@ public class GameService : IGameService
         _lobby = new List<User>();
     }
 
-    //api route NewGame 
+    //api route /NewGame 
     public Task<Guid> CreateGame()
     {
+
+        _logger.LogInformation($"Info: CreateGame");
+
         Task<Guid> result = Task.Run(() =>
         {
             Game game = new Game();
@@ -52,9 +55,11 @@ public class GameService : IGameService
         return result;
     }
 
-    //api route EndGame
+    //api route /EndGame
     public Task<bool> EndGameAsync(Guid endGameId)
     {
+        _logger.LogInformation($"Info: End Game {endGameId}");
+
         Task<bool> result = Task.Run(() =>
         {
             foreach (Game g in _games)
@@ -71,7 +76,7 @@ public class GameService : IGameService
         return result;
     }
 
-    //api route GetGameById (debug)
+    //api route /GetGameById (debug)
     public async Task<Game?> GetGameByIdAsync(Guid Id)
     {
         _logger.LogInformation($"Info: Get Game By Id {Id}");
@@ -103,7 +108,7 @@ public class GameService : IGameService
     }
 
 
-    //api route GetAllGames (debug)
+    //api route /GetAllGames (debug)
     public async Task<IEnumerable<Game>?> GetAllGamesAsync()
     {
         _logger.LogInformation($"Info: Get All Games");
@@ -131,12 +136,13 @@ public class GameService : IGameService
     }
 
     //api route StartGame
-    //AddPlayersToGame() should have been called already
     public Task<bool> StartGameAsync(Guid existingGameId)
     {
+
+        _logger.LogInformation($"Info: End Game {existingGameId}");
+
         Task<bool> result = Task.Run(async () =>
         {
-
             try
             {
                 var foundGame = await GetGameByIdAsync(existingGameId);
@@ -174,17 +180,18 @@ public class GameService : IGameService
         return result;
     }
 
+    //api route //StartRound
     public Task<List<Player>?> StartRound(Guid gameId)
     {
         return StartMatch(gameId);
     }
 
-
-
     //api route StartMatch
     //list of players should be unpacked by route and returned in HTTP response
     public Task<List<Player>?> StartMatch(Guid gameId)
     {
+        _logger.LogInformation($"Info: StartMatch {gameId}");
+
         Task<List<Player>?> result = Task.Run(() =>
         {
             try
@@ -246,10 +253,11 @@ public class GameService : IGameService
         return result;
     }
 
-    //api route EndRound
-    //can also be called by api route EndGame 
-    public Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser)
+    //api route EndMatch
+    public Task<bool> EndMatchAsync(Guid gameId, Player RoundWinner, Player RoundLoser)
     {
+
+        _logger.LogInformation($"Info: End Match Async {gameId}");
 
         Task<bool> result = Task.Run(async () =>
         {
@@ -263,8 +271,7 @@ public class GameService : IGameService
                 }
                 var success = await VoteHandlerAsync(gameId, RoundWinner, RoundLoser);
 
-                //this should be the only method that iterated this property
-                foundGame.currentRound++;
+
             }
             catch (GameNotFoundException e)
             {
@@ -277,6 +284,31 @@ public class GameService : IGameService
 
 
         return result;
+    }
+
+    //api route /EndRound
+    public Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser)
+    {
+
+        _logger.LogInformation($"Info: EndRoundAsync {gameId}");
+
+        try
+        {
+            var foundGame = _games.Find(g => g.Id == gameId);
+            if (foundGame is null)
+            {
+                throw new GameNotFoundException("EndRoundAsync");
+            }
+            //this should be the only method that iterates this property
+            foundGame.currentRound++;
+
+        }
+        catch (GameNotFoundException e)
+        {
+            _logger.LogError($"{e}");
+        }
+
+        return EndMatchAsync(gameId, RoundWinner, RoundLoser);
     }
 
 
@@ -310,7 +342,7 @@ public class GameService : IGameService
         return result;
     }
 
-    //route handler will call this method 
+    //api route /SaveGame
     //SaveGame will persist current game state to the database
     public Task<bool> SaveGameAsync(Guid gameId)
     {
@@ -351,12 +383,13 @@ public class GameService : IGameService
 
 
 
-    //route handler will call this method
+    //called by StartGame
     public Task<bool> GenerateBracketAsync(Guid gameId)
     {
+        _logger.LogInformation($"Info: Generate Bracket {gameId}");
+
         Task<bool> result = Task.Run(() =>
         {
-
             try
             {
                 var foundGame = _games.Find(g => g.Id == gameId);
@@ -444,12 +477,10 @@ public class GameService : IGameService
         return result;
     }
 
-    //route handler will call this method
+    //api route /AllPlayersIn
     //players list should come from the httprequest from the front end
     //only adds users already in lobby to game if their UserId from the back end and 
     //userId from the player object submitted by the front end agree
-
-
     public Task<bool> AddPlayersToGameAsync(List<Player> players, Guid gameId)
     {
         _logger.LogInformation($"Info: Loading Users and Creating Their Corresponding Players");
@@ -487,7 +518,7 @@ public class GameService : IGameService
         return result;
     }
 
-    //called by route handler
+    //Api route /AddUserToLobby
     //will only let authenticated users further inside the application if the gameID presented is valid
     public Task<bool> AddUserToLobby(User addUser, Guid gameId)
     {
@@ -542,11 +573,11 @@ public class GameService : IGameService
 
     }
 
-    //updateUserScore updates the score either when the game ends
-    // , or is saved and does persist the changes to the db
-    //called by endRoundAsync
+    //called by SaveGameAsync or EndGameAsync
     public Task<bool> UpdateUserScore(Guid gameId)
     {
+        _logger.LogInformation($"Info: UpdateUserScore {gameId}");
+
         Task<bool> result = Task.Run(async () =>
         {
             //TODO
@@ -577,6 +608,9 @@ public class GameService : IGameService
                         }
                         //to increment or decrement all time User score values
                         //have userService update these values
+                        //determine tournament winner
+                        //set new timestamps for relevant timestamp fields
+                        //increment and decrement totals wins / losses / games played
                     }
                 }
                 catch (GameNotFoundException e)
@@ -584,20 +618,21 @@ public class GameService : IGameService
                     _logger.LogError($"{e}");
                 }
             }
-
-
-
-
             return true;
         });
 
         return result;
     }
 
+
+
     //called by endRoundAsync
     //may become private
     public Task<bool> VoteHandlerAsync(Guid gameId, Player roundWinner, Player roundLoser)
     {
+
+        _logger.LogInformation($"Info: VoteHandlerAsync {gameId}");
+
         Task<bool> result = Task.Run(() =>
         {
             try
