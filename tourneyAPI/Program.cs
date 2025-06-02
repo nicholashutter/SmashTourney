@@ -1,28 +1,36 @@
 using Routers;
-using Serilog;
 using Services;
 
-var loggerConfig = new LoggerConfiguration()
-.MinimumLevel.Information()
-.Enrich.FromLogContext()
-.WriteTo.Console()
-.CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+var logFilePath = $"logs/{DateTime.UtcNow}.txt";
 
-builder.Host.UseSerilog();
 
+//Create a StreamWriter to write logs to a text file
+using (StreamWriter logFileWriter = new StreamWriter(logFilePath, append: true))
+{
+    //Create an ILoggerFactory
+    ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+    {
+        //Add console output
+        builder.AddSimpleConsole(options =>
+                    {
+                        options.IncludeScopes = true;
+                        options.SingleLine = true;
+                        options.TimestampFormat = "HH:mm:ss ";
+                    });
 
-builder.Logging.ClearProviders();
-builder.Logging.AddSerilog(loggerConfig);
+        //Add a custom log provider to write logs to text files
+        builder.AddProvider(new ApplicationLoggerProvider(logFileWriter));
+    });
+}
+builder.Services.AddDbContext<AppDBContext>();
 
 //this should allow both for a singleton factory registration for DB access inside of game and
 //scopped access on the individual service level
 builder.Services.AddDbContextFactory<AppDBContext>();
-builder.Services.AddDbContext<AppDBContext>();
-
-
 //scoped services will be destroyed after the function scope that uses them closes 
+builder.Services.AddScoped<ILogger, ApplicationLogger>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -36,8 +44,6 @@ var app = builder.Build();
 UserRouter.Map(app);
 PlayerRouter.Map(app);
 GameRouter.Map(app);
-
-Console.WriteLine("TourneyApp Running. Press Ctrl + C to End...");
 
 Console.CancelKeyPress += (sender, eventArgs) =>
 {

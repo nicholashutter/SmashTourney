@@ -250,7 +250,7 @@ public class GameService : IGameService
     }
 
     //api route EndMatch
-    public Task<bool> EndMatchAsync(Guid gameId, Player RoundWinner, Player RoundLoser)
+    public Task<bool> EndMatchAsync(Guid gameId, Player matchWinner, Player matchLoser)
     {
 
         _logger.LogInformation($"Info: End Match Async {gameId}");
@@ -264,7 +264,7 @@ public class GameService : IGameService
                 {
                     throw new GameNotFoundException("EndRoundAsync");
                 }
-                var success = await VoteHandlerAsync(gameId, RoundWinner, RoundLoser);
+                var success = await VoteHandlerAsync(gameId, matchWinner, matchLoser);
 
                 if (!success)
                 {
@@ -480,9 +480,6 @@ public class GameService : IGameService
                     }
 
                 }
-
-
-
             }
             catch (GameNotFoundException e)
             {
@@ -497,8 +494,7 @@ public class GameService : IGameService
 
     //api route /AllPlayersIn
     //players list should come from the httprequest from the front end
-    //only adds users already in lobby to game if their UserId from the back end and 
-    //userId from the player object submitted by the front end agree
+
     public Task<bool> AddPlayersToGameAsync(List<Player> players, Guid gameId)
     {
         _logger.LogInformation($"Info: Loading Users and Creating Their Corresponding Players");
@@ -507,6 +503,8 @@ public class GameService : IGameService
         {
             try
             {
+                //only adds users already in lobby to game if their UserId from the back end and 
+                //userId from the player object submitted by the front end agree
                 var foundGame = _games.Find(g => g.Id == gameId);
 
                 if (foundGame is null)

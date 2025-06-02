@@ -1,9 +1,12 @@
 using System;
 using Xunit;
+using Validators;
+using Entities; 
+
 
 namespace Tests;
 
-public class HelloWorldTest
+public class AuthServiceTest
 {
     [Fact]
     public void helloWorld()
@@ -11,4 +14,3 @@ public class HelloWorldTest
         Assert.True(true);
     }
 }
-
