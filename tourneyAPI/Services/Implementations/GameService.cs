@@ -203,10 +203,6 @@ public class GameService : IGameService
                     throw new GameNotFoundException("StartMatch");
                 }
 
-
-                //this should happen at end of round
-                //increment currentGame.currentRound
-
                 //load two new players
                 List<Player> currentPlayers = new List<Player>();
 
@@ -261,7 +257,6 @@ public class GameService : IGameService
 
         Task<bool> result = Task.Run(async () =>
         {
-            //TODO
             try
             {
                 var foundGame = _games.Find(g => g.Id == gameId);
@@ -271,6 +266,24 @@ public class GameService : IGameService
                 }
                 var success = await VoteHandlerAsync(gameId, RoundWinner, RoundLoser);
 
+                if (!success)
+                {
+                    throw new InvalidFunctionResponseException("EndMatchAsync");
+                }
+
+                success = await UpdateUserScore(foundGame.Id);
+
+                if (!success)
+                {
+                    throw new InvalidFunctionResponseException("EndMatchAsync");
+                }
+
+                success = await EndGameAsync(foundGame.Id);
+
+                if (!success)
+                {
+                    throw new InvalidFunctionResponseException("EndMatchAsync");
+                }
 
             }
             catch (GameNotFoundException e)
@@ -292,23 +305,28 @@ public class GameService : IGameService
 
         _logger.LogInformation($"Info: EndRoundAsync {gameId}");
 
-        try
+        Task<bool> result = Task.Run(() =>
         {
-            var foundGame = _games.Find(g => g.Id == gameId);
-            if (foundGame is null)
+            try
             {
-                throw new GameNotFoundException("EndRoundAsync");
+                var foundGame = _games.Find(g => g.Id == gameId);
+                if (foundGame is null)
+                {
+                    throw new GameNotFoundException("EndRoundAsync");
+                }
+                //this should be the only method that iterates this property
+                foundGame.currentRound++;
+                return true;
+
             }
-            //this should be the only method that iterates this property
-            foundGame.currentRound++;
+            catch (GameNotFoundException e)
+            {
+                _logger.LogError($"{e}");
+                return false;
+            }
+        });
 
-        }
-        catch (GameNotFoundException e)
-        {
-            _logger.LogError($"{e}");
-        }
-
-        return EndMatchAsync(gameId, RoundWinner, RoundLoser);
+        return result;
     }
 
 
@@ -333,7 +351,7 @@ public class GameService : IGameService
                 }
                 catch (GameNotFoundException e)
                 {
-                    _logger.LogError($"Error: foundGame is null. Unable to create new game \n {e}");
+                    _logger.LogWarning($"Error: foundGame is null. Unable to load game not found \n {e}");
                     return null;
                 }
             }
@@ -580,7 +598,6 @@ public class GameService : IGameService
 
         Task<bool> result = Task.Run(async () =>
         {
-            //TODO
             //create userService context
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
@@ -597,6 +614,9 @@ public class GameService : IGameService
 
                     //foundGame is GetGameByIdAsync()
                     //if foundGame is not null
+
+                    Player highestScore = new Player();
+
                     foreach (Player player in foundGame.currentPlayers)
                     {
                         //iterate over players, get their userIds
@@ -606,11 +626,33 @@ public class GameService : IGameService
                         {
                             throw new UserNotFoundException("UpdateUserScore");
                         }
-                        //to increment or decrement all time User score values
+                        //bubble sort to determine who has highest score
+                        if (player.CurrentScore > highestScore.CurrentScore)
+                        {
+                            highestScore = player;
+                        }
+
                         //have userService update these values
-                        //determine tournament winner
                         //set new timestamps for relevant timestamp fields
                         //increment and decrement totals wins / losses / games played
+                        if (foundGame.currentRound == player.CurrentRound)
+                        {
+                            currentUser.AllTimeMatches = player.CurrentRound + currentUser.AllTimeMatches;
+                            var currentWins = Math.Abs(player.CurrentScore - player.CurrentRound);
+                            currentUser.AllTimeWins = currentWins + currentUser.AllTimeWins;
+                            var currentLosses = Math.Abs(player.CurrentRound - currentWins);
+
+                            if (currentLosses + currentWins != player.CurrentRound)
+                            {
+                                throw new InvalidObjectStateException("UpdateUserScore");
+                            }
+
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Warning: UpdateUserScore called, but some users aren't on the same round as their game");
+                        }
+                        await userRepository.UpdateUserAsync(currentUser);
                     }
                 }
                 catch (GameNotFoundException e)
@@ -658,13 +700,8 @@ public class GameService : IGameService
                     throw new PlayerNotFoundException("VoteHandlerAsync");
                 }
 
-                //only players must be valid and in game for the vote to coun
-                //TODO
-                //PlayerValidator(player)
-                //both votes must agree on the winner for the vote to count
                 var currentVotes = foundGame.votes;
                 //only once two votes are received should the round move forward
-
                 //use the submitted players Id to increment the game VOTE enum 
                 //set the players individual properties as winner and loser 
                 currentVotes = (Votes)((int)currentVotes + 1);

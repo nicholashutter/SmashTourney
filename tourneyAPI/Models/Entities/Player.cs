@@ -28,30 +28,4 @@ public class Player
     public Guid CurrentGameID { get; set; }
     public bool HasVoted { get; set; } = false;
     public Guid RoundVote { get; set; }
-
-
-    //TODO the below methods need to be extracted to a 
-    //player manager service as models should be data structures only
-    /*
-    public void IncrementWins()
-    {
-        // Implementation logic here.
-    }
-    public void IncrementLosses()
-    {
-        // Implementation logic here.
-    }
-    public void IncrementMatches()
-    {
-        // Implementation logic here.
-    }
-    public void ResetRoundData()
-    {
-        // Implementation logic here.
-    }
-    public void CastVote(Guid opponentId)
-    {
-        RoundVote = opponentId;
-        HasVoted = true;
-    } */
 }

@@ -1,15 +1,16 @@
+using CustomExceptions;
 using Entities;
 
 namespace Validators;
 
 public class UserValidator()
 {
-    public static void Validate(User validateUser)
+    public static void Validate(User validateUser, string TAG)
     {
-        //loop
-        //compare all invidual fields and determine if valid
-        //certain fields should not be null after serialization
-        //if fields are not valid, throw InvalidEntityException and pass in both entity type and field that's invalid
+        if (validateUser.Username is null || validateUser.Email is null)
+        {
+            throw new UserValidationException(TAG);
+        }
 
     }
 }

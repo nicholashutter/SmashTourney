@@ -1,15 +1,17 @@
+using CustomExceptions;
 using Entities;
 
 namespace Validators;
 
 public class PlayerValidator()
 {
-    public static void Validate(User validateUser)
+    public static void Validate(Player validatePlayer, string TAG)
     {
-        //loop
-        //compare all invidual fields and determine if valid
-        //certain fields should not be null after serialization
-        //if fields are not valid, throw InvalidEntityException and pass in both entity type and field that's invalid
+        if (validatePlayer.CurrentOpponent is "" || validatePlayer.CurrentCharacter is ""
+        || validatePlayer.DisplayName is "")
+        {
+            throw new PlayerValidationException(TAG);
+        }
 
     }
 }

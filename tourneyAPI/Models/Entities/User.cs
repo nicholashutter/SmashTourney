@@ -18,8 +18,26 @@ public class User
         public int AllTimeLosses { get; set; } = 0;
 
         [Required]
-        private string _passwordHash { get; set; } = "";
-        [Required]
+        private string _passwordHash = "";
+
+        public string getPasswordHash()
+        {
+                return _passwordHash;
+        }
+        public void setPasswordHash(string newPasswordHash)
+        {
+                _passwordHash = newPasswordHash;
+        }
         private string _passwordSalt { get; set; } = "";
+
+        public string getPasswordSalt()
+        {
+                return _passwordSalt;
+        }
+        public void setPasswordSalt(string newPasswordSalt)
+        {
+                _passwordSalt = newPasswordSalt;
+        }
+
 
 }

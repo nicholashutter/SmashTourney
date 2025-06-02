@@ -17,7 +17,7 @@ public interface IGameService
     Task<List<Player>?> StartMatch(Guid gameId);
     Task<bool> EndMatchAsync(Guid gameId, Player RoundWinner, Player RoundLoser);
 
-    Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser); 
+    Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser);
 
     Task<Game?> LoadGameAsync(Guid gameId);
     Task<bool> SaveGameAsync(Guid gameId);
