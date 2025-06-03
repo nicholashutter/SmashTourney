@@ -49,7 +49,7 @@ public class UserRepository : IUserRepository
         }
     }
 
-    public async Task<IEnumerable<User>?> GetAllUsersAsync()
+    public async Task<List<User>?> GetAllUsersAsync()
     {
         Log.Information("Info: Get All Users");
 
@@ -72,7 +72,7 @@ public class UserRepository : IUserRepository
         }
     }
 
-    public async Task<bool> CreateUserAsync(User newUser)
+    public async Task<Guid?> CreateUserAsync(User newUser)
     {
 
         Log.Information("Info: Create User Async");
@@ -87,13 +87,14 @@ public class UserRepository : IUserRepository
             {
                 await _db.AddAsync(newUser);
                 await _db.SaveChangesAsync();
-                return true;
+
+                return newUser.Id; 
             }
         }
         catch (UserNotFoundException e)
         {
             Log.Error($"Error: newUser is null. Unable to create newUser \n {e}");
-            return false;
+            return null;
         }
 
     }
