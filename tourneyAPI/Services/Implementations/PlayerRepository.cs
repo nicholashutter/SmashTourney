@@ -10,7 +10,7 @@ using Entities;
 using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Serilog; 
+using Serilog;
 
 public class PlayerRepository : IPlayerRepository
 {
@@ -22,7 +22,7 @@ public class PlayerRepository : IPlayerRepository
         _db = db;
     }
 
-    public async Task<bool> CreateAsync(Player newPlayer)
+    public async Task<Guid?> CreateAsync(Player newPlayer)
     {
         Log.Information("Info: Create Player Async");
 
@@ -36,13 +36,13 @@ public class PlayerRepository : IPlayerRepository
             {
                 await _db.Players.AddAsync(newPlayer);
                 await _db.SaveChangesAsync();
-                return true;
+                return newPlayer.Id;
             }
         }
         catch (PlayerNotFoundException e)
         {
             Log.Error($"Error: newPlayer is null. Unable to create newPlayer\n {e}");
-            return false;
+            return null;
         }
     }
 
@@ -71,7 +71,7 @@ public class PlayerRepository : IPlayerRepository
         }
     }
 
-    public async Task<IEnumerable<Player>?> GetAllAsync()
+    public async Task<List<Player>?> GetAllAsync()
     {
         Log.Information("Info: Get All Players");
 
@@ -106,7 +106,7 @@ public class PlayerRepository : IPlayerRepository
             }
             else
             {
-                var foundPlayer = await _db.Users.FindAsync(updatePlayer.Id);
+                var foundPlayer = await _db.Players.FindAsync(updatePlayer.Id);
                 if (foundPlayer is null)
                 {
                     throw new PlayerNotFoundException("UpdateAsync");

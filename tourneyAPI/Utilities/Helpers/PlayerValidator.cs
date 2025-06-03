@@ -7,7 +7,7 @@ public class PlayerValidator()
 {
     public static void Validate(Player validatePlayer, string TAG)
     {
-        if (validatePlayer.CurrentOpponent is "" || validatePlayer.CurrentCharacter is ""
+        if (validatePlayer.CurrentCharacter is ""
         || validatePlayer.DisplayName is "")
         {
             throw new PlayerValidationException(TAG);

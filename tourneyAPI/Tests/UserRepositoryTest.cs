@@ -26,7 +26,7 @@ public class UserRepositoryTest
     }
 
     [Fact]
-    public async Task testCreateUserAsync()
+    public async Task createUserAsync()
     {
 
         var success = await repository.CreateUserAsync(new User
@@ -97,6 +97,10 @@ public class UserRepositoryTest
             var user = await repository.GetUserByIdAsync((Guid)IdOne);
             Assert.Equal(IdOne, user.Id);
         }
+        else
+        {
+            throw new Exception(); 
+        }
 
     }
 
@@ -118,6 +122,10 @@ public class UserRepositoryTest
                 Username = "nicholasUpdated",
                 Email = "nicholasUpdated.hutter@email.com"
             });
+        }
+        else
+        {
+            throw new Exception(); 
         }
 
         Assert.True(success);
@@ -141,6 +149,10 @@ public class UserRepositoryTest
                 Username = "nicholasUpdated",
                 Email = "nicholasUpdated.hutter@email.com"
             });
+        }
+        else
+        {
+            throw new Exception(); 
         }
 
         Assert.True(success);

@@ -16,7 +16,7 @@ public class Player
     public int CurrentRound { get; set; } = 0;
 
     [Required]
-    public string CurrentOpponent { get; set; } = "";
+    public Guid CurrentOpponent { get; set; }
 
     [Required]
     public string CurrentCharacter { get; set; } = "";
@@ -27,5 +27,5 @@ public class Player
     [Required]
     public Guid CurrentGameID { get; set; }
     public bool HasVoted { get; set; } = false;
-    public Guid RoundVote { get; set; }
+    public Guid MatchWinner { get; set; }
 }
