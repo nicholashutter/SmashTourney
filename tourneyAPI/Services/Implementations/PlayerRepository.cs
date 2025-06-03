@@ -1,31 +1,30 @@
 namespace Services;
 
 
-/* PlayerrRepository implements a repository layer for Player Objects to persist them to the database */ 
-/* This class currently has no use and may get cut from the first release */ 
+/* PlayerrRepository implements a repository layer for Player Objects to persist them to the database */
+/* This class currently has no use and may get cut from the first release */
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Entities;
 using CustomExceptions;
-using Microsoft.EntityFrameworkCore; 
-using Microsoft.Extensions.Logging; 
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Serilog; 
 
 public class PlayerRepository : IPlayerRepository
 {
     private readonly AppDBContext _db;
-    private readonly ILogger<PlayerRepository> _logger; 
 
-   
-    public PlayerRepository(AppDBContext db, ILogger<PlayerRepository> logger)
+
+    public PlayerRepository(AppDBContext db)
     {
         _db = db;
-        _logger = logger;
     }
 
     public async Task<bool> CreateAsync(Player newPlayer)
     {
-        _logger.LogInformation("Info: Create Player Async");
+        Log.Information("Info: Create Player Async");
 
         try
         {
@@ -35,21 +34,21 @@ public class PlayerRepository : IPlayerRepository
             }
             else
             {
-                await _db.Players.AddAsync(newPlayer); 
+                await _db.Players.AddAsync(newPlayer);
                 await _db.SaveChangesAsync();
-                return true; 
+                return true;
             }
         }
         catch (PlayerNotFoundException e)
         {
-            _logger.LogError($"Error: newPlayer is null. Unable to create newPlayer\n {e}");
-            return false; 
+            Log.Error($"Error: newPlayer is null. Unable to create newPlayer\n {e}");
+            return false;
         }
     }
 
     public async Task<Player?> GetByIdAsync(Guid id)
     {
-        _logger.LogInformation("Info: Get Player By Id {id}", id);
+        Log.Information("Info: Get Player By Id {id}", id);
 
         var foundPlayer = new Player();
         try
@@ -67,14 +66,14 @@ public class PlayerRepository : IPlayerRepository
         }
         catch (PlayerNotFoundException e)
         {
-            _logger.LogInformation($"Error: Player not found or otherwise null\n {e}");
+            Log.Information($"Error: Player not found or otherwise null\n {e}");
             return null;
         }
     }
 
     public async Task<IEnumerable<Player>?> GetAllAsync()
     {
-        _logger.LogInformation("Info: Get All Players");
+        Log.Information("Info: Get All Players");
 
         var Players = new List<Player>();
 
@@ -90,14 +89,14 @@ public class PlayerRepository : IPlayerRepository
         }
         catch (EmptyPlayersCollectionException e)
         {
-            _logger.LogWarning($"All Players Returns Zero, Did You Just Reset The DB? \n {e}");
-            return null; 
+            Log.Warning($"All Players Returns Zero, Did You Just Reset The DB? \n {e}");
+            return null;
         }
     }
 
     public async Task<bool> UpdateAsync(Player updatePlayer)
     {
-        _logger.LogInformation("Info: Update Player Async");
+        Log.Information("Info: Update Player Async");
 
         try
         {
@@ -122,19 +121,19 @@ public class PlayerRepository : IPlayerRepository
         }
         catch (PlayerNotFoundException e)
         {
-            _logger.LogError($"Error: updatePlayer is null. Unable to updatePlayer\n {e}");
+            Log.Error($"Error: updatePlayer is null. Unable to updatePlayer\n {e}");
             return false;
         }
         catch (InvalidArgumentException e)
         {
-            _logger.LogError("Error: {e}", e.ToString());
+            Log.Error("Error: {e}", e.ToString());
             return false;
         }
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        _logger.LogInformation("Info: Delete Player Async");
+        Log.Information("Info: Delete Player Async");
 
         var foundPlayer = new Player();
 
@@ -155,7 +154,7 @@ public class PlayerRepository : IPlayerRepository
         }
         catch (PlayerNotFoundException e)
         {
-            _logger.LogWarning($"Warning: Player not found. Unable to delete\n {e}");
+            Log.Warning($"Warning: Player not found. Unable to delete\n {e}");
             return false;
         }
     }

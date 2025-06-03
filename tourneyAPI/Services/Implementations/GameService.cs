@@ -10,11 +10,10 @@ using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Serilog;
 
 public class GameService : IGameService
 {
-    //internal logger 
-    private readonly ILogger<GameService> _logger;
 
     //internal reference to dbContextFactory which allows
     //for local access to db inside of singleton class
@@ -30,9 +29,9 @@ public class GameService : IGameService
 
 
     //GameService has a singleton lifetime and is created on application start
-    public GameService(ILogger<GameService> logger, IDbContextFactory<AppDBContext> dbContextFactory, IServiceScopeFactory scopeFactory)
+    public GameService(IDbContextFactory<AppDBContext> dbContextFactory, IServiceScopeFactory scopeFactory)
     {
-        _logger = logger;
+
         _dbContextFactory = dbContextFactory;
         _scopeFactory = scopeFactory;
         _games = new List<Game>();
@@ -43,13 +42,13 @@ public class GameService : IGameService
     public Task<Guid> CreateGame()
     {
 
-        _logger.LogInformation($"Info: CreateGame");
+        Log.Information($"Info: CreateGame");
 
         Task<Guid> result = Task.Run(() =>
         {
             Game game = new Game();
             _games.Add(game);
-            _logger.LogInformation($"Info: New Game with gameId {game.Id}");
+            Log.Information($"Info: New Game with gameId {game.Id}");
             return game.Id;
         });
         return result;
@@ -58,7 +57,7 @@ public class GameService : IGameService
     //api route /EndGame
     public Task<bool> EndGameAsync(Guid endGameId)
     {
-        _logger.LogInformation($"Info: End Game {endGameId}");
+        Log.Information($"Info: End Game {endGameId}");
 
         Task<bool> result = Task.Run(() =>
         {
@@ -67,7 +66,7 @@ public class GameService : IGameService
                 if (endGameId == g.Id)
                 {
                     _games.Remove(g);
-                    _logger.LogInformation($"Info: Game with gameId {g.Id} removed");
+                    Log.Information($"Info: Game with gameId {g.Id} removed");
                     return true;
                 }
             }
@@ -79,7 +78,7 @@ public class GameService : IGameService
     //api route /GetGameById (debug)
     public async Task<Game?> GetGameByIdAsync(Guid Id)
     {
-        _logger.LogInformation($"Info: Get Game By Id {Id}");
+        Log.Information($"Info: Get Game By Id {Id}");
 
         await using (var _db = await _dbContextFactory.CreateDbContextAsync())
         {
@@ -99,7 +98,7 @@ public class GameService : IGameService
             }
             catch (GameNotFoundException e)
             {
-                _logger.LogInformation($"Error: Game not found or otherwise null\n {e}");
+                Log.Information($"Error: Game not found or otherwise null\n {e}");
                 return null;
             }
         }
@@ -111,7 +110,7 @@ public class GameService : IGameService
     //api route /GetAllGames (debug)
     public async Task<IEnumerable<Game>?> GetAllGamesAsync()
     {
-        _logger.LogInformation($"Info: Get All Games");
+        Log.Information($"Info: Get All Games");
 
         await using (var _db = await _dbContextFactory.CreateDbContextAsync())
         {
@@ -129,7 +128,7 @@ public class GameService : IGameService
             }
             catch (EmptyGamesCollectionException e)
             {
-                _logger.LogWarning($"All Games Returns Zero, Did You Just Reset The DB? \n {e}");
+                Log.Warning($"All Games Returns Zero, Did You Just Reset The DB? \n {e}");
                 return null;
             }
         }
@@ -139,7 +138,7 @@ public class GameService : IGameService
     public Task<bool> StartGameAsync(Guid existingGameId)
     {
 
-        _logger.LogInformation($"Info: End Game {existingGameId}");
+        Log.Information($"Info: End Game {existingGameId}");
 
         Task<bool> result = Task.Run(async () =>
         {
@@ -167,12 +166,12 @@ public class GameService : IGameService
             }
             catch (InvalidFunctionResponseException e)
             {
-                _logger.LogError($"{e}");
+                Log.Error($"{e}");
                 return false;
             }
             catch (GameNotFoundException e)
             {
-                _logger.LogError($"{e}");
+                Log.Error($"{e}");
                 return false;
             }
 
@@ -190,7 +189,7 @@ public class GameService : IGameService
     //list of players should be unpacked by route and returned in HTTP response
     public Task<List<Player>?> StartMatch(Guid gameId)
     {
-        _logger.LogInformation($"Info: StartMatch {gameId}");
+        Log.Information($"Info: StartMatch {gameId}");
 
         Task<List<Player>?> result = Task.Run(() =>
         {
@@ -236,12 +235,12 @@ public class GameService : IGameService
             }
             catch (GameNotFoundException e)
             {
-                _logger.LogError($"{e}");
+                Log.Error($"{e}");
                 return null;
             }
             catch (RoundMismatchException e)
             {
-                _logger.LogError($"{e}");
+                Log.Error($"{e}");
                 return null;
             }
 
@@ -253,7 +252,7 @@ public class GameService : IGameService
     public Task<bool> EndMatchAsync(Guid gameId, Player matchWinner, Player matchLoser)
     {
 
-        _logger.LogInformation($"Info: End Match Async {gameId}");
+        Log.Information($"Info: End Match Async {gameId}");
 
         Task<bool> result = Task.Run(async () =>
         {
@@ -288,7 +287,7 @@ public class GameService : IGameService
             }
             catch (GameNotFoundException e)
             {
-                _logger.LogError($"{e}");
+                Log.Error($"{e}");
                 return false;
             }
             return true;
@@ -303,7 +302,7 @@ public class GameService : IGameService
     public Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser)
     {
 
-        _logger.LogInformation($"Info: EndRoundAsync {gameId}");
+        Log.Information($"Info: EndRoundAsync {gameId}");
 
         Task<bool> result = Task.Run(() =>
         {
@@ -321,7 +320,7 @@ public class GameService : IGameService
             }
             catch (GameNotFoundException e)
             {
-                _logger.LogError($"{e}");
+                Log.Error($"{e}");
                 return false;
             }
         });
@@ -334,7 +333,7 @@ public class GameService : IGameService
     //game state from games persisted in db
     public Task<Game?> LoadGameAsync(Guid gameId)
     {
-        _logger.LogInformation($"Info: Create New Game Async");
+        Log.Information($"Info: Create New Game Async");
 
         Task<Game?> result = Task.Run(async () =>
         {
@@ -351,7 +350,7 @@ public class GameService : IGameService
                 }
                 catch (GameNotFoundException e)
                 {
-                    _logger.LogWarning($"Error: foundGame is null. Unable to load game not found \n {e}");
+                    Log.Warning($"Error: foundGame is null. Unable to load game not found \n {e}");
                     return null;
                 }
             }
@@ -364,7 +363,7 @@ public class GameService : IGameService
     //SaveGame will persist current game state to the database
     public Task<bool> SaveGameAsync(Guid gameId)
     {
-        _logger.LogInformation($"Info: Create New Game Async");
+        Log.Information($"Info: Create New Game Async");
 
         Task<bool> result = Task.Run(async () =>
         {
@@ -390,7 +389,7 @@ public class GameService : IGameService
                 }
                 catch (GameNotFoundException e)
                 {
-                    _logger.LogError($"Error: {e}");
+                    Log.Error($"Error: {e}");
                     return false;
                 }
             }
@@ -404,7 +403,7 @@ public class GameService : IGameService
     //called by StartGame
     public Task<bool> GenerateBracketAsync(Guid gameId)
     {
-        _logger.LogInformation($"Info: Generate Bracket {gameId}");
+        Log.Information($"Info: Generate Bracket {gameId}");
 
         Task<bool> result = Task.Run(() =>
         {
@@ -483,7 +482,7 @@ public class GameService : IGameService
             }
             catch (GameNotFoundException e)
             {
-                _logger.LogError($"{e}");
+                Log.Error($"{e}");
                 return false;
             }
             return true;
@@ -497,7 +496,7 @@ public class GameService : IGameService
 
     public Task<bool> AddPlayersToGameAsync(List<Player> players, Guid gameId)
     {
-        _logger.LogInformation($"Info: Loading Users and Creating Their Corresponding Players");
+        Log.Information($"Info: Loading Users and Creating Their Corresponding Players");
 
         Task<bool> result = Task.Run(() =>
         {
@@ -522,12 +521,12 @@ public class GameService : IGameService
                         }
                     }
                 }
-                _logger.LogInformation($"Info: Players Created From Users");
+                Log.Information($"Info: Players Created From Users");
                 return true;
             }
             catch (GameNotFoundException e)
             {
-                _logger.LogInformation($"Error: Failed to Create Players from Users \n {e}");
+                Log.Information($"Error: Failed to Create Players from Users \n {e}");
                 return false;
             }
         });
@@ -538,7 +537,7 @@ public class GameService : IGameService
     //will only let authenticated users further inside the application if the gameID presented is valid
     public Task<bool> AddUserToLobby(User addUser, Guid gameId)
     {
-        _logger.LogInformation($"Info: Adding User {addUser.Username} to game lobby.");
+        Log.Information($"Info: Adding User {addUser.Username} to game lobby.");
 
         Task<bool> result = Task.Run(() =>
         {
@@ -546,7 +545,7 @@ public class GameService : IGameService
             {
                 if (addUser is null)
                 {
-                    _logger.LogError($"Unable to add User to game: addUser is null");
+                    Log.Error($"Unable to add User to game: addUser is null");
 
                     throw new InvalidArgumentException("AddUserToLobby");
                 }
@@ -562,13 +561,13 @@ public class GameService : IGameService
 
                         if (foundGame is null)
                         {
-                            _logger.LogError($"Unable To Locate Game With GameId {gameId}");
+                            Log.Error($"Unable To Locate Game With GameId {gameId}");
                             throw new GameNotFoundException("AddUserToLobby");
                         }
                         else
                         {
                             _lobby.Add(addUser);
-                            _logger.LogInformation($"User {addUser.Username} Added To Game {gameId} lobby");
+                            Log.Information($"User {addUser.Username} Added To Game {gameId} lobby");
                             return true;
                         }
                     }
@@ -576,12 +575,12 @@ public class GameService : IGameService
             }
             catch (GameNotFoundException e)
             {
-                _logger.LogError($"{e}");
+                Log.Error($"{e}");
                 return false;
             }
             catch (InvalidArgumentException e)
             {
-                _logger.LogError($"{e}");
+                Log.Error($"{e}");
                 return false;
             }
         });
@@ -592,7 +591,7 @@ public class GameService : IGameService
     //called by SaveGameAsync or EndGameAsync
     public Task<bool> UpdateUserScore(Guid gameId)
     {
-        _logger.LogInformation($"Info: UpdateUserScore {gameId}");
+        Log.Information($"Info: UpdateUserScore {gameId}");
 
         Task<bool> result = Task.Run(async () =>
         {
@@ -648,14 +647,14 @@ public class GameService : IGameService
                         }
                         else
                         {
-                            _logger.LogWarning("Warning: UpdateUserScore called, but some users aren't on the same round as their game");
+                            Log.Warning("Warning: UpdateUserScore called, but some users aren't on the same round as their game");
                         }
                         await userRepository.UpdateUserAsync(currentUser);
                     }
                 }
                 catch (GameNotFoundException e)
                 {
-                    _logger.LogError($"{e}");
+                    Log.Error($"{e}");
                 }
             }
             return true;
@@ -671,7 +670,7 @@ public class GameService : IGameService
     public Task<bool> VoteHandlerAsync(Guid gameId, Player roundWinner, Player roundLoser)
     {
 
-        _logger.LogInformation($"Info: VoteHandlerAsync {gameId}");
+        Log.Information($"Info: VoteHandlerAsync {gameId}");
 
         Task<bool> result = Task.Run(() =>
         {
@@ -717,7 +716,7 @@ public class GameService : IGameService
             }
             catch (PlayerNotFoundException e)
             {
-                _logger.LogError($"{e}");
+                Log.Error($"{e}");
                 return false;
             }
             return true;

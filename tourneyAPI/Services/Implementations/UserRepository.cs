@@ -11,22 +11,21 @@ using Entities;
 using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using Serilog; 
 
 public class UserRepository : IUserRepository
 {
-    private readonly ILogger<UserRepository> _logger;
 
     private readonly AppDBContext _db;
 
-    public UserRepository(ILogger<UserRepository> logger, AppDBContext db)
+    public UserRepository(AppDBContext db)
     {
-        _logger = logger;
         _db = db;
     }
 
     public async Task<User?> GetUserByIdAsync(Guid id)
     {
-        _logger.LogInformation($"Info: Get User By Id {id}");
+        Log.Information($"Info: Get User By Id {id}");
 
         var foundUser = new User();
         try
@@ -45,14 +44,14 @@ public class UserRepository : IUserRepository
         }
         catch (UserNotFoundException e)
         {
-            _logger.LogInformation($"Error: User not found or otherwise null\n  {e}");
+            Log.Information($"Error: User not found or otherwise null\n  {e}");
             return null;
         }
     }
 
     public async Task<IEnumerable<User>?> GetAllUsersAsync()
     {
-        _logger.LogInformation("Info: Get All Users");
+        Log.Information("Info: Get All Users");
 
         var Users = new List<User>();
 
@@ -68,7 +67,7 @@ public class UserRepository : IUserRepository
         }
         catch (EmptyUsersCollectionException e)
         {
-            _logger.LogWarning($"All Users Returns Zero, Did You Just Reset The DB? \n {e}");
+            Log.Warning($"All Users Returns Zero, Did You Just Reset The DB? \n {e}");
             return null;
         }
     }
@@ -76,7 +75,7 @@ public class UserRepository : IUserRepository
     public async Task<bool> CreateUserAsync(User newUser)
     {
 
-        _logger.LogInformation("Info: Create User Async");
+        Log.Information("Info: Create User Async");
 
         try
         {
@@ -93,7 +92,7 @@ public class UserRepository : IUserRepository
         }
         catch (UserNotFoundException e)
         {
-            _logger.LogError($"Error: newUser is null. Unable to create newUser \n {e}");
+            Log.Error($"Error: newUser is null. Unable to create newUser \n {e}");
             return false;
         }
 
@@ -101,7 +100,7 @@ public class UserRepository : IUserRepository
 
     public async Task<bool> UpdateUserAsync(User updateUser)
     {
-        _logger.LogInformation("Info: Update User Async");
+        Log.Information("Info: Update User Async");
 
         try
         {
@@ -128,19 +127,19 @@ public class UserRepository : IUserRepository
         }
         catch (UserNotFoundException e)
         {
-            _logger.LogError($"Error: updateUser is null. Unable to updateUser \n {e}");
+            Log.Error($"Error: updateUser is null. Unable to updateUser \n {e}");
             return false;
         }
         catch (InvalidArgumentException e)
         {
-            _logger.LogError($"Error: {e}");
+            Log.Error($"Error: {e}");
             return false;
         }
     }
 
     public async Task<bool> DeleteUserAsync(Guid id)
     {
-        _logger.LogInformation("Info: Update User Async");
+        Log.Information("Info: Update User Async");
 
         var foundUser = new User();
 
@@ -162,7 +161,7 @@ public class UserRepository : IUserRepository
         }
         catch (UserNotFoundException e)
         {
-            _logger.LogWarning($"Warning: User not found. Unable to delete {e}");
+            Log.Warning($"Warning: User not found. Unable to delete {e}");
             return false;
         }
     }

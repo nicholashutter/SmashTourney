@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services;
 using System;
+using Serilog;
 public static class UserRouter
 {
 
@@ -18,7 +19,7 @@ public static class UserRouter
         UserRoutes.MapGet("/", async (HttpContext context, AppDBContext db) =>
         {
 
-            logger.LogInformation("Request Type: Get \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
+            Log.Information("Request Type: Get \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
 
             try
             {
@@ -26,19 +27,19 @@ public static class UserRouter
 
 
                 context.Response.StatusCode = StatusCodes.Status200OK;
-                logger.LogInformation("Users Retrieved Successfully \n Time: {Timestamp}", DateTime.UtcNow);
+                Log.Information("Users Retrieved Successfully \n Time: {Timestamp}", DateTime.UtcNow);
                 await context.Response.WriteAsJsonAsync(Users);
             }
             catch (Exception e)
             {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                logger.LogError("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
+                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
                 await context.Response.WriteAsJsonAsync(e.ToString());
             }
         });
         UserRoutes.MapPost("/", async (HttpContext context, AppDBContext db) =>
         {
-            logger.LogInformation("Request Type: Post \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
+            Log.Information("Request Type: Post \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
 
             try
             {
@@ -47,7 +48,7 @@ public static class UserRouter
                 if (newUser is null)
                 {
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    logger.LogWarning("Warning: newUser is null\n Time: {Timestamp}", DateTime.UtcNow);
+                    Log.Warning("Warning: newUser is null\n Time: {Timestamp}", DateTime.UtcNow);
                     return Results.BadRequest("Invalid JSON Payload");
                 }
                 else
@@ -55,7 +56,7 @@ public static class UserRouter
                     db.Add(newUser);
                     await db.SaveChangesAsync();
                     context.Response.StatusCode = StatusCodes.Status201Created;
-                    logger.LogInformation("User Created Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
+                    Log.Information("User Created Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
                     return Results.Created();
                 }
 
@@ -64,7 +65,7 @@ public static class UserRouter
             catch (Exception e)
             {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                logger.LogError("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
+                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
                 return Results.BadRequest("Unknown Error Occured");
             }
 
@@ -72,7 +73,7 @@ public static class UserRouter
 
         UserRoutes.MapPut("/", async (HttpContext context, AppDBContext db) =>
         {
-            logger.LogInformation("Request Type: Put \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
+            Log.Information("Request Type: Put \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
 
             try
             {
@@ -81,7 +82,7 @@ public static class UserRouter
                 if (updateUser is null)
                 {
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    logger.LogWarning("Warning: updateUser is null\n Time: {Timestamp}", DateTime.UtcNow);
+                    Log.Warning("Warning: updateUser is null\n Time: {Timestamp}", DateTime.UtcNow);
                     return Results.BadRequest("Invalid JSON Payload");
                 }
                 else
@@ -90,7 +91,7 @@ public static class UserRouter
 
                     await db.SaveChangesAsync();
                     context.Response.StatusCode = StatusCodes.Status200OK;
-                    logger.LogInformation("User Updated Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
+                    Log.Information("User Updated Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
                     return Results.Accepted();
                 }
 
@@ -98,7 +99,7 @@ public static class UserRouter
             catch (Exception e)
             {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                logger.LogError("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
+                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
                 return Results.BadRequest("Unknown Error Occured");
             }
 
@@ -106,7 +107,7 @@ public static class UserRouter
 
         app.MapDelete("/", async (HttpContext context, AppDBContext db) =>
         {
-            logger.LogInformation("Request Type: Put \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
+            Log.Information("Request Type: Put \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
 
             try
             {
@@ -115,7 +116,7 @@ public static class UserRouter
                 if (deleteUser is null)
                 {
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    logger.LogWarning("Warning: deleteUser is null\n Time: {Timestamp}", DateTime.UtcNow);
+                    Log.Warning("Warning: deleteUser is null\n Time: {Timestamp}", DateTime.UtcNow);
                     return Results.BadRequest("Invalid JSON Payload");
                 }
                 else
@@ -129,7 +130,7 @@ public static class UserRouter
             catch (Exception e)
             {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                logger.LogError("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
+                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
                 return Results.BadRequest("Unknown Error Occured");
             }
         });
