@@ -255,3 +255,5 @@ C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\r
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\tourneyAPI.pdb
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\tourneyAPI.genruntimeconfig.cache
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\ref\tourneyAPI.dll
+C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Castle.Core.dll
+C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Moq.dll

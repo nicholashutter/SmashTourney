@@ -33,7 +33,7 @@ public class PlayerRepositoryTest
     {
         var users = await userRepository.GetAllUsersAsync();
 
-        var dummyGuid = new Guid();
+        var dummyGuid = Guid.NewGuid();
 
 
 

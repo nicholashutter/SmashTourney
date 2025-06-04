@@ -46,7 +46,10 @@ public class GameService : IGameService
 
         Task<Guid> result = Task.Run(() =>
         {
-            Game game = new Game();
+            Game game = new Game
+            {
+                Id = Guid.NewGuid()
+            };
             _games.Add(game);
             Log.Information($"Info: New Game with gameId {game.Id}");
             return game.Id;
@@ -145,10 +148,11 @@ public class GameService : IGameService
             try
             {
                 var foundGame = await GetGameByIdAsync(existingGameId);
+                var success = false;
                 if (foundGame is null)
                 {
-                    foundGame = await LoadGameAsync(existingGameId);
-                    if (foundGame is null)
+                    success = await LoadGameAsync(existingGameId);
+                    if (!success)
                     {
                         foundGame = _games.Find(g => g.Id == existingGameId);
                         if (foundGame is null)
@@ -157,7 +161,7 @@ public class GameService : IGameService
                         }
                     }
                 }
-                var success = await GenerateBracketAsync(existingGameId);
+                success = await GenerateBracketAsync(existingGameId);
                 if (!success)
                 {
                     throw new InvalidFunctionResponseException("StartGameAsync");
@@ -331,27 +335,32 @@ public class GameService : IGameService
 
     //LoadGameAsync will check against the db and attempt to restore
     //game state from games persisted in db
-    public Task<Game?> LoadGameAsync(Guid gameId)
+    public Task<bool> LoadGameAsync(Guid gameId)
     {
         Log.Information($"Info: Create New Game Async");
 
-        Task<Game?> result = Task.Run(async () =>
+        Task<bool> result = Task.Run(async () =>
         {
             await using (var _db = await _dbContextFactory.CreateDbContextAsync())
             {
                 try
                 {
                     var foundGame = await _db.Games.FindAsync(gameId);
+
                     if (foundGame is null)
                     {
                         throw new GameNotFoundException("LoadGameAsyn");
                     }
-                    return foundGame;
+                    else
+                    {
+                        _games.Add(foundGame);
+                    }
+                    return true;
                 }
                 catch (GameNotFoundException e)
                 {
                     Log.Warning($"Error: foundGame is null. Unable to load game not found \n {e}");
-                    return null;
+                    return false;
                 }
             }
         });
@@ -367,32 +376,25 @@ public class GameService : IGameService
 
         Task<bool> result = Task.Run(async () =>
         {
-
-
             await using (var _db = await _dbContextFactory.CreateDbContextAsync())
-            {
-                try
                 {
-                    var foundGame = await _db.Games.FindAsync(gameId);
-
-                    if (foundGame is not null)
+                    var foundGame = _games.Find(g => g.Id == gameId);
+                    if (foundGame is null)
+                    {
+                        foundGame = await _db.Games.FindAsync(gameId);
+                        if (foundGame is null)
+                        {
+                            throw new GameNotFoundException("SaveGameAsync");
+                        }
+                        await _db.Games.AddAsync(foundGame);
+                    }
+                    else if (foundGame is not null)
                     {
                         _db.Games.Update(foundGame);
                         await _db.SaveChangesAsync();
                     }
-                    else
-                    {
-                        throw new GameNotFoundException("SaveGameAsync");
-                    }
-
                     return true;
                 }
-                catch (GameNotFoundException e)
-                {
-                    Log.Error($"Error: {e}");
-                    return false;
-                }
-            }
         });
 
         return result;

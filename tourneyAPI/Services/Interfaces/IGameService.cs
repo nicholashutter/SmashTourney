@@ -35,7 +35,7 @@ public interface IGameService
     Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser);
     //LoadGameAsync will check against the db and attempt to restore
     //game state from games persisted in db
-    Task<Game?> LoadGameAsync(Guid gameId);
+    Task<bool> LoadGameAsync(Guid gameId);
     //api route /SaveGame
     //SaveGame will persist current game state to the database
     Task<bool> SaveGameAsync(Guid gameId);
