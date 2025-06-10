@@ -22,7 +22,7 @@ public class AuthService : IAuthService
         throw new NotImplementedException();
     }
 
-    public Task<string> GenerateTokenAsync(User user)
+    public Task<string> GenerateTokenAsync(ApplicationUser user)
     {
         throw new NotImplementedException();
     }

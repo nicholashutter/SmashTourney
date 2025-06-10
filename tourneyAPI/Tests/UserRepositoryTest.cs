@@ -29,9 +29,9 @@ public class UserRepositoryTest
     public async Task createUserAsync()
     {
 
-        var success = await repository.CreateUserAsync(new User
+        var success = await repository.CreateUserAsync(new ApplicationUser
         {
-            Username = "nicholas",
+            UserName = "nicholas",
             Email = "nicholas.hutter@email.com"
         });
 
@@ -41,15 +41,15 @@ public class UserRepositoryTest
     [Fact]
     public async Task getAllUsersNotNull()
     {
-        await repository.CreateUserAsync(new User
+        await repository.CreateUserAsync(new ApplicationUser
         {
-            Username = "nicholas",
+            UserName = "nicholas",
             Email = "nicholas.hutter@email.com"
         });
 
-        await repository.CreateUserAsync(new User
+        await repository.CreateUserAsync(new ApplicationUser
         {
-            Username = "jason",
+            UserName = "jason",
             Email = "jason.micheal@email.com"
         });
 
@@ -61,34 +61,34 @@ public class UserRepositoryTest
     [Fact]
     public async Task getAllUsersAccurateUsername()
     {
-        var success = await repository.CreateUserAsync(new User
+        var success = await repository.CreateUserAsync(new ApplicationUser
         {
-            Username = "nicholas",
+            UserName = "nicholas",
             Email = "nicholas.hutter@email.com"
         });
 
-        success = await repository.CreateUserAsync(new User
+        success = await repository.CreateUserAsync(new ApplicationUser
         {
-            Username = "jason",
+            UserName = "jason",
             Email = "jason.micheal@email.com"
         });
 
         var users = await repository.GetAllUsersAsync();
-        Assert.Equal("nicholas", users[0].Username);
+        Assert.Equal("nicholas", users[0].UserName);
     }
 
     [Fact]
     public async Task getUserById()
     {
-        var IdOne = await repository.CreateUserAsync(new User
+        var IdOne = await repository.CreateUserAsync(new ApplicationUser
         {
-            Username = "nicholas",
+            UserName = "nicholas",
             Email = "nicholas.hutter@email.com"
         });
 
-        var IdTwo = await repository.CreateUserAsync(new User
+        var IdTwo = await repository.CreateUserAsync(new ApplicationUser
         {
-            Username = "jason",
+            UserName = "jason",
             Email = "jason.micheal@email.com"
         });
 
@@ -99,7 +99,7 @@ public class UserRepositoryTest
         }
         else
         {
-            throw new Exception(); 
+            throw new Exception();
         }
 
     }
@@ -107,25 +107,25 @@ public class UserRepositoryTest
     [Fact]
     public async Task updateUserAsync()
     {
-        var Id = await repository.CreateUserAsync(new User
+        var Id = await repository.CreateUserAsync(new ApplicationUser
         {
-            Username = "nicholas",
+            UserName = "nicholas",
             Email = "nicholas.hutter@email.com"
         });
 
         var success = false;
         if (Id is not null)
         {
-            success = await repository.UpdateUserAsync(new User
+            success = await repository.UpdateUserAsync(new ApplicationUser
             {
                 Id = (Guid)Id,
-                Username = "nicholasUpdated",
+                UserName = "nicholasUpdated",
                 Email = "nicholasUpdated.hutter@email.com"
             });
         }
         else
         {
-            throw new Exception(); 
+            throw new Exception();
         }
 
         Assert.True(success);
@@ -134,25 +134,25 @@ public class UserRepositoryTest
     [Fact]
     public async Task deleteUserAsync()
     {
-        var Id = await repository.CreateUserAsync(new User
+        var Id = await repository.CreateUserAsync(new ApplicationUser
         {
-            Username = "nicholas",
+            UserName = "nicholas",
             Email = "nicholas.hutter@email.com"
         });
 
         var success = false;
         if (Id is not null)
         {
-            success = await repository.UpdateUserAsync(new User
+            success = await repository.UpdateUserAsync(new ApplicationUser
             {
                 Id = (Guid)Id,
-                Username = "nicholasUpdated",
+                UserName = "nicholasUpdated",
                 Email = "nicholasUpdated.hutter@email.com"
             });
         }
         else
         {
-            throw new Exception(); 
+            throw new Exception();
         }
 
         Assert.True(success);

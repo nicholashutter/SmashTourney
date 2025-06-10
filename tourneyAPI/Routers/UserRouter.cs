@@ -6,6 +6,13 @@ using Microsoft.Extensions.Logging;
 using Services;
 using System;
 using Serilog;
+
+/*
+
+This class was written prior to integrating my User model into efcore as a IdentityUser
+This class may be removed at some point
+
+*/ 
 public static class UserRouter
 {
 
@@ -43,7 +50,7 @@ public static class UserRouter
 
             try
             {
-                var newUser = await context.Request.ReadFromJsonAsync<User>();
+                var newUser = await context.Request.ReadFromJsonAsync<ApplicationUser>();
 
                 if (newUser is null)
                 {
@@ -77,7 +84,7 @@ public static class UserRouter
 
             try
             {
-                var updateUser = await context.Request.ReadFromJsonAsync<User>();
+                var updateUser = await context.Request.ReadFromJsonAsync<ApplicationUser>();
 
                 if (updateUser is null)
                 {
@@ -111,7 +118,7 @@ public static class UserRouter
 
             try
             {
-                var deleteUser = await context.Request.ReadFromJsonAsync<User>();
+                var deleteUser = await context.Request.ReadFromJsonAsync<ApplicationUser>();
 
                 if (deleteUser is null)
                 {

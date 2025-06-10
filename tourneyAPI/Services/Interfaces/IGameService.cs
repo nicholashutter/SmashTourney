@@ -47,7 +47,7 @@ public interface IGameService
     Task<bool> AddPlayersToGameAsync(List<Player> players, Guid gameId);
 
     //Api route /AddUserToLobby
-    Task<bool> AddUserToLobby(User addUser, Guid gameId);
+    Task<bool> AddUserToLobby(ApplicationUser addUser, Guid gameId);
 
     //called by SaveGameAsync or EndGameAsync
     Task<bool> UpdateUserScore(Guid gameId);

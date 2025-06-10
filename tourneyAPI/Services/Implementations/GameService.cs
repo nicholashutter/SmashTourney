@@ -25,7 +25,7 @@ public class GameService : IGameService
     private List<Game> _games;
 
     //list that represents users authenticated but not in a specific game
-    public List<User> _lobby;
+    public List<ApplicationUser> _lobby;
 
 
     //GameService has a singleton lifetime and is created on application start
@@ -35,7 +35,7 @@ public class GameService : IGameService
         _dbContextFactory = dbContextFactory;
         _scopeFactory = scopeFactory;
         _games = new List<Game>();
-        _lobby = new List<User>();
+        _lobby = new List<ApplicationUser>();
     }
 
     //api route /NewGame 
@@ -377,24 +377,24 @@ public class GameService : IGameService
         Task<bool> result = Task.Run(async () =>
         {
             await using (var _db = await _dbContextFactory.CreateDbContextAsync())
+            {
+                var foundGame = _games.Find(g => g.Id == gameId);
+                if (foundGame is null)
                 {
-                    var foundGame = _games.Find(g => g.Id == gameId);
+                    foundGame = await _db.Games.FindAsync(gameId);
                     if (foundGame is null)
                     {
-                        foundGame = await _db.Games.FindAsync(gameId);
-                        if (foundGame is null)
-                        {
-                            throw new GameNotFoundException("SaveGameAsync");
-                        }
-                        await _db.Games.AddAsync(foundGame);
+                        throw new GameNotFoundException("SaveGameAsync");
                     }
-                    else if (foundGame is not null)
-                    {
-                        _db.Games.Update(foundGame);
-                        await _db.SaveChangesAsync();
-                    }
-                    return true;
+                    await _db.Games.AddAsync(foundGame);
                 }
+                else if (foundGame is not null)
+                {
+                    _db.Games.Update(foundGame);
+                    await _db.SaveChangesAsync();
+                }
+                return true;
+            }
         });
 
         return result;
@@ -513,7 +513,7 @@ public class GameService : IGameService
                     throw new GameNotFoundException("AddPlayersToGameAsync");
                 }
 
-                foreach (User user in _lobby)
+                foreach (ApplicationUser user in _lobby)
                 {
                     foreach (Player player in players)
                     {
@@ -537,9 +537,9 @@ public class GameService : IGameService
 
     //Api route /AddUserToLobby
     //will only let authenticated users further inside the application if the gameID presented is valid
-    public Task<bool> AddUserToLobby(User addUser, Guid gameId)
+    public Task<bool> AddUserToLobby(ApplicationUser addUser, Guid gameId)
     {
-        Log.Information($"Info: Adding User {addUser.Username} to game lobby.");
+        Log.Information($"Info: Adding User {addUser.UserName} to game lobby.");
 
         Task<bool> result = Task.Run(() =>
         {
@@ -569,7 +569,7 @@ public class GameService : IGameService
                         else
                         {
                             _lobby.Add(addUser);
-                            Log.Information($"User {addUser.Username} Added To Game {gameId} lobby");
+                            Log.Information($"User {addUser.UserName} Added To Game {gameId} lobby");
                             return true;
                         }
                     }

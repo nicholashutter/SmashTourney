@@ -5,9 +5,9 @@ namespace Validators;
 
 public class UserValidator()
 {
-    public static void Validate(User validateUser, string TAG)
+    public static void Validate(ApplicationUser validateUser, string TAG)
     {
-        if (validateUser.Username is null || validateUser.Email is null)
+        if (validateUser.UserName is null || validateUser.Email is null)
         {
             throw new UserValidationException(TAG);
         }

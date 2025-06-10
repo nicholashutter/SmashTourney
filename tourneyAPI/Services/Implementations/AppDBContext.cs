@@ -7,7 +7,7 @@ using Entities;
 
 public class AppDBContext : DbContext
 {
-    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<ApplicationUser> Users { get; set; } = null!;
     public DbSet<Player> Players { get; set; } = null!;
     public DbSet<Game> Games { get; set; } = null!;
     public DbSet<Character> Characters { get; set; } = null!;

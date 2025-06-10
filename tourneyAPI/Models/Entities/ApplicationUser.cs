@@ -1,15 +1,12 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Identity;
 
 namespace Entities;
 
-public class User
+public class ApplicationUser : IdentityUser<Guid>
 {
-        [Required]
-        public Guid Id { get; set; }
-        [Required]
-        public string Username { get; set; } = "";
-        [Required]
-        public string Email { get; set; } = "";
+        public override Guid Id { get => base.Id; set => base.Id = value; }
+        public override string? UserName { get => base.UserName; set => base.UserName = value; }
         [Required]
         public DateTime RegistrationDate { get; set; } = DateTime.UtcNow;
         public DateTime? LastLoginDate { get; set; } = DateTime.UtcNow;

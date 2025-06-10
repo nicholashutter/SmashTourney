@@ -11,7 +11,7 @@ using Entities;
 using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
-using Serilog; 
+using Serilog;
 
 public class UserRepository : IUserRepository
 {
@@ -23,11 +23,11 @@ public class UserRepository : IUserRepository
         _db = db;
     }
 
-    public async Task<User?> GetUserByIdAsync(Guid id)
+    public async Task<ApplicationUser?> GetUserByIdAsync(Guid id)
     {
         Log.Information($"Info: Get User By Id {id}");
 
-        var foundUser = new User();
+        var foundUser = new ApplicationUser();
         try
         {
             foundUser = await _db.Users.FindAsync(id);
@@ -49,11 +49,11 @@ public class UserRepository : IUserRepository
         }
     }
 
-    public async Task<List<User>?> GetAllUsersAsync()
+    public async Task<List<ApplicationUser>?> GetAllUsersAsync()
     {
         Log.Information("Info: Get All Users");
 
-        var Users = new List<User>();
+        var Users = new List<ApplicationUser>();
 
         try
         {
@@ -72,7 +72,7 @@ public class UserRepository : IUserRepository
         }
     }
 
-    public async Task<Guid?> CreateUserAsync(User newUser)
+    public async Task<Guid?> CreateUserAsync(ApplicationUser newUser)
     {
 
         Log.Information("Info: Create User Async");
@@ -88,7 +88,7 @@ public class UserRepository : IUserRepository
                 await _db.AddAsync(newUser);
                 await _db.SaveChangesAsync();
 
-                return newUser.Id; 
+                return newUser.Id;
             }
         }
         catch (UserNotFoundException e)
@@ -99,7 +99,7 @@ public class UserRepository : IUserRepository
 
     }
 
-    public async Task<bool> UpdateUserAsync(User updateUser)
+    public async Task<bool> UpdateUserAsync(ApplicationUser updateUser)
     {
         Log.Information("Info: Update User Async");
 
@@ -142,7 +142,7 @@ public class UserRepository : IUserRepository
     {
         Log.Information("Info: Update User Async");
 
-        var foundUser = new User();
+        var foundUser = new ApplicationUser();
 
         try
         {
