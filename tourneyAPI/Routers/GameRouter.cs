@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services;
 using System;
-using Serilog; 
+using Serilog;
 
 public static class GameRouter
 {
@@ -13,7 +13,7 @@ public static class GameRouter
     {
         var GameRoutes = app.MapGroup("/Games");
 
-        GameRoutes.MapGet("/", async (HttpContext context, AppDBContext db) =>
+        GameRoutes.MapGet("/", async (HttpContext context, ApplicationDbContext db) =>
         {
             Log.Information("Request Type: Get \n URL: '/Games' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -33,7 +33,7 @@ public static class GameRouter
             }
         });
 
-        GameRoutes.MapPost("/", async (HttpContext context, AppDBContext db) =>
+        GameRoutes.MapPost("/", async (HttpContext context, ApplicationDbContext db) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -65,7 +65,7 @@ public static class GameRouter
         });
 
 
-        GameRoutes.MapPut("/", async (HttpContext context, AppDBContext db) =>
+        GameRoutes.MapPut("/", async (HttpContext context, ApplicationDbContext db) =>
         {
             Log.Information("Request Type: Put \n URL: '/Games' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -97,7 +97,7 @@ public static class GameRouter
         });
 
 
-        GameRoutes.MapDelete("/", async (HttpContext context, AppDBContext db) =>
+        GameRoutes.MapDelete("/", async (HttpContext context, ApplicationDbContext db) =>
         {
             Log.Information("Request Type: Delete \n URL: '/Games' \n Time:{Timestamp}", DateTime.UtcNow);
             try

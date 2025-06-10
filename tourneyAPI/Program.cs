@@ -18,8 +18,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 //this should allow both for a singleton factory registration for DB access inside of game and
 //scopped access on the individual service level
-builder.Services.AddDbContextFactory<AppDBContext>();
-builder.Services.AddDbContext<AppDBContext>();
+builder.Services.AddDbContextFactory<ApplicationDbContext>();
+builder.Services.AddDbContext<ApplicationDbContext>();
 
 
 //scoped services will be destroyed after the function scope that uses them closes 
@@ -36,7 +36,7 @@ builder.Services.AddSerilog();
 builder.Services.AddAuthorization();
 
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
-.AddEntityFrameworkStores<AppDBContext>();
+.AddEntityFrameworkStores<ApplicationDbContext>();
 
 /* 
 PROD

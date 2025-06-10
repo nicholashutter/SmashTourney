@@ -16,9 +16,9 @@ using Serilog;
 public class UserRepository : IUserRepository
 {
 
-    private readonly AppDBContext _db;
+    private readonly ApplicationDbContext _db;
 
-    public UserRepository(AppDBContext db)
+    public UserRepository(ApplicationDbContext db)
     {
         _db = db;
     }

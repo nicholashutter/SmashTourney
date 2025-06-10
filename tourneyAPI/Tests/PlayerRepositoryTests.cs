@@ -1,24 +1,22 @@
-using System;
 using Xunit;
-using Validators;
 using Entities;
 using Services;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using NuGet.Frameworks;
+using Microsoft.EntityFrameworkCore;
+using System.Data.Common;
 
 namespace Tests;
 
 public class PlayerRepositoryTest
 {
-    private AppDBContext db;
+    private const string dbName = "tourneydb.db";
+    private ApplicationDbContext db;
     private PlayerRepository repository;
 
     private UserRepository userRepository;
 
     public PlayerRepositoryTest()
     {
-        db = new AppDBContext();
+        db = new ApplicationDbContext(new DbContextOptions<ApplicationDbContext>(), dbName);
         repository = new PlayerRepository(db);
         userRepository = new UserRepository(db);
     }

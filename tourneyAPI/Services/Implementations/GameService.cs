@@ -17,7 +17,7 @@ public class GameService : IGameService
 
     //internal reference to dbContextFactory which allows
     //for local access to db inside of singleton class
-    private readonly IDbContextFactory<AppDBContext> _dbContextFactory;
+    private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
 
     private readonly IServiceScopeFactory _scopeFactory;
 
@@ -29,7 +29,7 @@ public class GameService : IGameService
 
 
     //GameService has a singleton lifetime and is created on application start
-    public GameService(IDbContextFactory<AppDBContext> dbContextFactory, IServiceScopeFactory scopeFactory)
+    public GameService(IDbContextFactory<ApplicationDbContext> dbContextFactory, IServiceScopeFactory scopeFactory)
     {
 
         _dbContextFactory = dbContextFactory;

@@ -14,10 +14,10 @@ using Serilog;
 
 public class PlayerRepository : IPlayerRepository
 {
-    private readonly AppDBContext _db;
+    private readonly ApplicationDbContext _db;
 
 
-    public PlayerRepository(AppDBContext db)
+    public PlayerRepository(ApplicationDbContext db)
     {
         _db = db;
     }

@@ -1,22 +1,20 @@
-using System;
 using Xunit;
-using Validators;
 using Entities;
 using Services;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualBasic;
-using System.Threading.Tasks;
 
 namespace Tests;
 
 public class UserRepositoryTest
 {
-    AppDBContext db;
+
+    private const string dbName = "tourneydb.db";
+    ApplicationDbContext db;
 
     UserRepository repository;
     public UserRepositoryTest()
     {
-        db = new AppDBContext();
+        db = new ApplicationDbContext(new DbContextOptions<ApplicationDbContext>(), "tourneydb.db");
         repository = new UserRepository(db);
     }
 

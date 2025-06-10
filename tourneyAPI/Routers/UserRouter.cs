@@ -12,7 +12,7 @@ using Serilog;
 This class was written prior to integrating my User model into efcore as a IdentityUser
 This class may be removed at some point
 
-*/ 
+*/
 public static class UserRouter
 {
 
@@ -23,7 +23,7 @@ public static class UserRouter
         var UserRoutes = app.MapGroup("/Users");
 
 
-        UserRoutes.MapGet("/", async (HttpContext context, AppDBContext db) =>
+        UserRoutes.MapGet("/", async (HttpContext context, ApplicationDbContext db) =>
         {
 
             Log.Information("Request Type: Get \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
@@ -44,7 +44,7 @@ public static class UserRouter
                 await context.Response.WriteAsJsonAsync(e.ToString());
             }
         });
-        UserRoutes.MapPost("/", async (HttpContext context, AppDBContext db) =>
+        UserRoutes.MapPost("/", async (HttpContext context, ApplicationDbContext db) =>
         {
             Log.Information("Request Type: Post \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
 
@@ -78,7 +78,7 @@ public static class UserRouter
 
         });
 
-        UserRoutes.MapPut("/", async (HttpContext context, AppDBContext db) =>
+        UserRoutes.MapPut("/", async (HttpContext context, ApplicationDbContext db) =>
         {
             Log.Information("Request Type: Put \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -112,7 +112,7 @@ public static class UserRouter
 
         });
 
-        app.MapDelete("/", async (HttpContext context, AppDBContext db) =>
+        app.MapDelete("/", async (HttpContext context, ApplicationDbContext db) =>
         {
             Log.Information("Request Type: Put \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
 
