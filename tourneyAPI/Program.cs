@@ -50,6 +50,7 @@ var app = builder.Build();
 //PROD
 //app.UseHttpsRedirection(); 
 
+app.UseDefaultFiles();
 app.UseStaticFiles();
 
 
