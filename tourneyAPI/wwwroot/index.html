@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello World</title>
+    <style>
+        /* Apply basic styles for a material dark theme */
+        body {
+            background-color: #212121; /* Dark background */
+            color: #E0E0E0; /* Light text color */
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; /* Native sans-serif font stack */
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Ensure full viewport height */
+            padding: 20px; /* Add some padding around the content */
+            box-sizing: border-box; /* Include padding in element's total width and height */
+        }
+
+        /* Style for the main content container */
+        .container {
+            background-color: #303030; /* Slightly lighter dark background for the card */
+            padding: 40px;
+            border-radius: 12px; /* Rounded corners */
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); /* Material design shadow */
+            text-align: center;
+            max-width: 90%; /* Max width for responsiveness */
+            width: 500px; /* Desired width for larger screens */
+        }
+
+        /* Style for the heading */
+        h1 {
+            font-size: 3em; /* Large font size */
+            font-weight: 700; /* Bold text */
+            margin: 0; /* Remove default margin */
+            color: #FFFFFF; /* White color for the heading */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px; /* Smaller padding on small screens */
+            }
+            h1 {
+                font-size: 2em; /* Smaller font size on small screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main container for the Hello World text -->
+    <div class="container">
+        <!-- The Hello World heading -->
+        <h1>Hello World!</h1>
+    </div>
+</body>
+</html>

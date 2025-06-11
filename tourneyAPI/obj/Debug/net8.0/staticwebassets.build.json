@@ -1,11 +1,39 @@
 {
   "Version": 1,
-  "Hash": "gAVYmWpngiUFYqBYAxjcx6b9OMQZT2x+O9tHDNTB8tk=",
+  "Hash": "gfd+U+Ol7DkFGNnwl+Ns39lX4pFdcn+ZtUYHRbOCvgE=",
   "Source": "tourneyAPI",
   "BasePath": "_content/tourneyAPI",
   "Mode": "Default",
   "ManifestType": "Build",
   "ReferencedProjectsConfiguration": [],
-  "DiscoveryPatterns": [],
-  "Assets": []
+  "DiscoveryPatterns": [
+    {
+      "Name": "tourneyAPI\\wwwroot",
+      "Source": "tourneyAPI",
+      "ContentRoot": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\wwwroot\\",
+      "BasePath": "_content/tourneyAPI",
+      "Pattern": "**"
+    }
+  ],
+  "Assets": [
+    {
+      "Identity": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\wwwroot\\index.html",
+      "SourceId": "tourneyAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\wwwroot\\",
+      "BasePath": "_content/tourneyAPI",
+      "RelativePath": "index.html",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "PreferTarget",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\index.html"
+    }
+  ]
 }

@@ -3,14 +3,11 @@ namespace Services;
 
 /* UserRepository implements a repository layer for User Objects to persist them to the database */
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Threading.Tasks;
 using Entities;
 using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using Serilog;
 
 public class UserRepository : IUserRepository

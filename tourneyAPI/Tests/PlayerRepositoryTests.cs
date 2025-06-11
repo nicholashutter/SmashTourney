@@ -8,15 +8,15 @@ namespace Tests;
 
 public class PlayerRepositoryTest
 {
-    private const string dbName = "tourneydb.db";
     private ApplicationDbContext db;
     private PlayerRepository repository;
 
     private UserRepository userRepository;
 
+
     public PlayerRepositoryTest()
     {
-        db = new ApplicationDbContext(new DbContextOptions<ApplicationDbContext>(), dbName);
+        db = new ApplicationDbContext();
         repository = new PlayerRepository(db);
         userRepository = new UserRepository(db);
     }
@@ -29,23 +29,22 @@ public class PlayerRepositoryTest
     [Fact]
     public async Task createPlayer()
     {
-        var users = await userRepository.GetAllUsersAsync();
 
-        var dummyGuid = Guid.NewGuid();
+        var mockUser = Guid.NewGuid();
 
 
 
         var Id = await repository.CreateAsync(new Player
         {
-            UserId = users[0].Id,
+            UserId = mockUser,
             DisplayName = "testUser",
             CurrentScore = 0,
             CurrentRound = 0,
-            CurrentOpponent = dummyGuid,
+            CurrentOpponent = mockUser,
             CurrentCharacter = "Bowser",
-            CurrentGameID = dummyGuid,
+            CurrentGameID = mockUser,
             HasVoted = false,
-            MatchWinner = dummyGuid
+            MatchWinner = mockUser
         });
 
         Assert.IsType<Guid>(Id);
@@ -63,23 +62,22 @@ public class PlayerRepositoryTest
     [Fact]
     public async Task getByIdAsync()
     {
-        var users = await userRepository.GetAllUsersAsync();
 
-        var dummyGuid = new Guid();
+        var mockUser = new Guid();
 
 
 
         var Id = await repository.CreateAsync(new Player
         {
-            UserId = users[0].Id,
+            UserId = mockUser,
             DisplayName = "testUser",
             CurrentScore = 0,
             CurrentRound = 0,
-            CurrentOpponent = dummyGuid,
+            CurrentOpponent = mockUser,
             CurrentCharacter = "Bowser",
-            CurrentGameID = dummyGuid,
+            CurrentGameID = mockUser,
             HasVoted = false,
-            MatchWinner = dummyGuid
+            MatchWinner = mockUser
         });
 
         if (Id is not null)
@@ -95,35 +93,34 @@ public class PlayerRepositoryTest
     [Fact]
     public async Task updateAsync()
     {
-        var users = await userRepository.GetAllUsersAsync();
 
-        var dummyGuid = new Guid();
+        var mockUser = new Guid();
 
         var Id = await repository.CreateAsync(new Player
         {
-            UserId = users[0].Id,
+            UserId = mockUser,
             DisplayName = "testUser",
             CurrentScore = 0,
             CurrentRound = 0,
-            CurrentOpponent = dummyGuid,
+            CurrentOpponent = mockUser,
             CurrentCharacter = "Bowser",
-            CurrentGameID = dummyGuid,
+            CurrentGameID = mockUser,
             HasVoted = false,
-            MatchWinner = dummyGuid
+            MatchWinner = mockUser
         });
 
         var success = await repository.UpdateAsync(new Player
         {
             Id = (Guid)Id,
-            UserId = users[0].Id,
+            UserId = mockUser,
             DisplayName = "testUserUpdate",
             CurrentScore = 0,
             CurrentRound = 0,
-            CurrentOpponent = dummyGuid,
+            CurrentOpponent = mockUser,
             CurrentCharacter = "Bowser",
-            CurrentGameID = dummyGuid,
+            CurrentGameID = mockUser,
             HasVoted = false,
-            MatchWinner = dummyGuid
+            MatchWinner = mockUser
         });
 
         Assert.True(success);
@@ -131,21 +128,20 @@ public class PlayerRepositoryTest
 
     public async Task deleteAsync()
     {
-        var users = await userRepository.GetAllUsersAsync();
 
-        var dummyGuid = new Guid();
+        var mockUser = new Guid();
 
         var Id = await repository.CreateAsync(new Player
         {
-            UserId = users[0].Id,
+            UserId = mockUser,
             DisplayName = "testUser",
             CurrentScore = 0,
             CurrentRound = 0,
-            CurrentOpponent = dummyGuid,
+            CurrentOpponent = mockUser,
             CurrentCharacter = "Bowser",
-            CurrentGameID = dummyGuid,
+            CurrentGameID = mockUser,
             HasVoted = false,
-            MatchWinner = dummyGuid
+            MatchWinner = mockUser
         });
 
         var success = await repository.DeleteAsync((Guid)Id);

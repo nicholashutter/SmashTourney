@@ -2,7 +2,6 @@ using Routers;
 using Services;
 using Serilog;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Entities;
 
 
@@ -23,7 +22,6 @@ builder.Services.AddDbContext<ApplicationDbContext>();
 
 
 //scoped services will be destroyed after the function scope that uses them closes 
-builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
@@ -40,9 +38,6 @@ builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
 
 /* 
 PROD
-This option will tell the browser not to allow cros origin requests
-This will heavily restrict the api's ability to accept requests
-from anywhere that isn't the host domain
 var cookiePolicyOptions = new CookiePolicyOptions
 {
     MinimumSameSitePolicy = SameSiteMode.Strict,
@@ -55,8 +50,7 @@ var app = builder.Build();
 //PROD
 //app.UseHttpsRedirection(); 
 
-//this will let us host our front end solution
-//app.UseStaticFiles(); 
+app.UseStaticFiles();
 
 
 
@@ -67,6 +61,9 @@ var app = builder.Build();
 //UserRouter.Map(app);
 
 //add route handlers
+
+//test dev only get request hello world route handler
+
 app.MapIdentityApi<IdentityUser>();
 PlayerRouter.Map(app);
 GameRouter.Map(app);
