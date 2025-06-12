@@ -14,19 +14,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Game> Games { get; set; } = null!;
     public DbSet<Character> Characters { get; set; } = null!;
 
-    public string DbPath = "tourney.db";
-
-    public ApplicationDbContext()
+    public ApplicationDbContext(DbContextOptions options) : base(options)
     {
-        var folder = Environment.SpecialFolder.LocalApplicationData;
-        var path = Environment.GetFolderPath(folder);
-        DbPath = System.IO.Path.Join(path, DbPath);
 
-    }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        optionsBuilder.UseSqlite($"Data Source={DbPath}");
     }
 
 }

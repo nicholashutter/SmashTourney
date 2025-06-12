@@ -3,6 +3,7 @@ using Services;
 using Serilog;
 using Microsoft.AspNetCore.Identity;
 using Entities;
+using Microsoft.EntityFrameworkCore;
 
 
 //setup logger system using serlog library
@@ -10,15 +11,17 @@ using Entities;
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     //WriteTo.File provides a path inside the logs folder filename is today's date
-    .WriteTo.File($"logs\\{DateOnly.FromDateTime(DateTime.Now).ToString("MMMM dd yyyy")}")
+    .WriteTo.File($"logs/{DateOnly.FromDateTime(DateTime.Now).ToString("MMMM dd yyyy")}")
     .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 
-//this should allow both for a singleton factory registration for DB access inside of game and
-//scopped access on the individual service level
-builder.Services.AddDbContextFactory<ApplicationDbContext>();
-builder.Services.AddDbContext<ApplicationDbContext>();
+var dbFileName = "tourneyDb.db"; 
+var dbPath = $"DataSource={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, dbFileName)}";
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    options.UseSqlite(dbPath);
+});
 
 
 //scoped services will be destroyed after the function scope that uses them closes 
@@ -32,9 +35,18 @@ builder.Services.AddSingleton<IGameService, GameService>();
 builder.Services.AddSerilog();
 
 builder.Services.AddAuthorization();
+builder.Services.AddAuthentication();
 
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
 .AddEntityFrameworkStores<ApplicationDbContext>();
+
+/* TODO implement IEmailSender 
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    options.SignIn.RequireConfirmedEmail = true;
+});
+
+builder.Services.AddTransient<IEmailSender, EmailSender>(); */
 
 /* 
 PROD
@@ -46,17 +58,11 @@ var cookiePolicyOptions = new CookiePolicyOptions
 
 var app = builder.Build();
 
-
 //PROD
 //app.UseHttpsRedirection(); 
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
-
-
-
-
-
 
 //UserRouter may be removed
 //UserRouter.Map(app);
@@ -65,7 +71,7 @@ app.UseStaticFiles();
 
 //test dev only get request hello world route handler
 
-app.MapIdentityApi<IdentityUser>();
+app.MapIdentityApi<ApplicationUser>();
 PlayerRouter.Map(app);
 GameRouter.Map(app);
 

@@ -14,10 +14,7 @@ using Serilog;
 
 public class GameService : IGameService
 {
-
-    //internal reference to dbContextFactory which allows
-    //for local access to db inside of singleton class
-    private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
+    private readonly IServiceProvider _serviceProvider;
 
     private readonly IServiceScopeFactory _scopeFactory;
 
@@ -29,10 +26,9 @@ public class GameService : IGameService
 
 
     //GameService has a singleton lifetime and is created on application start
-    public GameService(IDbContextFactory<ApplicationDbContext> dbContextFactory, IServiceScopeFactory scopeFactory)
+    public GameService(IServiceScopeFactory scopeFactory, IServiceProvider serviceProvider)
     {
-
-        _dbContextFactory = dbContextFactory;
+        _serviceProvider = serviceProvider;
         _scopeFactory = scopeFactory;
         _games = new List<Game>();
         _lobby = new List<ApplicationUser>();
@@ -83,8 +79,10 @@ public class GameService : IGameService
     {
         Log.Information($"Info: Get Game By Id {Id}");
 
-        await using (var _db = await _dbContextFactory.CreateDbContextAsync())
+        using (var scope = _serviceProvider.CreateScope())
         {
+            var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
             var foundGame = new Game();
             try
             {
@@ -115,8 +113,10 @@ public class GameService : IGameService
     {
         Log.Information($"Info: Get All Games");
 
-        await using (var _db = await _dbContextFactory.CreateDbContextAsync())
+        using (var scope = _serviceProvider.CreateScope())
         {
+            var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
             var Games = new List<Game>();
 
             try
@@ -341,8 +341,9 @@ public class GameService : IGameService
 
         Task<bool> result = Task.Run(async () =>
         {
-            await using (var _db = await _dbContextFactory.CreateDbContextAsync())
+            using (var scope = _serviceProvider.CreateScope())
             {
+                var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 try
                 {
                     var foundGame = await _db.Games.FindAsync(gameId);
@@ -376,8 +377,10 @@ public class GameService : IGameService
 
         Task<bool> result = Task.Run(async () =>
         {
-            await using (var _db = await _dbContextFactory.CreateDbContextAsync())
+            using (var scope = _serviceProvider.CreateScope())
             {
+                var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
                 var foundGame = _games.Find(g => g.Id == gameId);
                 if (foundGame is null)
                 {

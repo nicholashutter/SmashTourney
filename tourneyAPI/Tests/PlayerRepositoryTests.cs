@@ -8,144 +8,181 @@ namespace Tests;
 
 public class PlayerRepositoryTest
 {
-    private ApplicationDbContext db;
-    private PlayerRepository repository;
-
-    private UserRepository userRepository;
-
+    private WebApplication app;
 
     public PlayerRepositoryTest()
     {
-        db = new ApplicationDbContext();
-        repository = new PlayerRepository(db);
-        userRepository = new UserRepository(db);
-    }
+        var builder = WebApplication.CreateBuilder();
 
-    public void Dispose()
-    {
-        db.Dispose();
+        var dbFileName = "tourneyDb.db";
+        var dbPath = $"DataSource={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, dbFileName)}";
+        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        {
+            options.UseSqlite(dbPath);
+        });
+
+        builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
+        builder.Services.AddScoped<IUserRepository, UserRepository>();
+
+        app = builder.Build();
+
     }
 
     [Fact]
     public async Task createPlayer()
     {
-
-        var mockUser = Guid.NewGuid();
-
-
-
-        var Id = await repository.CreateAsync(new Player
+        using (var serviceScope = app.Services.CreateScope())
         {
-            UserId = mockUser,
-            DisplayName = "testUser",
-            CurrentScore = 0,
-            CurrentRound = 0,
-            CurrentOpponent = mockUser,
-            CurrentCharacter = "Bowser",
-            CurrentGameID = mockUser,
-            HasVoted = false,
-            MatchWinner = mockUser
-        });
+            var services = serviceScope.ServiceProvider;
 
-        Assert.IsType<Guid>(Id);
+            var mockUser = Guid.NewGuid();
+
+            var repository = services.GetRequiredService<IPlayerRepository>();
+
+            var Id = await repository.CreateAsync(new Player
+            {
+                UserId = mockUser,
+                DisplayName = "testUser",
+                CurrentScore = 0,
+                CurrentRound = 0,
+                CurrentOpponent = mockUser,
+                CurrentCharacter = "Bowser",
+                CurrentGameID = mockUser,
+                HasVoted = false,
+                MatchWinner = mockUser
+            });
+
+            Assert.IsType<Guid>(Id);
+        }
     }
 
     [Fact]
     public async Task getAllPlayers()
     {
+        using (var serviceScope = app.Services.CreateScope())
+        {
+            var services = serviceScope.ServiceProvider;
 
-        var players = await repository.GetAllAsync();
+            var repository = services.GetRequiredService<IPlayerRepository>();
 
-        Assert.NotNull(players);
+            var players = await repository.GetAllAsync();
+
+            Assert.NotNull(players);
+        }
+
     }
 
     [Fact]
     public async Task getByIdAsync()
     {
 
-        var mockUser = new Guid();
-
-
-
-        var Id = await repository.CreateAsync(new Player
+        using (var serviceScope = app.Services.CreateScope())
         {
-            UserId = mockUser,
-            DisplayName = "testUser",
-            CurrentScore = 0,
-            CurrentRound = 0,
-            CurrentOpponent = mockUser,
-            CurrentCharacter = "Bowser",
-            CurrentGameID = mockUser,
-            HasVoted = false,
-            MatchWinner = mockUser
-        });
+            var services = serviceScope.ServiceProvider;
 
-        if (Id is not null)
-        {
-            var foundPlayer = await repository.GetByIdAsync((Guid)Id);
-            Assert.Equal(foundPlayer.Id, Id);
+            var mockUser = new Guid();
+
+            var repository = services.GetRequiredService<IPlayerRepository>();
+
+            var Id = await repository.CreateAsync(new Player
+            {
+                UserId = mockUser,
+                DisplayName = "testUser",
+                CurrentScore = 0,
+                CurrentRound = 0,
+                CurrentOpponent = mockUser,
+                CurrentCharacter = "Bowser",
+                CurrentGameID = mockUser,
+                HasVoted = false,
+                MatchWinner = mockUser
+            });
+
+            if (Id is not null)
+            {
+                var foundPlayer = await repository.GetByIdAsync((Guid)Id);
+                Assert.Equal(foundPlayer.Id, Id);
+            }
+            else
+            {
+                throw new Exception();
+            }
         }
-        else
-        {
-            throw new Exception();
-        }
+
     }
     [Fact]
     public async Task updateAsync()
     {
 
-        var mockUser = new Guid();
-
-        var Id = await repository.CreateAsync(new Player
+        using (var serviceScope = app.Services.CreateScope())
         {
-            UserId = mockUser,
-            DisplayName = "testUser",
-            CurrentScore = 0,
-            CurrentRound = 0,
-            CurrentOpponent = mockUser,
-            CurrentCharacter = "Bowser",
-            CurrentGameID = mockUser,
-            HasVoted = false,
-            MatchWinner = mockUser
-        });
+            var services = serviceScope.ServiceProvider;
 
-        var success = await repository.UpdateAsync(new Player
-        {
-            Id = (Guid)Id,
-            UserId = mockUser,
-            DisplayName = "testUserUpdate",
-            CurrentScore = 0,
-            CurrentRound = 0,
-            CurrentOpponent = mockUser,
-            CurrentCharacter = "Bowser",
-            CurrentGameID = mockUser,
-            HasVoted = false,
-            MatchWinner = mockUser
-        });
+            var mockUser = new Guid();
 
-        Assert.True(success);
+            var repository = services.GetRequiredService<IPlayerRepository>();
+
+            var Id = await repository.CreateAsync(new Player
+            {
+                UserId = mockUser,
+                DisplayName = "testUser",
+                CurrentScore = 0,
+                CurrentRound = 0,
+                CurrentOpponent = mockUser,
+                CurrentCharacter = "Bowser",
+                CurrentGameID = mockUser,
+                HasVoted = false,
+                MatchWinner = mockUser
+            });
+
+            var success = await repository.UpdateAsync(new Player
+            {
+                Id = (Guid)Id,
+                UserId = mockUser,
+                DisplayName = "testUserUpdate",
+                CurrentScore = 0,
+                CurrentRound = 0,
+                CurrentOpponent = mockUser,
+                CurrentCharacter = "Bowser",
+                CurrentGameID = mockUser,
+                HasVoted = false,
+                MatchWinner = mockUser
+            });
+
+            Assert.True(success);
+        }
+
+
     }
 
     public async Task deleteAsync()
     {
-
-        var mockUser = new Guid();
-
-        var Id = await repository.CreateAsync(new Player
+        using (var serviceScope = app.Services.CreateScope())
         {
-            UserId = mockUser,
-            DisplayName = "testUser",
-            CurrentScore = 0,
-            CurrentRound = 0,
-            CurrentOpponent = mockUser,
-            CurrentCharacter = "Bowser",
-            CurrentGameID = mockUser,
-            HasVoted = false,
-            MatchWinner = mockUser
-        });
 
-        var success = await repository.DeleteAsync((Guid)Id);
+            var services = serviceScope.ServiceProvider;
 
-        Assert.True(success);
+            var mockUser = Guid.NewGuid();
+
+            var repository = services.GetRequiredService<IPlayerRepository>();
+
+            var Id = await repository.CreateAsync(new Player
+            {
+                UserId = mockUser,
+                DisplayName = "testUser",
+                CurrentScore = 0,
+                CurrentRound = 0,
+                CurrentOpponent = mockUser,
+                CurrentCharacter = "Bowser",
+                CurrentGameID = mockUser,
+                HasVoted = false,
+                MatchWinner = mockUser
+            });
+
+            var success = await repository.DeleteAsync((Guid)Id);
+
+            Assert.True(success);
+        }
+
+
     }
 }

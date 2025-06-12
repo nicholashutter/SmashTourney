@@ -1,5 +1,4 @@
 # .NET build artifacts
-logs/
 bin/
 obj/
 *.user
@@ -31,3 +30,10 @@ project.assets.json
 *.swn
 *.bak
 Thumbs.db
+
+#logs
+logs/
+
+#pre populated db files
+*.db
+*.db**
