@@ -16,8 +16,8 @@ Log.Logger = new LoggerConfiguration()
 
 var builder = WebApplication.CreateBuilder(args);
 
-var dbFileName = "tourneyDb.db"; 
-var dbPath = $"DataSource={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, dbFileName)}";
+var dbPath = ApplicationDbContext.setupDb();
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseSqlite(dbPath);
