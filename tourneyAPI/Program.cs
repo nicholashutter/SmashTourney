@@ -4,6 +4,7 @@ using Serilog;
 using Microsoft.AspNetCore.Identity;
 using Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
 
 //setup logger system using serlog library
@@ -16,11 +17,12 @@ Log.Logger = new LoggerConfiguration()
 
 var builder = WebApplication.CreateBuilder(args);
 
-var dbPath = ApplicationDbContext.setupDb();
+var dbPath = ApplicationDbContext.SetupDb();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseSqlite(dbPath);
+
 });
 
 
@@ -35,7 +37,7 @@ builder.Services.AddSingleton<IGameService, GameService>();
 builder.Services.AddSerilog();
 
 builder.Services.AddAuthorization();
-builder.Services.AddAuthentication();
+
 
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
 .AddEntityFrameworkStores<ApplicationDbContext>();

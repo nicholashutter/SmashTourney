@@ -41,7 +41,7 @@ public class PlayerRepositoryTest
 
             var Id = await repository.CreateAsync(new Player
             {
-                UserId = mockUser,
+                UserId = mockUser.ToString(),
                 DisplayName = "testUser",
                 CurrentScore = 0,
                 CurrentRound = 0,
@@ -86,7 +86,7 @@ public class PlayerRepositoryTest
 
             var Id = await repository.CreateAsync(new Player
             {
-                UserId = mockUser,
+                UserId = mockUser.ToString(),
                 DisplayName = "testUser",
                 CurrentScore = 0,
                 CurrentRound = 0,
@@ -123,7 +123,7 @@ public class PlayerRepositoryTest
 
             var Id = await repository.CreateAsync(new Player
             {
-                UserId = mockUser,
+                UserId = mockUser.ToString(),
                 DisplayName = "testUser",
                 CurrentScore = 0,
                 CurrentRound = 0,
@@ -137,7 +137,7 @@ public class PlayerRepositoryTest
             var success = await repository.UpdateAsync(new Player
             {
                 Id = (Guid)Id,
-                UserId = mockUser,
+                UserId = mockUser.ToString(),
                 DisplayName = "testUserUpdate",
                 CurrentScore = 0,
                 CurrentRound = 0,
@@ -167,7 +167,7 @@ public class PlayerRepositoryTest
 
             var Id = await repository.CreateAsync(new Player
             {
-                UserId = mockUser,
+                UserId = mockUser.ToString(),
                 DisplayName = "testUser",
                 CurrentScore = 0,
                 CurrentRound = 0,

@@ -520,7 +520,7 @@ public class GameService : IGameService
                 {
                     foreach (Player player in players)
                     {
-                        if (user.Id == player.UserId)
+                        if (user.Id.Equals(player.UserId))
                         {
                             foundGame.currentPlayers.Add(player);
                         }

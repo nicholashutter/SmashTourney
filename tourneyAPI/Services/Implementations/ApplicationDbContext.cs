@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
 
-public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
     public override DbSet<ApplicationUser> Users { get; set; } = null!;
     public DbSet<Player> Players { get; set; } = null!;
@@ -19,7 +19,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
     }
 
-    public static string setupDb()
+    public static string SetupDb()
     {
         var dbFileName = "tourneyDb.db";
         var applicationTitle = "tourneyAPI";

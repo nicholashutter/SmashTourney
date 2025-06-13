@@ -20,14 +20,14 @@ public class UserRepository : IUserRepository
         _db = db;
     }
 
-    public async Task<ApplicationUser?> GetUserByIdAsync(Guid id)
+    public async Task<ApplicationUser?> GetUserByIdAsync(string Id)
     {
-        Log.Information($"Info: Get User By Id {id}");
+        Log.Information($"Info: Get User By Id {Id}");
 
         var foundUser = new ApplicationUser();
         try
         {
-            foundUser = await _db.Users.FindAsync(id);
+            foundUser = await _db.Users.FindAsync(Id);
 
             if (foundUser is null)
             {
@@ -69,7 +69,7 @@ public class UserRepository : IUserRepository
         }
     }
 
-    public async Task<Guid?> CreateUserAsync(ApplicationUser newUser)
+    public async Task<string?> CreateUserAsync(ApplicationUser newUser)
     {
 
         Log.Information("Info: Create User Async");
@@ -135,7 +135,7 @@ public class UserRepository : IUserRepository
         }
     }
 
-    public async Task<bool> DeleteUserAsync(Guid id)
+    public async Task<bool> DeleteUserAsync(string Id)
     {
         Log.Information("Info: Update User Async");
 
@@ -144,7 +144,7 @@ public class UserRepository : IUserRepository
         try
         {
 
-            foundUser = await _db.Users.FindAsync(id);
+            foundUser = await _db.Users.FindAsync(Id);
 
             if (foundUser == null)
             {
