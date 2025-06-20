@@ -86,8 +86,7 @@ Console.CancelKeyPress += (sender, eventArgs) =>
 
 app.Run();
 
-
-
+public partial class Program { }
 
 
 

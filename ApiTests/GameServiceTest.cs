@@ -1,10 +1,8 @@
-using Xunit;
-using Validators;
 
 
 namespace Tests;
 
-public class AuthServiceTest
+public class GameServiceTest
 {
     [Fact]
     public void helloWorld()
