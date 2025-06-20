@@ -6,6 +6,7 @@ C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\R
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Routers\obj\Routers.csproj.nuget.dgspec.json
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Services\obj\project.assets.json
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Services\obj\Services.csproj.nuget.dgspec.json
+C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\tourneyAPI.staticwebassets.runtime.json
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\tourneyAPI.exe
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\tourneyAPI.deps.json
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\tourneyAPI.runtimeconfig.json
@@ -153,4 +154,3 @@ C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\r
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\tourneyAPI.pdb
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\tourneyAPI.genruntimeconfig.cache
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\obj\Debug\net8.0\ref\tourneyAPI.dll
-C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\tourneyAPI.staticwebassets.runtime.json

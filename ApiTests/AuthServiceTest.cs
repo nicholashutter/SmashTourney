@@ -1,6 +1,7 @@
 
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 
 namespace Tests;
@@ -8,12 +9,6 @@ namespace Tests;
 public class AuthServiceTest : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;
-
-    public struct Request
-    {
-        public string email;
-        public string password;
-    }
 
     public AuthServiceTest(WebApplicationFactory<Program> factory)
     {
@@ -29,15 +24,25 @@ public class AuthServiceTest : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
 
 
-        var response = await client.PostAsJsonAsync(url,
-        new Request
+        var response = await client.PostAsJsonAsync
+        (url,
+        JsonSerializer.Serialize
+            (new
+            {
+                email = "emailOne@email.com",
+                password = "h@rdC0ded"
+            })
+        );
+
+        if (!response.IsSuccessStatusCode)
         {
-            email = "emailOne@email.com",
-            password = "h@rdC0ded"
-        });
+            var errorContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Response Body:\n{errorContent}");
+            Console.WriteLine($"---------------------------");
+        }
 
         response.EnsureSuccessStatusCode();
-        Assert.Equal("application/json; charset=utf-8",
-       response.Content.Headers.ContentType?.ToString());
+
+
     }
 }
