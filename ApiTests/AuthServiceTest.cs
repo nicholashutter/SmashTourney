@@ -15,7 +15,11 @@ public class AuthServiceTest : IClassFixture<WebApplicationFactory<Program>>
         _factory = factory;
     }
 
-
+    public class Request
+    {
+        public string Email { get; set; }
+        public string Password { get; set; }
+    }
 
     [Theory]
     [InlineData("/register")]
@@ -23,26 +27,15 @@ public class AuthServiceTest : IClassFixture<WebApplicationFactory<Program>>
     {
         var client = _factory.CreateClient();
 
-
-        var response = await client.PostAsJsonAsync
-        (url,
-        JsonSerializer.Serialize
-            (new
-            {
-                email = "emailOne@email.com",
-                password = "h@rdC0ded"
-            })
-        );
-
-        if (!response.IsSuccessStatusCode)
+        var req = new Request
         {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"Response Body:\n{errorContent}");
-            Console.WriteLine($"---------------------------");
-        }
+            Email = "testOne@email.com",
+            Password = "SecureP@ssw0rd123!"
+        };
+
+        var response = await client.PostAsJsonAsync(url, req);
 
         response.EnsureSuccessStatusCode();
-
 
     }
 }
