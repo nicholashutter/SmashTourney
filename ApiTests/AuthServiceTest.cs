@@ -66,7 +66,7 @@ public class AuthServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
     [Fact]
 
-    public async Task logoutUser()
+    public async Task testSecureEndpointWithCookie()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -81,19 +81,58 @@ public class AuthServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
         var registerResponse = await client.PostAsJsonAsync("/register", req);
 
-        var loginResponse = await client.PostAsJsonAsync("/login", req);
+        var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", req);
 
         loginResponse.EnsureSuccessStatusCode();
 
-        var success = await client.PostAsync("users/logout", null);
+        var afterLoginResponse = await client.GetAsync("/");
 
-        success.EnsureSuccessStatusCode();
-
-        var afterLogoutResponse = await client.GetAsync("/");
-
-        Assert.Equal(HttpStatusCode.Unauthorized, afterLogoutResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, afterLoginResponse.StatusCode);
     }
 
+    [Fact]
+    public async Task testSecureEndpointNoCookie()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            HandleCookies = true
+        });
+
+        var requestNoCookie = await client.GetAsync("/users");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, requestNoCookie.StatusCode);
+    }
+
+
+    [Fact]
+
+    public async Task testLogout()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            HandleCookies = true
+        });
+
+        var req = new RegisterRequest
+        {
+            Email = $"test{Guid.NewGuid()}@email.com",
+            Password = "SecureP@ssw0rd123!"
+        };
+
+        var registerResponse = await client.PostAsJsonAsync("/register", req);
+
+        var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", req);
+
+        loginResponse.EnsureSuccessStatusCode();
+
+        var afterLoginResponse = await client.GetAsync("/");
+
+        afterLoginResponse.EnsureSuccessStatusCode();
+
+        var logoutResponse = await client.PostAsync("/users/logout", null);
+
+        logoutResponse.EnsureSuccessStatusCode();
+    }
 
 
 }

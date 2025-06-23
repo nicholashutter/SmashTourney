@@ -19,7 +19,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     }
 
-    public static string SetupDb()
+    public static string Setup()
     {
         var dbFileName = "tourneyDb.db";
         var applicationTitle = "tourneyAPI";

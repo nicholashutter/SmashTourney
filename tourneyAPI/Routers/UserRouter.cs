@@ -1,11 +1,17 @@
 ﻿namespace Routers;
 
 using Entities;
+using Validators;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Services;
 using System;
 using Serilog;
+using Microsoft.EntityFrameworkCore.Internal;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
 
 /*
 
@@ -20,128 +26,59 @@ public static class UserRouter
     {
         var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AppLog");
 
-        var UserRoutes = app.MapGroup("/Users");
+        var UserRoutes = app.MapGroup("/users");
 
-
-        UserRoutes.MapGet("/", async (HttpContext context, ApplicationDbContext db) =>
+        //GETALLUSERS
+        UserRoutes.MapGet("/", async () =>
         {
 
             Log.Information("Request Type: Get \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
 
-            try
-            {
-                var Users = await db.Users.ToListAsync();
+            using var scope = app.Services.CreateAsyncScope();
+            var userRepository = scope.ServiceProvider.GetRequiredService<UserRepository>();
 
+            var users = await userRepository.GetAllUsersAsync();
 
-                context.Response.StatusCode = StatusCodes.Status200OK;
-                Log.Information("Users Retrieved Successfully \n Time: {Timestamp}", DateTime.UtcNow);
-                await context.Response.WriteAsJsonAsync(Users);
-            }
-            catch (Exception e)
+            if (users is not null)
             {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                await context.Response.WriteAsJsonAsync(e.ToString());
+                return Results.Ok(users);
             }
-        });
-        UserRoutes.MapPost("/", async (HttpContext context, ApplicationDbContext db) =>
+            else
+            {
+                return Results.StatusCode(500);
+            }
+
+        }).RequireAuthorization();
+
+        //DELETEUSER(user) <ApplicationUser>
+        UserRoutes.MapDelete("/{Id}", async (HttpContext context, string Id) =>
         {
-            Log.Information("Request Type: Post \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
+            Log.Information("Request Type: Delete \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
 
-            try
+            using (var scope = app.Services.CreateAsyncScope())
             {
-                var newUser = await context.Request.ReadFromJsonAsync<ApplicationUser>();
+                var userRepository = scope.ServiceProvider.GetRequiredService<UserRepository>();
 
-                if (newUser is null)
+                var success = await userRepository.DeleteUserAsync(Id);
+
+                if (success)
                 {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    Log.Warning("Warning: newUser is null\n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.BadRequest("Invalid JSON Payload");
+                    return Results.StatusCode(200);
                 }
                 else
                 {
-                    db.Add(newUser);
-                    await db.SaveChangesAsync();
-                    context.Response.StatusCode = StatusCodes.Status201Created;
-                    Log.Information("User Created Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.Created();
+                    return Results.StatusCode(500);
                 }
-
-
-            }
-            catch (Exception e)
-            {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                return Results.BadRequest("Unknown Error Occured");
             }
 
-        });
 
-        UserRoutes.MapPut("/", async (HttpContext context, ApplicationDbContext db) =>
+        }).RequireAuthorization();
+
+        UserRoutes.MapPost("/logout", async (HttpContext context) =>
         {
-            Log.Information("Request Type: Put \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
+            await context.SignOutAsync(IdentityConstants.ApplicationScheme);
 
-            try
-            {
-                var updateUser = await context.Request.ReadFromJsonAsync<ApplicationUser>();
-
-                if (updateUser is null)
-                {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    Log.Warning("Warning: updateUser is null\n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.BadRequest("Invalid JSON Payload");
-                }
-                else
-                {
-                    db.Update(updateUser);
-
-                    await db.SaveChangesAsync();
-                    context.Response.StatusCode = StatusCodes.Status200OK;
-                    Log.Information("User Updated Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.Accepted();
-                }
-
-            }
-            catch (Exception e)
-            {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                return Results.BadRequest("Unknown Error Occured");
-            }
-
-        });
-
-        app.MapDelete("/", async (HttpContext context, ApplicationDbContext db) =>
-        {
-            Log.Information("Request Type: Put \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
-
-            try
-            {
-                var deleteUser = await context.Request.ReadFromJsonAsync<ApplicationUser>();
-
-                if (deleteUser is null)
-                {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    Log.Warning("Warning: deleteUser is null\n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.BadRequest("Invalid JSON Payload");
-                }
-                else
-                {
-                    db.Users.Remove(deleteUser);
-                    context.Response.StatusCode = StatusCodes.Status202Accepted;
-                    await db.SaveChangesAsync();
-                    return Results.Accepted("User Delete Success");
-                }
-            }
-            catch (Exception e)
-            {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                return Results.BadRequest("Unknown Error Occured");
-            }
-        });
-
-
+            return Results.Ok();
+        }).RequireAuthorization();
     }
 }

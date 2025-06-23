@@ -69,32 +69,6 @@ public class UserRepository : IUserRepository
         }
     }
 
-    public async Task<string?> CreateUserAsync(ApplicationUser newUser)
-    {
-
-        Log.Information("Info: Create User Async");
-
-        try
-        {
-            if (newUser is null)
-            {
-                throw new UserNotFoundException("CreateUserAsync");
-            }
-            else
-            {
-                await _db.AddAsync(newUser);
-                await _db.SaveChangesAsync();
-
-                return newUser.Id;
-            }
-        }
-        catch (UserNotFoundException e)
-        {
-            Log.Error($"Error: newUser is null. Unable to create newUser \n {e}");
-            return null;
-        }
-
-    }
 
     public async Task<bool> UpdateUserAsync(ApplicationUser updateUser)
     {

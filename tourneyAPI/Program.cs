@@ -1,23 +1,21 @@
 using Routers;
 using Services;
 using Serilog;
+using Helpers;
 using Microsoft.AspNetCore.Identity;
 using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
 
-//setup logger system using serlog library
-//typical implementation for writing to file and console
-Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    //WriteTo.File provides a path inside the logs folder filename is today's date
-    .WriteTo.File($"logs/{DateOnly.FromDateTime(DateTime.Now).ToString("MMMM dd yyyy")}")
-    .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 
-var dbPath = ApplicationDbContext.SetupDb();
+//static init function for logger
+SetupLogging.Setup();
+
+//static init function for AppDbContext
+var dbPath = ApplicationDbContext.Setup();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
@@ -30,17 +28,18 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
-//gameService is this applications "application" class
+//gameService is this applications "application" singleton
 builder.Services.AddSingleton<IGameService, GameService>();
 
 //hand logging pipeline over from asp.net core webapp to serilog
 builder.Services.AddSerilog();
 
+//username and pw based auth using ASP net core identity
 builder.Services.AddAuthorization();
-
 
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
 .AddEntityFrameworkStores<ApplicationDbContext>();
+
 
 /* TODO implement IEmailSender 
 builder.Services.Configure<IdentityOptions>(options =>
@@ -66,16 +65,19 @@ var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-//UserRouter may be removed
-//UserRouter.Map(app);
+
+
 
 //add route handlers
 
 //test dev only get request hello world route handler
 
 app.MapIdentityApi<ApplicationUser>();
+//extend IdentityApi provided routes
+UserRouter.Map(app);
 PlayerRouter.Map(app);
 GameRouter.Map(app);
+
 
 Console.CancelKeyPress += (sender, eventArgs) =>
 {
