@@ -16,7 +16,7 @@ public interface IGameService
     Task<Game?> GetGameByIdAsync(Guid getId);
 
     //api route /GetAllGames (debug)
-    Task<IEnumerable<Game>?> GetAllGamesAsync();
+    Task<List<Game>?> GetAllGamesAsync();
 
     //api route StartGame
     Task<bool> StartGameAsync(Guid existingGameId);
