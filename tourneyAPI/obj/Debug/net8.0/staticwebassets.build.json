@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "gfd+U+Ol7DkFGNnwl+Ns39lX4pFdcn+ZtUYHRbOCvgE=",
+  "Hash": "wvXq+vKc608btCIt7umNZ+0cGUc9O2TtNw1jsFwgevc=",
   "Source": "tourneyAPI",
   "BasePath": "_content/tourneyAPI",
   "Mode": "Default",
@@ -10,17 +10,17 @@
     {
       "Name": "tourneyAPI\\wwwroot",
       "Source": "tourneyAPI",
-      "ContentRoot": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\wwwroot\\",
+      "ContentRoot": "c:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\wwwroot\\",
       "BasePath": "_content/tourneyAPI",
       "Pattern": "**"
     }
   ],
   "Assets": [
     {
-      "Identity": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\wwwroot\\index.html",
+      "Identity": "c:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\wwwroot\\index.html",
       "SourceId": "tourneyAPI",
       "SourceType": "Discovered",
-      "ContentRoot": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\wwwroot\\",
+      "ContentRoot": "c:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\wwwroot\\",
       "BasePath": "_content/tourneyAPI",
       "RelativePath": "index.html",
       "AssetKind": "All",

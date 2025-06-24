@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Net.Http.Headers;
+using System;
 
 namespace Entities;
 
@@ -24,9 +25,26 @@ public class Game
     [Required]
     public int currentRound { get; set; } = 0;
 
-    public int currentMatch { get; set; } = 0; 
+    public int currentMatch { get; set; } = 0;
 
-    public Votes votes { get; set; } = Votes.ZERO;
+    public Votes _votes = Votes.ZERO;
+
+    private readonly object lockObject = new object();
+
+    public Votes GetVotes()
+    {
+        return _votes;
+    }
+
+    public void SetVotes(Votes votes)
+    {
+        lock (lockObject)
+        {
+            _votes = votes;
+        }
+    }
+
+
 
     public int byes { get; set; } = 0;
 }

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj": {}
+    "c:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj": {}
   },
   "projects": {
-    "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj": {
+    "c:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj",
+        "projectUniqueName": "c:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj",
         "projectName": "tourneyAPI",
-        "projectPath": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj",
+        "projectPath": "c:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj",
         "packagesPath": "C:\\Users\\nicho\\.nuget\\packages\\",
-        "outputPath": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\obj\\",
+        "outputPath": "c:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

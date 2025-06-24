@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "Tjz11N4DShw=",
+  "dgSpecHash": "7t9fNEKb49M=",
   "success": true,
-  "projectFilePath": "C:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj",
+  "projectFilePath": "c:\\Development\\Full Stack\\Smash Tourney Project\\V6\\tourneyAPI\\tourneyAPI.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\nicho\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\nicho\\.nuget\\packages\\microsoft.aspnetcore.cryptography.internal\\8.0.0\\microsoft.aspnetcore.cryptography.internal.8.0.0.nupkg.sha512",

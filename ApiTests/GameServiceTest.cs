@@ -12,39 +12,21 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
     private readonly WebApplicationFactory<Program> _factory;
 
-    public GameServiceTest(WebApplicationFactory<Program> factory)
+    public GameServiceTest()
     {
-        _factory = factory;
-    }
-
-    public void ClearDB()
-    {
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.Database.EnsureDeleted();
-            context.Database.EnsureCreated();
-        }
-
+        _factory = new WebApplicationFactory<Program>();
     }
 
     [Fact]
     public async Task CreateGameReturnsValidGUID()
     {
-        try
+        using (var scope = _factory.Services.CreateScope())
         {
-            using (var scope = _factory.Services.CreateScope())
-            {
-                var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+            var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
 
-                var result = await gs.CreateGame();
+            var result = await gs.CreateGame();
 
-                Assert.IsType<Guid>(result);
-            }
-        }
-        finally
-        {
-            ClearDB();
+            Assert.IsType<Guid>(result);
         }
 
     }
@@ -53,22 +35,15 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
     public async Task EndGameEndsRunningGame()
     {
-        try
+        using (var scope = _factory.Services.CreateScope())
         {
-            using (var scope = _factory.Services.CreateScope())
-            {
-                var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+            var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
 
-                var gameId = await gs.CreateGame();
+            var gameId = await gs.CreateGame();
 
-                var success = await gs.EndGameAsync(gameId);
+            var success = await gs.EndGameAsync(gameId);
 
-                Assert.True(success);
-            }
-        }
-        finally
-        {
-            ClearDB();
+            Assert.True(success);
         }
 
     }
@@ -78,29 +53,22 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     public async Task GetAllGamesReturnsAllGames()
     {
 
-        try
+        using (var scope = _factory.Services.CreateScope())
         {
-            using (var scope = _factory.Services.CreateScope())
+            var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+            Dictionary<int, Guid> inputGames = new Dictionary<int, Guid>();
+
+            //create ten games and store Ids
+            for (int i = 0; i < 10; i++)
             {
-                var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
-
-                Dictionary<int, Guid> inputGames = new Dictionary<int, Guid>();
-
-                //create ten games and store Ids
-                for (int i = 0; i < 10; i++)
-                {
-                    var gameId = await gs.CreateGame();
-                    inputGames.Add(i, gameId);
-                }
-
-                List<Game> runningGames = await gs.GetAllGamesAsync();
-
-                Assert.Equal(10, runningGames.Count);
+                var gameId = await gs.CreateGame();
+                inputGames.Add(i, gameId);
             }
-        }
-        finally
-        {
-            ClearDB();
+
+            List<Game> runningGames = await gs.GetAllGamesAsync();
+
+            Assert.Equal(10, runningGames.Count);
         }
 
     }
@@ -109,31 +77,24 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
     public async Task AddUserToLobbyAddsUser()
     {
-        try
+        using (var scope = _factory.Services.CreateScope())
         {
-            using (var scope = _factory.Services.CreateScope())
+            var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+            var gameId = await gs.CreateGame();
+
+            var UserProperties = Guid.NewGuid().ToString();
+
+            var User = new ApplicationUser
             {
-                var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+                Id = UserProperties,
+                UserName = UserProperties,
+                Email = $"{UserProperties}@mail.com"
+            };
 
-                var gameId = await gs.CreateGame();
+            var success = await gs.AddUserToLobby(User, gameId);
 
-                var UserProperties = Guid.NewGuid().ToString();
-
-                var User = new ApplicationUser
-                {
-                    Id = UserProperties,
-                    UserName = UserProperties,
-                    Email = $"{UserProperties}@mail.com"
-                };
-
-                var success = await gs.AddUserToLobby(User, gameId);
-
-                Assert.True(success);
-            }
-        }
-        finally
-        {
-            ClearDB();
+            Assert.True(success);
         }
 
     }
@@ -141,48 +102,105 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task AddPlayersToGameAddsPlayers()
     {
-        try
+        using (var scope = _factory.Services.CreateScope())
         {
-            using (var scope = _factory.Services.CreateScope())
+            var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+            var gameId = await gs.CreateGame();
+
+            List<Player> frontEndPlayers = new List<Player>();
+
+            for (int i = 0; i < 9; i++)
             {
-                var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+                var UserProperties = Guid.NewGuid();
 
-                var gameId = await gs.CreateGame();
-
-                List<Player> frontEndPlayers = new List<Player>();
-
-                for (int i = 0; i < 9; i++)
+                var User = new ApplicationUser
                 {
-                    var UserProperties = Guid.NewGuid();
+                    Id = UserProperties.ToString(),
+                    UserName = UserProperties.ToString(),
+                    Email = $"{UserProperties}@mail.com"
+                };
 
-                    var User = new ApplicationUser
-                    {
-                        Id = UserProperties.ToString(),
-                        UserName = UserProperties.ToString(),
-                        Email = $"{UserProperties}@mail.com"
-                    };
+                var Player = new Player
+                {
+                    Id = UserProperties,
+                    UserId = UserProperties.ToString(),
+                    DisplayName = UserProperties.ToString()
+                };
 
-                    var Player = new Player
-                    {
-                        Id = UserProperties,
-                        UserId = UserProperties.ToString(),
-                        DisplayName = UserProperties.ToString()
-                    };
-
-                    frontEndPlayers.Add(Player);
-                    await gs.AddUserToLobby(User, gameId);
-                }
-
-                var success = await gs.AddPlayersToGameAsync(frontEndPlayers, gameId);
-
-                Assert.True(success);
+                frontEndPlayers.Add(Player);
+                await gs.AddUserToLobby(User, gameId);
             }
-        }
-        finally
-        {
-            ClearDB();
+
+            var success = await gs.AddPlayersToGameAsync(frontEndPlayers, gameId);
+
+            Assert.True(success);
         }
 
     }
+
+    [Fact]
+    public async Task GetGameByIdAsyncGetsGameWithMatchingId()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+            var gameId = await gs.CreateGame();
+
+            var foundGame = await gs.GetGameByIdAsync(gameId);
+
+            Assert.Equal(gameId, foundGame.Id);
+        }
+    }
+
+
+
+    [Fact]
+    public async Task GenerateBracketAsyncCalculatesByesProperly()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+            var gameId = await gs.CreateGame();
+
+            List<Player> frontEndPlayers = new List<Player>();
+
+            for (int i = 0; i < 10; i++)
+            {
+                var UserProperties = Guid.NewGuid();
+
+                var User = new ApplicationUser
+                {
+                    Id = UserProperties.ToString(),
+                    UserName = UserProperties.ToString(),
+                    Email = $"{UserProperties}@mail.com"
+                };
+
+                var Player = new Player
+                {
+                    Id = UserProperties,
+                    UserId = UserProperties.ToString(),
+                    DisplayName = UserProperties.ToString()
+                };
+
+                frontEndPlayers.Add(Player);
+                await gs.AddUserToLobby(User, gameId);
+            }
+
+            await gs.AddPlayersToGameAsync(frontEndPlayers, gameId);
+
+            await gs.GenerateBracketAsync(gameId);
+
+            var foundGame = await gs.GetGameByIdAsync(gameId);
+
+            //number of players determines number of double elimination bracket slots
+            //six will always be the bye rounds calculated from 10 players
+            Assert.Equal(foundGame.byes, 6);
+        }
+    }
+
+
 
 }

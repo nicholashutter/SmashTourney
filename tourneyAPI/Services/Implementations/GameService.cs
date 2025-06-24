@@ -71,9 +71,9 @@ public class GameService : IGameService
     }
 
     //api route /GetGameById (debug)
-    public async Task<Game?> GetGameByIdAsync(Guid Id)
+    public async Task<Game?> GetGameByIdAsync(Guid gameId)
     {
-        Log.Information($"Info: Get Game By Id {Id}");
+        Log.Information($"Info: Get Game By Id {gameId}");
 
         using (var scope = _serviceProvider.CreateScope())
         {
@@ -82,16 +82,19 @@ public class GameService : IGameService
             var foundGame = new Game();
             try
             {
-                foundGame = await _db.Games.FindAsync(Id);
-
+                //check memory first
+                foundGame = _games.Find(g => gameId == g.Id);
+                //check db if not found in memory
+                if (foundGame is null)
+                {
+                    foundGame = await _db.Games.FindAsync(gameId);
+                }
+                //if not found in memory or db throw exception
                 if (foundGame is null)
                 {
                     throw new GameNotFoundException("GetGameByIdAsync");
                 }
-                else
-                {
-                    return foundGame;
-                }
+                return foundGame;
             }
             catch (GameNotFoundException e)
             {
@@ -255,31 +258,31 @@ public class GameService : IGameService
                 {
                     throw new BracketGenrationException($"Bracket size invalid {foundGame.currentPlayers.Count}");
                 }
-                else if (foundGame.currentPlayers.Count < 5)
+                else if (foundGame.currentPlayers.Count < 4)
                 {
                     foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 4);
                 }
-                else if (foundGame.currentPlayers.Count < 9)
+                else if (foundGame.currentPlayers.Count < 8)
                 {
                     foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 8);
                 }
-                else if (foundGame.currentPlayers.Count < 17)
+                else if (foundGame.currentPlayers.Count < 16)
                 {
                     foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 16);
                 }
-                else if (foundGame.currentPlayers.Count < 33)
+                else if (foundGame.currentPlayers.Count < 32)
                 {
                     foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 32);
                 }
-                else if (foundGame.currentPlayers.Count < 65)
+                else if (foundGame.currentPlayers.Count < 64)
                 {
                     foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 64);
                 }
-                else if (foundGame.currentPlayers.Count < 129)
+                else if (foundGame.currentPlayers.Count < 128)
                 {
                     foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 128);
                 }
-                else if (foundGame.currentPlayers.Count < 257)
+                else if (foundGame.currentPlayers.Count < 256)
                 {
                     foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 256);
                 }
@@ -431,11 +434,11 @@ public class GameService : IGameService
                     throw new PlayerNotFoundException("VoteHandlerAsync");
                 }
 
-                var currentVotes = foundGame.votes;
+                var currentVotes = foundGame.GetVotes();
                 //only once two votes are received should the round move forward
                 //use the submitted players Id to increment the game VOTE enum 
                 //set the players individual properties as winner and loser 
-                currentVotes = (Votes)((int)currentVotes + 1);
+                foundGame.SetVotes((Votes)((int)currentVotes + 1));
 
                 switch (currentVotes)
                 {
