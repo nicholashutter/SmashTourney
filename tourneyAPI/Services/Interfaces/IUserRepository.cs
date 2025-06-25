@@ -4,9 +4,10 @@ using Entities;
 
 public interface IUserRepository
 {
+    Task<string> CreateUserAsync(ApplicationUser user);
     Task<ApplicationUser?> GetUserByIdAsync(string Id);
     Task<List<ApplicationUser>?> GetAllUsersAsync();
-    Task<bool> UpdateUserAsync(ApplicationUser updateUser);
+    Task<bool> UpdateUserAsync(ApplicationUser user);
     Task<bool> DeleteUserAsync(string Id);
 
 }

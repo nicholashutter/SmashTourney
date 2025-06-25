@@ -128,7 +128,7 @@ public class GameService : IGameService
                 {
                     Games = await _db.Games.ToListAsync();
                 }
-        
+
                 if (Games.Count == 0)
                 {
                     throw new EmptyGamesCollectionException("GetAllGamesAsync");
@@ -338,7 +338,7 @@ public class GameService : IGameService
             //create userService context
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
-                var userRepository = scope.ServiceProvider.GetRequiredService<UserRepository>();
+                var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
                 try
                 {
@@ -729,5 +729,5 @@ public class GameService : IGameService
 
 
 
-    
+
 }

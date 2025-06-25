@@ -154,21 +154,17 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
         }
     }
 
-
-
-    [Fact]
-    public async Task GenerateBracketAsyncCalculatesByesProperly()
+    private async Task<List<Player>> SetupDummyUsersAndPlayers(Guid gameId)
     {
+
         using (var scope = _factory.Services.CreateScope())
         {
-            var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
-
-            var gameId = await gs.CreateGame();
-
             List<Player> frontEndPlayers = new List<Player>();
 
             for (int i = 0; i < 10; i++)
             {
+                var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+
                 var UserProperties = Guid.NewGuid();
 
                 var User = new ApplicationUser
@@ -188,6 +184,21 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
                 frontEndPlayers.Add(Player);
                 await gs.AddUserToLobby(User, gameId);
             }
+            return frontEndPlayers;
+        }
+
+    }
+
+    [Fact]
+    public async Task GenerateBracketAsyncCalculatesByesProperly()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+            var gameId = await gs.CreateGame();
+
+            List<Player> frontEndPlayers = await SetupDummyUsersAndPlayers(gameId);
 
             await gs.AddPlayersToGameAsync(frontEndPlayers, gameId);
 
@@ -201,6 +212,31 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
         }
     }
 
+    /*
+        [Fact]
+        public async Task UpdateUserScoreUpdatesScoreCorrectly()
+        {
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+                var gameId = await gs.CreateGame();
+
+                var foundGame = await gs.GetGameByIdAsync(gameId);
+
+                List<Player> frontEndPlayers = await SetupDummyUsersAndPlayers(gameId);
+
+                await gs.AddPlayersToGameAsync(frontEndPlayers, gameId);
+
+                await gs.GenerateBracketAsync(gameId);
+
+                var success = await gs.UpdateUserScore(gameId);
+
+                Assert.True(success);
+
+            }
+        }
+    */
 
 
 }
