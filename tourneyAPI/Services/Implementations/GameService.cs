@@ -328,6 +328,52 @@ public class GameService : IGameService
 
         return result;
     }
+
+    //api route StartGame
+    public Task<bool> StartGameAsync(Guid existingGameId)
+    {
+
+        Log.Information($"Info: End Game {existingGameId}");
+
+        Task<bool> result = Task.Run(async () =>
+        {
+            try
+            {
+                var foundGame = await GetGameByIdAsync(existingGameId);
+                var success = false;
+                if (foundGame is null)
+                {
+                    success = await LoadGameAsync(existingGameId);
+                    if (!success)
+                    {
+                        foundGame = _games.Find(g => g.Id == existingGameId);
+                        if (foundGame is null)
+                        {
+                            throw new GameNotFoundException("StartGameAsync");
+                        }
+                    }
+                }
+                success = await GenerateBracketAsync(existingGameId);
+                if (!success)
+                {
+                    throw new InvalidFunctionResponseException("StartGameAsync");
+                }
+                return true;
+            }
+            catch (InvalidFunctionResponseException e)
+            {
+                Log.Error($"{e}");
+                return false;
+            }
+            catch (GameNotFoundException e)
+            {
+                Log.Error($"{e}");
+                return false;
+            }
+
+        });
+        return result;
+    }
     //called by SaveGameAsync or EndGameAsync
     public Task<bool> UpdateUserScore(Guid gameId)
     {
@@ -461,51 +507,7 @@ public class GameService : IGameService
 
         return result;
     }
-    //api route StartGame
-    public Task<bool> StartGameAsync(Guid existingGameId)
-    {
 
-        Log.Information($"Info: End Game {existingGameId}");
-
-        Task<bool> result = Task.Run(async () =>
-        {
-            try
-            {
-                var foundGame = await GetGameByIdAsync(existingGameId);
-                var success = false;
-                if (foundGame is null)
-                {
-                    success = await LoadGameAsync(existingGameId);
-                    if (!success)
-                    {
-                        foundGame = _games.Find(g => g.Id == existingGameId);
-                        if (foundGame is null)
-                        {
-                            throw new GameNotFoundException("StartGameAsync");
-                        }
-                    }
-                }
-                success = await GenerateBracketAsync(existingGameId);
-                if (!success)
-                {
-                    throw new InvalidFunctionResponseException("StartGameAsync");
-                }
-                return true;
-            }
-            catch (InvalidFunctionResponseException e)
-            {
-                Log.Error($"{e}");
-                return false;
-            }
-            catch (GameNotFoundException e)
-            {
-                Log.Error($"{e}");
-                return false;
-            }
-
-        });
-        return result;
-    }
 
     //api route //StartRound
     public Task<List<Player>?> StartRound(Guid gameId)

@@ -28,6 +28,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
+//TODO
+//builder.Services.AddScoped<IRoundService, RoundService>();
+//builder.Services.AddScoped<IMatchService, MatchService>();
+
 //gameService is this applications "application" singleton
 builder.Services.AddSingleton<IGameService, GameService>();
 

@@ -21,26 +21,14 @@ public interface IGameService
     //api route StartGame
     Task<bool> StartGameAsync(Guid existingGameId);
 
-    //api route //StartRound
-    Task<List<Player>?> StartRound(Guid gameId);
-
-    //api route StartMatch
-    //list of players should be unpacked by route and returned in HTTP response
-    Task<List<Player>?> StartMatch(Guid gameId);
-
-    //api route EndMatch
-    Task<bool> EndMatchAsync(Guid gameId, Player matchWinner, Player matchLoser);
-
-    //api route /EndRound
-    Task<bool> EndRoundAsync(Guid gameId, Player RoundWinner, Player RoundLoser);
     //LoadGameAsync will check against the db and attempt to restore
     //game state from games persisted in db
     Task<bool> LoadGameAsync(Guid gameId);
     //api route /SaveGame
     //SaveGame will persist current game state to the database
     Task<bool> SaveGameAsync(Guid gameId);
-
-    //called by StartGame
+    
+        //called by StartGame
     Task<bool> GenerateBracketAsync(Guid gameId);
 
     //api route /AllPlayersIn
@@ -52,7 +40,9 @@ public interface IGameService
     //called by SaveGameAsync or EndGameAsync
     Task<bool> UpdateUserScore(Guid gameId);
 
-    //called by endRoundAsync
-    Task<bool> VoteHandlerAsync(Guid gameId, Player RoundWinner, Player RoundLoser);
+    /*----------------------------------------------------END GAME SERVICE---------------------------------------------------- */
+
+
+
 
 }

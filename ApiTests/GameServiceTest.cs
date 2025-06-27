@@ -211,6 +211,9 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
             Assert.Equal(foundGame.byes, 6);
         }
     }
+    
+
+    
 
     /*
         [Fact]
@@ -230,13 +233,13 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
                 await gs.GenerateBracketAsync(gameId);
 
-                var success = await gs.UpdateUserScore(gameId);
+                await gs.UpdateUserScore(gameId);
 
-                Assert.True(success);
+                
 
             }
         }
+    
     */
-
 
 }
