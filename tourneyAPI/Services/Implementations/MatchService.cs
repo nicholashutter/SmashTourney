@@ -77,8 +77,8 @@ public class MatchService : GameServiceComponent, IMatchService
         });
         return result;
     }
-    
-        //api route EndMatch
+
+    //api route EndMatch
     public Task<bool> EndMatchAsync(Guid gameId, Player matchWinner, Player matchLoser)
     {
 
@@ -88,7 +88,7 @@ public class MatchService : GameServiceComponent, IMatchService
         {
             try
             {
-                var _games = await _gameService.GetAllGamesAsync(); 
+                var _games = await _gameService.GetAllGamesAsync();
 
                 var foundGame = _games.Find(g => g.Id == gameId);
                 if (foundGame is null)
@@ -100,7 +100,7 @@ public class MatchService : GameServiceComponent, IMatchService
                 using (var _scope = _scopeFactory.CreateAsyncScope())
                 {
                     var roundService = _scope.ServiceProvider.GetRequiredService<IRoundService>();
-                    
+
                     var finalVoteSuccess = await roundService.VoteHandlerAsync(gameId, matchWinner, matchLoser);
 
                     if (!finalVoteSuccess)
@@ -108,7 +108,7 @@ public class MatchService : GameServiceComponent, IMatchService
                         throw new InvalidFunctionResponseException("EndMatchAsync");
                     }
                 }
-                
+
 
                 var success = await _gameService.UpdateUserScore(foundGame.Id);
 
@@ -140,4 +140,4 @@ public class MatchService : GameServiceComponent, IMatchService
 }
 
 
- 
+

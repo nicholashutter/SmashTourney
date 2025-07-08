@@ -466,7 +466,7 @@ public class GameService : IGameService
 
                     if (foundGame is null)
                     {
-                        throw new GameNotFoundException("LoadGameAsyn");
+                        throw new GameNotFoundException("LoadGameAsync");
                     }
                     else
                     {

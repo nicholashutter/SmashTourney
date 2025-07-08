@@ -12,9 +12,19 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
     private readonly WebApplicationFactory<Program> _factory;
 
+    private readonly MatchService _matchService;
+
+    private readonly RoundService _roundService;
+
     public GameServiceTest()
     {
         _factory = new WebApplicationFactory<Program>();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            _matchService = scope.ServiceProvider.GetRequiredService<MatchService>();
+            _roundService = scope.ServiceProvider.GetRequiredService<RoundService>();
+        }
     }
 
     [Fact]
@@ -211,35 +221,64 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
             Assert.Equal(foundGame.byes, 6);
         }
     }
-    
 
-    
 
-    /*
-        [Fact]
-        public async Task UpdateUserScoreUpdatesScoreCorrectly()
+
+
+
+    [Fact]
+    public async Task UpdateUserScoreUpdatesScoreCorrectly()
+    {
+        using (var scope = _factory.Services.CreateScope())
         {
-            using (var scope = _factory.Services.CreateScope())
-            {
-                var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
+            var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
 
-                var gameId = await gs.CreateGame();
+            var gameId = await gameService.CreateGame();
 
-                var foundGame = await gs.GetGameByIdAsync(gameId);
+            var foundGame = await gameService.GetGameByIdAsync(gameId);
 
-                List<Player> frontEndPlayers = await SetupDummyUsersAndPlayers(gameId);
+            List<Player> frontEndPlayers = await SetupDummyUsersAndPlayers(gameId);
 
-                await gs.AddPlayersToGameAsync(frontEndPlayers, gameId);
+            await gameService.AddPlayersToGameAsync(frontEndPlayers, gameId);
 
-                await gs.GenerateBracketAsync(gameId);
+            await gameService.GenerateBracketAsync(gameId);
 
-                await gs.UpdateUserScore(gameId);
-
-                
-
-            }
+            await gameService.UpdateUserScore(gameId);
         }
-    
-    */
+    }
+
+    [Fact]
+    public async Task SaveAndLoadGame()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+            var gameId = await gameService.CreateGame();
+
+            var foundGame = await gameService.GetGameByIdAsync(gameId);
+
+            List<Player> frontEndPlayers = await SetupDummyUsersAndPlayers(gameId);
+
+            await gameService.AddPlayersToGameAsync(frontEndPlayers, gameId);
+
+            await gameService.GenerateBracketAsync(gameId);
+
+            await gameService.UpdateUserScore(gameId);
+
+            var players = await _roundService.StartRound(gameId);
+
+            await _matchService.EndMatchAsync(gameId, players[0], players[1]);
+
+            await _roundService.EndRoundAsync(gameId, players[0], players[1]);
+
+            await gameService.SaveGameAsync(gameId);
+
+            var success = await gameService.LoadGameAsync(gameId);
+
+            Assert.True(success);
+        }
+    }
+
 
 }

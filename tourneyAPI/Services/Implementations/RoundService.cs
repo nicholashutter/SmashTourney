@@ -19,9 +19,9 @@ public class RoundService : GameServiceComponent, IRoundService
     {
         using (var _scope = _scopeFactory.CreateAsyncScope())
         {
-            var roundService = _scope.ServiceProvider.GetRequiredService<IRoundService>();
+            var roundService = _scope.ServiceProvider.GetRequiredService<IMatchService>();
 
-            return roundService.StartRound(gameId); 
+            return roundService.StartMatch(gameId); 
         }    
     }
 
@@ -44,6 +44,7 @@ public class RoundService : GameServiceComponent, IRoundService
                     throw new GameNotFoundException("EndRoundAsync");
                 }
                 //this should be the only method that iterates this property
+                //probably should use a lock statement here to enforce that
                 foundGame.currentRound++;
                 return true;
 
