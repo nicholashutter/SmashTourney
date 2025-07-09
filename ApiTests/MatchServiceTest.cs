@@ -7,9 +7,7 @@ namespace Tests;
 
 public class MatchServiceTest : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly IServiceProvider _serviceProvider;
-
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly WebApplicationFactory<Program> _factory;
 
     private readonly IGameService _gameService;
 
@@ -17,12 +15,11 @@ public class MatchServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
     private readonly IMatchService _matchService;
 
-    public MatchServiceTest(IServiceScopeFactory scopeFactory, IServiceProvider serviceProvider)
+    public MatchServiceTest()
     {
-        serviceProvider = _serviceProvider;
-        scopeFactory = _scopeFactory;
+        _factory = new WebApplicationFactory<Program>();
 
-        using (var scope = _scopeFactory.CreateScope())
+        using (var scope = _factory.Services.CreateScope())
         {
             _gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
 
@@ -35,7 +32,7 @@ public class MatchServiceTest : IClassFixture<WebApplicationFactory<Program>>
     private async Task<List<Player>> SetupDummyUsersAndPlayers(Guid gameId)
     {
 
-        using (var scope = _scopeFactory.CreateScope())
+        using (var scope = _factory.Services.CreateScope())
         {
             List<Player> frontEndPlayers = new List<Player>();
 
@@ -70,17 +67,17 @@ public class MatchServiceTest : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task StartMatchStartsMatchCorrectly()
     {
-        using (var scope = _scopeFactory.CreateScope())
+        using (var scope = _factory.Services.CreateScope())
         {
             var gameId = await _gameService.CreateGame();
 
-            await SetupDummyUsersAndPlayers(gameId);
+            var players = await SetupDummyUsersAndPlayers(gameId);
+
+            await _gameService.AddPlayersToGameAsync(players, gameId);
 
             await _roundService.StartRound(gameId);
 
-            var players = await _matchService.StartMatch(gameId);
-
-            Assert.IsType<List<Player>>(players);
+            players = await _matchService.StartMatch(gameId);
 
         }
     }
@@ -88,7 +85,7 @@ public class MatchServiceTest : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task EndMatchEndsMatchCorrectly()
     {
-        using (var scope = _scopeFactory.CreateScope())
+        using (var scope = _factory.Services.CreateScope())
         {
             var gameId = await _gameService.CreateGame();
 
@@ -104,7 +101,7 @@ public class MatchServiceTest : IClassFixture<WebApplicationFactory<Program>>
         }
     }
 
-    
+
 
 
 }

@@ -9,38 +9,34 @@ namespace Tests;
 
 public class RoundServiceTest : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly WebApplicationFactory<Program> _factory;
 
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IGameService _gameService;
 
-    private readonly GameService _gameService;
+    private readonly IRoundService _roundService;
 
-    private readonly RoundService _roundService;
-
-    private readonly MatchService _matchService;
+    private readonly IMatchService _matchService;
 
 
 
-    public RoundServiceTest(IServiceProvider serviceProvider, IServiceScopeFactory scopeFactory)
+    public RoundServiceTest()
     {
-        serviceProvider = _serviceProvider;
+        _factory = new WebApplicationFactory<Program>();
 
-        scopeFactory = _scopeFactory;
-
-        using (var scope = _serviceProvider.CreateScope())
+        using (var scope = _factory.Services.CreateScope())
         {
-            _gameService = scope.ServiceProvider.GetRequiredService<GameService>();
+            _gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
 
-            _roundService = scope.ServiceProvider.GetRequiredService<RoundService>();
+            _roundService = scope.ServiceProvider.GetRequiredService<IRoundService>();
 
-            _matchService = scope.ServiceProvider.GetRequiredService<MatchService>();
+            _matchService = scope.ServiceProvider.GetRequiredService<IMatchService>();
         }
     }
 
     private async Task<List<Player>> SetupDummyUsersAndPlayers(Guid gameId)
     {
 
-        using (var scope = _scopeFactory.CreateScope())
+        using (var scope = _factory.Services.CreateScope())
         {
             List<Player> frontEndPlayers = new List<Player>();
 
@@ -77,7 +73,9 @@ public class RoundServiceTest : IClassFixture<WebApplicationFactory<Program>>
     {
         var gameId = await _gameService.CreateGame();
 
-        await SetupDummyUsersAndPlayers(gameId);
+        var players = await SetupDummyUsersAndPlayers(gameId);
+
+        await _gameService.AddPlayersToGameAsync(players, gameId);
 
         await _roundService.StartRound(gameId);
     }
@@ -89,17 +87,19 @@ public class RoundServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
         var players = await SetupDummyUsersAndPlayers(gameId);
 
+        await _gameService.AddPlayersToGameAsync(players, gameId);
+
         var currentPlayers = await _roundService.StartRound(gameId);
 
         var result = await _roundService.EndRoundAsync(gameId, currentPlayers[0], currentPlayers[1]);
 
         Assert.True(result);
     }
-    
-    
-    
 
-    
+
+
+
+
 
 
 }

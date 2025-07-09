@@ -12,9 +12,9 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
     private readonly WebApplicationFactory<Program> _factory;
 
-    private readonly MatchService _matchService;
+    private readonly IMatchService _matchService;
 
-    private readonly RoundService _roundService;
+    private readonly IRoundService _roundService;
 
     public GameServiceTest()
     {
@@ -22,8 +22,8 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
         using (var scope = _factory.Services.CreateScope())
         {
-            _matchService = scope.ServiceProvider.GetRequiredService<MatchService>();
-            _roundService = scope.ServiceProvider.GetRequiredService<RoundService>();
+            _matchService = scope.ServiceProvider.GetRequiredService<IMatchService>();
+            _roundService = scope.ServiceProvider.GetRequiredService<IRoundService>();
         }
     }
 
