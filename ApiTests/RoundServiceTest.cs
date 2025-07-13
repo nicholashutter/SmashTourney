@@ -44,6 +44,8 @@ public class RoundServiceTest : IClassFixture<WebApplicationFactory<Program>>
             {
                 var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
 
+                var _userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
                 var UserProperties = Guid.NewGuid();
 
                 var User = new ApplicationUser
@@ -52,6 +54,8 @@ public class RoundServiceTest : IClassFixture<WebApplicationFactory<Program>>
                     UserName = UserProperties.ToString(),
                     Email = $"{UserProperties}@mail.com"
                 };
+
+                await _userRepository.CreateUserAsync(User);
 
                 var Player = new Player
                 {
@@ -91,7 +95,7 @@ public class RoundServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
         var currentPlayers = await _roundService.StartRound(gameId);
 
-        var result = await _roundService.EndRoundAsync(gameId, currentPlayers[0], currentPlayers[1]);
+        var result = await _roundService.EndRoundAsync(gameId, players[0], players[1]);
 
         Assert.True(result);
     }

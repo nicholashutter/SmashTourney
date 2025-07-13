@@ -91,6 +91,8 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
         {
             var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
 
+          
+
             var gameId = await gs.CreateGame();
 
             var UserProperties = Guid.NewGuid().ToString();
@@ -175,6 +177,8 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
             {
                 var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
 
+                var _userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
                 var UserProperties = Guid.NewGuid();
 
                 var User = new ApplicationUser
@@ -183,6 +187,8 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
                     UserName = UserProperties.ToString(),
                     Email = $"{UserProperties}@mail.com"
                 };
+
+                await _userRepository.CreateUserAsync(User);
 
                 var Player = new Player
                 {

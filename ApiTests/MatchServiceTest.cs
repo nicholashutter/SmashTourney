@@ -26,6 +26,8 @@ public class MatchServiceTest : IClassFixture<WebApplicationFactory<Program>>
             _roundService = scope.ServiceProvider.GetRequiredService<IRoundService>();
 
             _matchService = scope.ServiceProvider.GetRequiredService<IMatchService>();
+
+            
         }
     }
 
@@ -40,6 +42,8 @@ public class MatchServiceTest : IClassFixture<WebApplicationFactory<Program>>
             {
                 var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
 
+                 var _userRepository =  scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
                 var UserProperties = Guid.NewGuid();
 
                 var User = new ApplicationUser
@@ -48,6 +52,8 @@ public class MatchServiceTest : IClassFixture<WebApplicationFactory<Program>>
                     UserName = UserProperties.ToString(),
                     Email = $"{UserProperties}@mail.com"
                 };
+
+                await _userRepository.CreateUserAsync(User);
 
                 var Player = new Player
                 {
@@ -89,11 +95,13 @@ public class MatchServiceTest : IClassFixture<WebApplicationFactory<Program>>
         {
             var gameId = await _gameService.CreateGame();
 
-            await SetupDummyUsersAndPlayers(gameId);
+            var players = await SetupDummyUsersAndPlayers(gameId);
+
+            await _gameService.AddPlayersToGameAsync(players, gameId);
 
             await _roundService.StartRound(gameId);
 
-            var players = await _matchService.StartMatch(gameId);
+            await _matchService.StartMatch(gameId);
 
             var result = await _matchService.EndMatchAsync(gameId, players[0], players[1]);
 
