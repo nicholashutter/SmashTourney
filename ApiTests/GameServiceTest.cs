@@ -91,7 +91,7 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
         {
             var gs = scope.ServiceProvider.GetRequiredService<IGameService>();
 
-          
+
 
             var gameId = await gs.CreateGame();
 
@@ -120,7 +120,7 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
             var gameId = await gs.CreateGame();
 
-            List<Player> frontEndPlayers = new List<Player>();
+            List<Player> players = new List<Player>();
 
             for (int i = 0; i < 9; i++)
             {
@@ -140,11 +140,11 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
                     DisplayName = UserProperties.ToString()
                 };
 
-                frontEndPlayers.Add(Player);
+                players.Add(Player);
                 await gs.AddUserToLobby(User, gameId);
             }
 
-            var success = await gs.AddPlayersToGameAsync(frontEndPlayers, gameId);
+            var success = await gs.AddPlayersToGameAsync(players, gameId);
 
             Assert.True(success);
         }
@@ -171,7 +171,7 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
         using (var scope = _factory.Services.CreateScope())
         {
-            List<Player> frontEndPlayers = new List<Player>();
+            List<Player> players = new List<Player>();
 
             for (int i = 0; i < 10; i++)
             {
@@ -197,10 +197,10 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
                     DisplayName = UserProperties.ToString()
                 };
 
-                frontEndPlayers.Add(Player);
+                players.Add(Player);
                 await gs.AddUserToLobby(User, gameId);
             }
-            return frontEndPlayers;
+            return players;
         }
 
     }
@@ -214,9 +214,9 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
             var gameId = await gs.CreateGame();
 
-            List<Player> frontEndPlayers = await SetupDummyUsersAndPlayers(gameId);
+            List<Player> players = await SetupDummyUsersAndPlayers(gameId);
 
-            await gs.AddPlayersToGameAsync(frontEndPlayers, gameId);
+            await gs.AddPlayersToGameAsync(players, gameId);
 
             await gs.GenerateBracketAsync(gameId);
 
@@ -243,9 +243,9 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
             var foundGame = await gameService.GetGameByIdAsync(gameId);
 
-            List<Player> frontEndPlayers = await SetupDummyUsersAndPlayers(gameId);
+            List<Player> players = await SetupDummyUsersAndPlayers(gameId);
 
-            await gameService.AddPlayersToGameAsync(frontEndPlayers, gameId);
+            await gameService.AddPlayersToGameAsync(players, gameId);
 
             await gameService.GenerateBracketAsync(gameId);
 
@@ -264,15 +264,15 @@ public class GameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
             var foundGame = await gameService.GetGameByIdAsync(gameId);
 
-            List<Player> frontEndPlayers = await SetupDummyUsersAndPlayers(gameId);
+            List<Player> players = await SetupDummyUsersAndPlayers(gameId);
 
-            await gameService.AddPlayersToGameAsync(frontEndPlayers, gameId);
+            await gameService.AddPlayersToGameAsync(players, gameId);
 
             await gameService.GenerateBracketAsync(gameId);
 
             await gameService.UpdateUserScore(gameId);
 
-            var players = await _roundService.StartRound(gameId);
+            await _roundService.StartRound(gameId);
 
             await _matchService.EndMatchAsync(gameId, players[0], players[1]);
 

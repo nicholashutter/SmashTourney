@@ -62,7 +62,7 @@ public class UserServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
             var foundUser = await us.GetUserByIdAsync(user.Id);
 
-            Assert.Equal(user.Id, foundUser.Id);
+            Assert.Equivalent(user, foundUser);
         }
 
     }
