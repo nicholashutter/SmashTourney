@@ -12,12 +12,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Serilog;
 
-public class PlayerRepository : IPlayerRepository
+public class PlayerManager : IPlayerManager
 {
     private readonly ApplicationDbContext _db;
 
 
-    public PlayerRepository(ApplicationDbContext db)
+    public PlayerManager(ApplicationDbContext db)
     {
         _db = db;
     }

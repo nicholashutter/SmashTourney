@@ -339,7 +339,11 @@ public class GameService : IGameService
 
                 //use null object pattern or dummy player 
                 //who always loses and is randomly inserted bye number of times
-                foundGame.currentPlayers.Add(new Player { UserId = ByeUserId });
+                foundGame.currentPlayers.Add(new Player
+                {
+                    Id = Guid.NewGuid(), 
+                    UserId = ByeUserId
+                });
             }
 
             Random rnd = new Random();
@@ -640,24 +644,13 @@ public class GameService : IGameService
                     //iterate over players, get their userIds
                     //iterate over list<userIds> use current player score values
                     var currentUser = await userRepository.GetUserByIdAsync(player.UserId);
-                    if (player.UserId.Equals(ByeUserId))
-                    {
-                        currentUser = new ApplicationUser
-                        {
-                            Id = ByeUserId
-                        };
-                    }
-                    if (currentUser is null)
-                    {
 
-                    }
                     //bubble sort to determine who has highest score
                     if (player.CurrentScore > highestScore.CurrentScore)
                     {
                         highestScore = player;
                     }
 
-                    //have userService update these values
                     //set new timestamps for relevant timestamp fields
                     //increment and decrement totals wins / losses / games played
                     if (foundGame.currentRound == player.CurrentRound)

@@ -25,7 +25,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 
 //scoped services will be destroyed after the function scope that uses them closes 
-builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
+builder.Services.AddScoped<IPlayerManager, PlayerManager>();
 builder.Services.AddScoped<IUserManager, UserManager>();
 
 //gameService is this applications "application" singleton
@@ -53,9 +53,9 @@ builder.Services.AddTransient<IEmailSender, EmailSender>(); */
 builder.Services.ConfigureApplicationCookie(options =>
     {
         // options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
-       // options.SlidingExpiration = true;
-       // options.Cookie.HttpOnly = true;
-       // options.Cookie.SameSite = SameSiteMode.Strict;
+        // options.SlidingExpiration = true;
+        // options.Cookie.HttpOnly = true;
+        // options.Cookie.SameSite = SameSiteMode.Strict;
         options.Events.OnSignedIn = async context =>
             {
                 var username = context.Principal.Identity?.Name;
