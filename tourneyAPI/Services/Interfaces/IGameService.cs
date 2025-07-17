@@ -19,7 +19,7 @@ public interface IGameService
     Task<List<Game>?> GetAllGamesAsync();
 
     // API route /AddUserToLobby
-    public bool CreateUserSession(ApplicationUser addUser, Guid gameId);
+    public bool CreateUserSession(ApplicationUser addUser);
 
     // API route /AllPlayersIn
     public bool AddPlayersToGame(List<Player> players, Guid gameId);

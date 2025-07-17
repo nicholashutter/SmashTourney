@@ -26,7 +26,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 //scoped services will be destroyed after the function scope that uses them closes 
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserManager, UserManager>();
 
 //gameService is this applications "application" singleton
 builder.Services.AddSingleton<IGameService, GameService>();
@@ -49,24 +49,41 @@ builder.Services.Configure<IdentityOptions>(options =>
 
 builder.Services.AddTransient<IEmailSender, EmailSender>(); */
 
-/* 
-configure cookie options scaffold
 
-builder.Services.ConfigureApplicationCookie(options => 
+builder.Services.ConfigureApplicationCookie(options =>
     {
-    // Examples:
-    options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
-    options.SlidingExpiration = true;
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SameSite = SameSiteMode.Strict;
-    options.Events.OnSignedIn = context => 
-        {
-            var user = context.Principal.Identity?.Name;
-            myService.OnUserLoggedIn(user);
-            return Task.CompletedTask;
-        };
+        // options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+       // options.SlidingExpiration = true;
+       // options.Cookie.HttpOnly = true;
+       // options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Events.OnSignedIn = async context =>
+            {
+                var username = context.Principal.Identity?.Name;
+
+                if (username is not null)
+                {
+                    using (var scope = context.HttpContext.RequestServices.CreateAsyncScope())
+                    {
+                        var scopedServices = scope.ServiceProvider;
+
+                        var _gameService = scopedServices.GetRequiredService<IGameService>();
+                        var _userRepository = scopedServices.GetRequiredService<IUserManager>();
+
+                        var foundUser = await _userRepository.GetUserByUserNameAsync(username);
+
+                        if (foundUser is not null)
+                        {
+                            _gameService.CreateUserSession(foundUser);
+                        }
+                        else
+                        {
+                            Log.Warning("User has entered application for the first time. No session created.");
+                        }
+                    }
+                }
+            };
     });
-*/
+
 
 var app = builder.Build();
 

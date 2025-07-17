@@ -80,7 +80,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
             Email = $"{UserProperties}@mail.com"
         };
 
-        var success = _gameService.CreateUserSession(User, gameId);
+        var success = _gameService.CreateUserSession(User);
 
         Assert.True(success);
 
@@ -112,7 +112,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
             };
 
             players.Add(Player);
-            _gameService.CreateUserSession(User, gameId);
+            _gameService.CreateUserSession(User);
         }
 
         var success = _gameService.AddPlayersToGame(players, gameId);
@@ -140,7 +140,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
             for (int i = 0; i < 10; i++)
             {
-                var _userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+                var _userRepository = scope.ServiceProvider.GetRequiredService<IUserManager>();
 
                 var UserProperties = Guid.NewGuid();
 
@@ -161,7 +161,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
                 };
 
                 players.Add(Player);
-                _gameService.CreateUserSession(User, gameId);
+                _gameService.CreateUserSession(User);
             }
             return players;
         }
@@ -276,7 +276,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
             _gameService.StartRound(gameId);
 
-            players =  _gameService.StartMatch(gameId);
+            players = _gameService.StartMatch(gameId);
 
         }
     }

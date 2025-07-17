@@ -35,7 +35,7 @@ public static class UserRouter
             Log.Information("Request Type: Get \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
 
             using var scope = app.Services.CreateAsyncScope();
-            var userRepository = scope.ServiceProvider.GetRequiredService<UserRepository>();
+            var userRepository = scope.ServiceProvider.GetRequiredService<UserManager>();
 
             var users = await userRepository.GetAllUsersAsync();
 
@@ -57,7 +57,7 @@ public static class UserRouter
 
             using (var scope = app.Services.CreateAsyncScope())
             {
-                var userRepository = scope.ServiceProvider.GetRequiredService<UserRepository>();
+                var userRepository = scope.ServiceProvider.GetRequiredService<UserManager>();
 
                 var success = await userRepository.DeleteUserAsync(Id);
 

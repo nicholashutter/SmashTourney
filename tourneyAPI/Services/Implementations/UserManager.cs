@@ -10,21 +10,19 @@ using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
-public class UserRepository : IUserRepository
+public class UserManager : IUserManager
 {
 
     private readonly ApplicationDbContext _db;
 
-    public UserRepository(ApplicationDbContext db)
+    public UserManager(ApplicationDbContext db)
     {
         _db = db;
     }
 
-    public Task<string> CreateUserAsync(ApplicationUser user)
+    public async Task<string> CreateUserAsync(ApplicationUser user)
     {
-        Task<string> result = Task.Run(async () =>
-        {
-            try
+        try
             {
                 await _db.AddAsync(user);
                 await _db.SaveChangesAsync();
@@ -36,19 +34,11 @@ public class UserRepository : IUserRepository
                 Log.Error(e.ToString());
                 return user.Id;
             }
-
-        });
-
-        return result;
     }
 
-    public Task<ApplicationUser?> GetUserByIdAsync(string Id)
+    public async Task<ApplicationUser?> GetUserByIdAsync(string Id)
     {
-
-
-        Task<ApplicationUser?> result = Task.Run(async () =>
-        {
-            Log.Information($"Info: Get User By Id {Id}");
+        Log.Information($"Info: Get User By Id {Id}");
 
             var foundUser = new ApplicationUser();
             try
@@ -70,47 +60,62 @@ public class UserRepository : IUserRepository
                 Log.Information($"Error: User not found or otherwise null\n  {e}");
                 return null;
             }
-
-        });
-
-        return result;
     }
 
-    public Task<List<ApplicationUser>?> GetAllUsersAsync()
+    public async Task<ApplicationUser?> GetUserByUserNameAsync(string UserName)
     {
+        Log.Information("Info: Get User By Username");
 
-        Task<List<ApplicationUser>?> result = Task.Run(async () =>
-        {
-            Log.Information("Info: Get All Users");
-
-            var Users = new List<ApplicationUser>();
-
+        var foundUser = new ApplicationUser();
             try
             {
-                Users = await _db.Users.ToListAsync();
+                foundUser = await _db.Users.FindAsync(UserName);
 
-                if (Users.Count == 0)
+                if (foundUser is null)
                 {
-                    throw new EmptyUsersCollectionException("GetAllUsersAsync");
+                    throw new UserNotFoundException("GetUserByUserNameAsync");
                 }
-                return Users;
+                else
+                {
+                    return foundUser;
+                }
+
             }
-            catch (EmptyUsersCollectionException e)
+            catch (UserNotFoundException e)
             {
-                Log.Warning($"All Users Returns Zero, Did You Just Reset The DB? \n {e}");
+                Log.Information($"Error: User not found or otherwise null\n  {e}");
                 return null;
             }
-        });
+    }
 
-        return result;
+    public async Task<List<ApplicationUser>?> GetAllUsersAsync()
+    {
+
+        Log.Information("Info: Get All Users");
+
+        var Users = new List<ApplicationUser>();
+
+        try
+        {
+            Users = await _db.Users.ToListAsync();
+
+            if (Users.Count == 0)
+            {
+                throw new EmptyUsersCollectionException("GetAllUsersAsync");
+            }
+            return Users;
+        }
+        catch (EmptyUsersCollectionException e)
+        {
+            Log.Warning($"All Users Returns Zero, Did You Just Reset The DB? \n {e}");
+            return null;
+        }
     }
 
 
-    public Task<bool> UpdateUserAsync(ApplicationUser updateUser)
+    public async Task<bool> UpdateUserAsync(ApplicationUser updateUser)
     {
-        Task<bool> result = Task.Run(async () =>
-        {
-            Log.Information("Info: Update User Async");
+        Log.Information("Info: Update User Async");
 
             try
             {
@@ -145,16 +150,11 @@ public class UserRepository : IUserRepository
                 Log.Error($"Error: {e}");
                 return false;
             }
-        });
-
-        return result;
     }
 
-    public Task<bool> DeleteUserAsync(string Id)
+    public async Task<bool> DeleteUserAsync(string Id)
     {
-        Task<bool> result = Task.Run(async () =>
-        {
-            Log.Information("Info: Update User Async");
+         Log.Information("Info: Update User Async");
 
             var foundUser = new ApplicationUser();
 
@@ -179,7 +179,5 @@ public class UserRepository : IUserRepository
                 Log.Warning($"Warning: User not found. Unable to delete {e}");
                 return false;
             }
-        });
-        return result;
     }
 }

@@ -63,7 +63,7 @@ public class GameService : IGameService
 
             //check for _games in memory first
             var foundGame = _games.Find(g => g.Id == gameId);
-            
+
             //if not in memory (_games) check the db
             if (foundGame is null)
             {
@@ -90,7 +90,7 @@ public class GameService : IGameService
                 {
                     _db.Games.Update(foundGame);
                 }
-                
+
                 //save the operation in efcore 
                 await _db.SaveChangesAsync();
             }
@@ -203,7 +203,7 @@ public class GameService : IGameService
 
     //Api route /AddUserToLobby
     //will only let authenticated users further inside the application if the gameID presented is valid
-    public bool CreateUserSession(ApplicationUser addUser, Guid gameId)
+    public bool CreateUserSession(ApplicationUser addUser)
     {
         Log.Information($"Info: Adding User {addUser.UserName} to _userSessions.");
 
@@ -213,7 +213,7 @@ public class GameService : IGameService
             {
                 Log.Error($"Unable to add User to game: addUser is null");
 
-                throw new InvalidArgumentException("AddUserToLobby");
+                throw new InvalidArgumentException("CreateUserSession ");
             }
             else
             {
@@ -223,19 +223,9 @@ public class GameService : IGameService
                 }
                 else
                 {
-                    var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
-
-                    if (foundGame is null)
-                    {
-                        Log.Error($"Unable To Locate Game With GameId {gameId}");
-                        throw new GameNotFoundException("AddUserToLobby");
-                    }
-                    else
-                    {
-                        _userSessions.Add(addUser);
-                        Log.Information($"User {addUser.UserName} Added To Game {gameId} lobby");
-                        return true;
-                    }
+                    _userSessions.Add(addUser);
+                    Log.Information($"User {addUser.UserName} Added To _userSessions.");
+                    return true;
                 }
             }
         }
@@ -280,6 +270,7 @@ public class GameService : IGameService
                     if (user.Id.Equals(player.UserId))
                     {
                         foundGame.currentPlayers.Add(player);
+                        
                     }
                 }
             }
@@ -629,10 +620,7 @@ public class GameService : IGameService
         //create userService context
         await using (var scope = _scopeFactory.CreateAsyncScope())
         {
-            var userRepository = scope.ServiceProvider.GetRequiredService<IUserRepository>();
-
-
-
+            var userRepository = scope.ServiceProvider.GetRequiredService<IUserManager>();
             try
             {
                 var foundGame = _games.Find(g => g.Id == gameId);

@@ -27,7 +27,7 @@ public class UserServiceTest : IClassFixture<WebApplicationFactory<Program>>
         string userId = "";
         using (var scope = _factory.Services.CreateScope())
         {
-            var us = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+            var us = scope.ServiceProvider.GetRequiredService<IUserManager>();
 
             var user = new ApplicationUser
             {
@@ -49,7 +49,7 @@ public class UserServiceTest : IClassFixture<WebApplicationFactory<Program>>
         var rand = Guid.NewGuid();
         using (var scope = _factory.Services.CreateScope())
         {
-            var us = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+            var us = scope.ServiceProvider.GetRequiredService<IUserManager>();
 
             var user = new ApplicationUser
             {
@@ -75,7 +75,7 @@ public class UserServiceTest : IClassFixture<WebApplicationFactory<Program>>
         {
             var rand = Guid.NewGuid();
 
-            var us = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+            var us = scope.ServiceProvider.GetRequiredService<IUserManager>();
 
             var user = new ApplicationUser
             {
@@ -105,7 +105,7 @@ public class UserServiceTest : IClassFixture<WebApplicationFactory<Program>>
         {
             var rand = Guid.NewGuid();
 
-            var us = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+            var us = scope.ServiceProvider.GetRequiredService<IUserManager>();
 
             var user = new ApplicationUser
             {
