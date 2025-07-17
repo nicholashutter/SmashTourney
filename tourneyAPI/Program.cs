@@ -28,10 +28,6 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
-//TODO
-builder.Services.AddScoped<IRoundService, RoundService>();
-builder.Services.AddScoped<IMatchService, MatchService>();
-
 //gameService is this applications "application" singleton
 builder.Services.AddSingleton<IGameService, GameService>();
 
@@ -54,11 +50,22 @@ builder.Services.Configure<IdentityOptions>(options =>
 builder.Services.AddTransient<IEmailSender, EmailSender>(); */
 
 /* 
-PROD
-var cookiePolicyOptions = new CookiePolicyOptions
-{
-    MinimumSameSitePolicy = SameSiteMode.Strict,
-}; 
+configure cookie options scaffold
+
+builder.Services.ConfigureApplicationCookie(options => 
+    {
+    // Examples:
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+    options.SlidingExpiration = true;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Events.OnSignedIn = context => 
+        {
+            var user = context.Principal.Identity?.Name;
+            myService.OnUserLoggedIn(user);
+            return Task.CompletedTask;
+        };
+    });
 */
 
 var app = builder.Build();
