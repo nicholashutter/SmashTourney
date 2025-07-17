@@ -134,7 +134,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     private async Task<List<Player>> SetupDummyUsersAndPlayers(Guid gameId)
     {
 
-        using (var scope = _factory.Services.CreateScope())
+        using (var scope = _factory.Services.CreateAsyncScope())
         {
             List<Player> players = new List<Player>();
 
