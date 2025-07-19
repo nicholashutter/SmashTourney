@@ -1,5 +1,6 @@
-namespace Tests;
+namespace ApiTests;
 
+using CustomExceptions;
 using Entities;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -15,112 +16,119 @@ public class UserServiceTest : IClassFixture<WebApplicationFactory<Program>>
         _factory = new WebApplicationFactory<Program>();
     }
 
-
-
-
     [Fact]
     public async Task CreateUserSavesUserToDb()
     {
 
-        var rand = Guid.NewGuid();
+        Guid rand = Guid.NewGuid();
 
         string userId = "";
-        using (var scope = _factory.Services.CreateScope())
+        using (IServiceScope scope = _factory.Services.CreateScope())
         {
-            var us = scope.ServiceProvider.GetRequiredService<IUserManager>();
+            IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
 
-            var user = new ApplicationUser
+            ApplicationUser user = new ApplicationUser
             {
-                Id = rand.ToString(),
                 UserName = rand.ToString(),
                 Email = $"{rand}@mail.com"
             };
 
-            userId = await us.CreateUserAsync(user);
+            userId = await userManager.CreateUserAsync(user);
         }
 
         Assert.False(string.IsNullOrEmpty(userId));
     }
 
     [Fact]
-    public async Task GetUserByIdAsyncGetsCorrectUser()
+    public async Task CreateUserReturnsValidUserId()
     {
+        string rand = Guid.NewGuid().ToString();
 
-        var rand = Guid.NewGuid();
-        using (var scope = _factory.Services.CreateScope())
+        using IServiceScope scope = _factory.Services.CreateScope();
+        IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
+
+        ApplicationUser user = new ApplicationUser
         {
-            var us = scope.ServiceProvider.GetRequiredService<IUserManager>();
+            UserName = rand,
+            Email = $"{rand}@mail.com"
+        };
 
-            var user = new ApplicationUser
-            {
-                Id = rand.ToString(),
-                UserName = rand.ToString(),
-                Email = $"{rand}@mail.com"
-            };
+        string userId = await userManager.CreateUserAsync(user);
 
-            var userId = await us.CreateUserAsync(user);
-
-            var foundUser = await us.GetUserByIdAsync(user.Id);
-
-            Assert.Equivalent(user, foundUser);
-        }
-
-    }
-
-
-    [Fact]
-    public async Task UpdateUserAsyncAppliesPropertiesCorrectly()
-    {
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var rand = Guid.NewGuid();
-
-            var us = scope.ServiceProvider.GetRequiredService<IUserManager>();
-
-            var user = new ApplicationUser
-            {
-                Id = rand.ToString(),
-                UserName = rand.ToString(),
-                Email = $"{rand}@mail.com"
-            };
-
-            var userId = await us.CreateUserAsync(user);
-
-            string editUserName = "edit@mail.com";
-
-            user.UserName = editUserName;
-
-            await us.UpdateUserAsync(user);
-
-            var foundUser = await us.GetUserByIdAsync(user.Id);
-
-            Assert.Equal(user.UserName, foundUser.UserName);
-        }
+        Assert.False(string.IsNullOrEmpty(userId));
     }
 
     [Fact]
-    public async Task DeleteUserAsyncRemovesUser()
+    public async Task GetUserByIdGetsCorrectUser()
     {
-        using (var scope = _factory.Services.CreateScope())
+        string rand = Guid.NewGuid().ToString();
+
+        using IServiceScope scope = _factory.Services.CreateScope();
+        IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
+        ApplicationDbContext dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        ApplicationUser user = new ApplicationUser
         {
-            var rand = Guid.NewGuid();
+            UserName = rand,
+            Email = $"{rand}@mail.com"
+        };
 
-            var us = scope.ServiceProvider.GetRequiredService<IUserManager>();
+        await userManager.CreateUserAsync(user);
 
-            var user = new ApplicationUser
-            {
-                Id = rand.ToString(),
-                UserName = rand.ToString(),
-                Email = $"{rand}@mail.com"
-            };
+        ApplicationUser foundUser = await userManager.GetUserByIdAsync(user.Id);
 
-            var userId = await us.CreateUserAsync(user);
-
-            await us.DeleteUserAsync(userId);
-
-            var foundUser = await us.GetUserByIdAsync(userId);
-
-            Assert.Null(foundUser);
-        }
+        Assert.Equivalent(user, foundUser);
     }
+
+
+
+    [Fact]
+    public async Task UpdateUserAsyncModifiesUserName()
+    {
+        using IServiceScope scope = _factory.Services.CreateScope();
+        Guid rand = Guid.NewGuid();
+
+        IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
+
+        ApplicationUser user = new ApplicationUser
+        {
+            UserName = rand.ToString(),
+            Email = $"{rand}@mail.com"
+        };
+
+        await userManager.CreateUserAsync(user);
+
+        string newName = "edit@mail.com";
+        user.UserName = newName;
+
+        await userManager.UpdateUserAsync(user);
+        ApplicationUser foundUser = await userManager.GetUserByIdAsync(user.Id);
+
+        Assert.Equal(newName, foundUser.UserName);
+    }
+
+
+
+    [Fact]
+    public async Task DeleteUserAsyncRemovesUserFromDatabase()
+    {
+        using IServiceScope scope = _factory.Services.CreateScope();
+        string rand = Guid.NewGuid().ToString();
+
+        IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
+
+        ApplicationUser user = new ApplicationUser
+        {
+            UserName = rand,
+            Email = $"{rand}@mail.com"
+        };
+
+        await userManager.CreateUserAsync(user);
+        await userManager.DeleteUserAsync(user.Id);
+
+        ApplicationUser deletedUser = await userManager.GetUserByIdAsync(user.Id);
+        Assert.Null(deletedUser);
+    }
+
+
 }

@@ -1,11 +1,11 @@
+namespace ApiTests;
+
 using System.Threading.Tasks;
 using Entities;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.Extensions.DependencyInjection;
 using Services;
-
-namespace Tests;
 
 public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -88,29 +88,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     {
         var gameId = await _gameService.CreateGame();
 
-        List<Player> players = new List<Player>();
-
-        for (int i = 0; i < 9; i++)
-        {
-            var UserProperties = Guid.NewGuid();
-
-            var User = new ApplicationUser
-            {
-                Id = UserProperties.ToString(),
-                UserName = UserProperties.ToString(),
-                Email = $"{UserProperties}@mail.com"
-            };
-
-            var Player = new Player
-            {
-                Id = UserProperties,
-                UserId = UserProperties.ToString(),
-                DisplayName = UserProperties.ToString()
-            };
-
-            players.Add(Player);
-            _gameService.CreateUserSession(User);
-        }
+        List<Player> players = await SetupDummyUsersAndPlayers(gameId);
 
         var exception = Record.Exception(() => _gameService.AddPlayersToGame(players, gameId));
 

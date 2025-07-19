@@ -1,11 +1,10 @@
+namespace ApiTests;
+
 
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-
-
-namespace Tests;
 
 public class AuthServiceTest : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -65,7 +64,6 @@ public class AuthServiceTest : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-
     public async Task testSecureEndpointWithCookie()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -105,7 +103,6 @@ public class AuthServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
 
     [Fact]
-
     public async Task testLogout()
     {
         var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
