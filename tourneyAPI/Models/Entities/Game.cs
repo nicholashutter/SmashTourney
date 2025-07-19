@@ -15,7 +15,6 @@ public enum Votes
 
 public class Game
 {
-    [Required]
     public Guid Id { get; set; }
     public List<Player> currentPlayers { get; set; } = new List<Player>();
 
@@ -29,7 +28,9 @@ public class Game
 
     public Votes _votes = Votes.ZERO;
 
-    private readonly object lockObject = new object();
+    private readonly object lockVotes = new object();
+
+    private readonly object lockCurrentRound = new object();
 
     public Votes GetVotes()
     {
@@ -38,12 +39,24 @@ public class Game
 
     public void SetVotes(Votes votes)
     {
-        lock (lockObject)
+        lock (lockVotes)
         {
             _votes = votes;
         }
     }
 
+    public int GetCurrentRound()
+    {
+        return currentRound;
+    }
+
+    public void SetCurrentRound(int newRound)
+    {
+        lock (lockCurrentRound)
+        {
+            currentRound = newRound;
+        }
+    }
 
 
     public int byes { get; set; } = 0;

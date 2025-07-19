@@ -20,7 +20,7 @@ var dbPath = ApplicationDbContext.Setup();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseSqlite(dbPath);
-
+    options.EnableSensitiveDataLogging();
 });
 
 

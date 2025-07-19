@@ -36,67 +36,60 @@ public class GameService : IGameService
     }
 
     //api route /NewGame 
-    public Guid CreateGame()
+    public async Task<Guid> CreateGame()
     {
 
         Log.Information($"Info: CreateGame");
 
         Game game = new Game
         {
-            Id = Guid.NewGuid()
+            Id = Guid.NewGuid()    
         };
+        await InsertGameAsync(game);
         _games.Add(game);
         Log.Information($"Info: New Game with gameId {game.Id}");
         return game.Id;
     }
 
+    
+    public async Task InsertGameAsync(Game currentGame)
+{
+    Log.Information("Info: Insert Game Async");
+
+    using var scope = _serviceProvider.CreateScope();
+    var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+    _db.Games.Add(currentGame);
+    await _db.SaveChangesAsync();
+}
+
     //api route /SaveGame
     //SaveGame will persist current game state to the database
-    public async Task<bool> SaveGameAsync(Guid gameId)
-    {
-        Log.Information($"Info: Create New Game Async");
+    public async Task UpdateGameAsync(Guid gameId)
+{
+    Log.Information("Info: Update Game Async");
 
-        using (var scope = _serviceProvider.CreateScope())
+    using var scope = _serviceProvider.CreateScope();
+    var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+    var foundGame = _games.Find(g => g.Id == gameId);
+        if (foundGame is null)
         {
-            //get database context
-            var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            //check for _games in memory first
-            var foundGame = _games.Find(g => g.Id == gameId);
-
-            //if not in memory (_games) check the db
-            if (foundGame is null)
-            {
-                foundGame = await _db.Games.FindAsync(gameId);
-                //if not in memory or the db throw exception
-                if (foundGame is null)
-                {
-                    //TILT should not get here
-                    throw new GameNotFoundException("SaveGameAsync");
-                }
-            }
-            else
-            {
-                //check if in memory and db (if already exists)
-                var dbGame = await _db.Games.FindAsync(gameId);
-
-                //if not exists, create
-                if (dbGame is null)
-                {
-                    _db.Games.Add(foundGame);
-                }
-                //if exists, update
-                else
-                {
-                    _db.Games.Update(foundGame);
-                }
-
-                //save the operation in efcore 
-                await _db.SaveChangesAsync();
-            }
-            return true;
+            throw new GameNotFoundException("UpdateGameAsync");
         }
-    }
+        
+    var dbGame = await _db.Games.FindAsync(gameId);
+        if (dbGame is null)
+        {
+            throw new GameNotFoundException($"Game with ID {gameId} does not exist.");
+        }
+        
+
+    _db.Entry(dbGame).CurrentValues.SetValues(foundGame);
+    await _db.SaveChangesAsync();
+}
+
+
     //LoadGameAsync will check against the db and attempt to restore
     //game state from games persisted in db
     public async Task<bool> LoadGameAsync(Guid gameId)
@@ -270,7 +263,7 @@ public class GameService : IGameService
                     if (user.Id.Equals(player.UserId))
                     {
                         foundGame.currentPlayers.Add(player);
-                        
+
                     }
                 }
             }
@@ -341,7 +334,7 @@ public class GameService : IGameService
                 //who always loses and is randomly inserted bye number of times
                 foundGame.currentPlayers.Add(new Player
                 {
-                    Id = Guid.NewGuid(), 
+                    Id = Guid.NewGuid(),
                     UserId = ByeUserId
                 });
             }
@@ -450,8 +443,6 @@ public class GameService : IGameService
             {
                 throw new GameNotFoundException("EndRoundAsync");
             }
-            //this should be the only method that iterates this property
-            //probably should use a lock statement here to enforce that
             foundGame.currentRound++;
             return true;
 
@@ -651,26 +642,38 @@ public class GameService : IGameService
                         highestScore = player;
                     }
 
-                    //set new timestamps for relevant timestamp fields
-                    //increment and decrement totals wins / losses / games played
-                    if (foundGame.currentRound == player.CurrentRound)
-                    {
-                        currentUser.AllTimeMatches = player.CurrentRound + currentUser.AllTimeMatches;
-                        var currentWins = Math.Abs(player.CurrentScore - player.CurrentRound);
-                        currentUser.AllTimeWins = currentWins + currentUser.AllTimeWins;
-                        var currentLosses = Math.Abs(player.CurrentRound - currentWins);
 
-                        if (currentLosses + currentWins != player.CurrentRound)
+                    //"real" user is an actual user and not a user created to allow players to skip rounds 
+                    //or a "bye" user
+
+                    //bye users always lose there is no need to process their score they should just fall out
+                    bool isUserReal = IsUserRealUser(currentUser, player.UserId);
+
+                    if (isUserReal)
+                    {
+                        //set new timestamps for relevant timestamp fields
+                        //increment and decrement totals wins / losses / games played
+                        if (foundGame.currentRound == player.CurrentRound)
                         {
-                            throw new InvalidObjectStateException("UpdateUserScore");
-                        }
+                            currentUser.AllTimeMatches = player.CurrentRound + currentUser.AllTimeMatches;
+                            var currentWins = Math.Abs(player.CurrentScore - player.CurrentRound);
+                            currentUser.AllTimeWins = currentWins + currentUser.AllTimeWins;
+                            var currentLosses = Math.Abs(player.CurrentRound - currentWins);
 
+                            if (currentLosses + currentWins != player.CurrentRound)
+                            {
+                                throw new InvalidObjectStateException("UpdateUserScore");
+                            }
+                        await userRepository.UpdateUserAsync(currentUser);
+                        }
+                        else
+                        {
+                            Log.Warning("Warning: UpdateUserScore called, but some users aren't on the same round as their game");
+                        }
+                        
                     }
-                    else
-                    {
-                        Log.Warning("Warning: UpdateUserScore called, but some users aren't on the same round as their game");
-                    }
-                    await userRepository.UpdateUserAsync(currentUser);
+
+
                 }
             }
             catch (GameNotFoundException e)
@@ -679,6 +682,18 @@ public class GameService : IGameService
             }
         }
         return true;
+    }
+
+    public bool IsUserRealUser(ApplicationUser currentUser, string userId)
+    {
+        if (currentUser is null && userId.Equals(ByeUserId))
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
 
 }

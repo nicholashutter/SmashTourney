@@ -25,9 +25,9 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public void CreateGameReturnsValidGUID()
+    public async Task CreateGameReturnsValidGUID()
     {
-        var result = _gameService.CreateGame();
+        var result = await _gameService.CreateGame();
 
         Assert.IsType<Guid>(result);
 
@@ -35,9 +35,9 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
     [Fact]
 
-    public void EndGameEndsRunningGame()
+    public async Task EndGameEndsRunningGame()
     {
-        var gameId = _gameService.CreateGame();
+        var gameId = await _gameService.CreateGame();
 
         var exception = Record.Exception(() => _gameService.EndGame(gameId));
 
@@ -53,7 +53,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
         //create ten games and store Ids
         for (int i = 0; i < 10; i++)
         {
-            var gameId = _gameService.CreateGame();
+            var gameId = await _gameService.CreateGame();
             inputGames.Add(i, gameId);
         }
 
@@ -66,9 +66,9 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
     [Fact]
 
-    public void AddUserToLobbyAddsUser()
+    public async Task AddUserToLobbyAddsUser()
     {
-        var gameId = _gameService.CreateGame();
+        var gameId = await _gameService.CreateGame();
 
         var UserProperties = Guid.NewGuid().ToString();
 
@@ -84,9 +84,9 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public void AddPlayersToGameAddsPlayers()
+    public async Task AddPlayersToGameAddsPlayers()
     {
-        var gameId = _gameService.CreateGame();
+        var gameId = await _gameService.CreateGame();
 
         List<Player> players = new List<Player>();
 
@@ -119,7 +119,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GetGameByIdAsyncGetsGameWithMatchingId()
     {
-        var gameId = _gameService.CreateGame();
+        var gameId = await _gameService.CreateGame();
 
         var foundGame = await _gameService.GetGameByIdAsync(gameId);
 
@@ -170,7 +170,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GenerateBracketAsyncCalculatesByesProperly()
     {
-        var gameId = _gameService.CreateGame();
+        var gameId = await _gameService.CreateGame();
 
         List<Player> players = await SetupDummyUsersAndPlayers(gameId);
 
@@ -192,7 +192,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task UpdateUserScoreUpdatesScoreCorrectly()
     {
-        var gameId = _gameService.CreateGame();
+        var gameId = await _gameService.CreateGame();
 
         var foundGame = await _gameService.GetGameByIdAsync(gameId);
 
@@ -208,7 +208,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task SaveGame()
     {
-        var gameId = _gameService.CreateGame();
+        var gameId = await _gameService.CreateGame();
 
         var foundGame = await _gameService.GetGameByIdAsync(gameId);
 
@@ -226,7 +226,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
         _gameService.EndRound(gameId);
 
-        await _gameService.SaveGameAsync(gameId);
+        await _gameService.UpdateGameAsync(gameId);
 
         var exception = Record.ExceptionAsync(async () => await _gameService.LoadGameAsync(gameId));
     }
@@ -234,7 +234,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task LoadGame()
     {
-        var gameId = _gameService.CreateGame();
+        var gameId = await _gameService.CreateGame();
 
         var foundGame = await _gameService.GetGameByIdAsync(gameId);
 
@@ -252,7 +252,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
 
         _gameService.EndRound(gameId);
 
-        await _gameService.SaveGameAsync(gameId);
+        await _gameService.UpdateGameAsync(gameId);
 
         var exception = Record.ExceptionAsync(async () => await _gameService.LoadGameAsync(gameId));
 
@@ -262,7 +262,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task StartRoundStartsRoundSuccessfully()
     {
-        var gameId = _gameService.CreateGame();
+        var gameId = await _gameService.CreateGame();
 
         var players = await SetupDummyUsersAndPlayers(gameId);
 
@@ -274,7 +274,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task EndRoundAsyncEndsRoundSuccessfully()
     {
-        var gameId = _gameService.CreateGame();
+        var gameId = await _gameService.CreateGame();
 
         var players = await SetupDummyUsersAndPlayers(gameId);
 
@@ -292,7 +292,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     {
         using (var scope = _factory.Services.CreateScope())
         {
-            var gameId = _gameService.CreateGame();
+            var gameId = await _gameService.CreateGame();
 
             var players = await SetupDummyUsersAndPlayers(gameId);
 
@@ -310,7 +310,7 @@ public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
     {
         using (var scope = _factory.Services.CreateScope())
         {
-            var gameId = _gameService.CreateGame();
+            var gameId = await _gameService.CreateGame();
 
             var players = await SetupDummyUsersAndPlayers(gameId);
 
