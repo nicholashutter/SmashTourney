@@ -1,5 +1,8 @@
 namespace CustomExceptions;
 
+using System.Diagnostics.CodeAnalysis;
+
+[ExcludeFromCodeCoverage]
 public class InvalidEntityException<T> : Exception
 {
     public T Context;

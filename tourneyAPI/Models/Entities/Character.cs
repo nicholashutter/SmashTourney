@@ -2,7 +2,9 @@ namespace Entities;
 
 using Microsoft.EntityFrameworkCore;
 using Enums;
+using System.Diagnostics.CodeAnalysis;
 
+[ExcludeFromCodeCoverage]
 public class Character
 {
     public Guid Id { get; set; }

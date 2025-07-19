@@ -1,7 +1,8 @@
 namespace CustomExceptions;
 
-using System;
+using System.Diagnostics.CodeAnalysis;
 
+[ExcludeFromCodeCoverage]
 public class PlayerNotFoundException : Exception
 {
     public PlayerNotFoundException()

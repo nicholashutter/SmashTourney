@@ -1,8 +1,10 @@
 using CustomExceptions;
 using Entities;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Validators;
 
+[ExcludeFromCodeCoverage]
 public class GameValidator()
 {
     public static void Validate(Game validateGame, string TAG)

@@ -6,7 +6,9 @@ using Microsoft.Extensions.Logging;
 using Services;
 using System;
 using Serilog;
+using System.Diagnostics.CodeAnalysis;
 
+[ExcludeFromCodeCoverage]
 public static class GameRouter
 {
     public static void Map(WebApplication app)

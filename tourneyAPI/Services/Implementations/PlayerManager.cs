@@ -11,7 +11,9 @@ using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using System.Diagnostics.CodeAnalysis;
 
+[ExcludeFromCodeCoverage]
 public class PlayerManager : IPlayerManager
 {
     private readonly ApplicationDbContext _db;

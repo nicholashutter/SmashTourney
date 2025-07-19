@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Entities;
+using Helpers;
 using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -20,46 +21,56 @@ public class UserManager : IUserManager
         _db = db;
     }
 
-    public async Task<string> CreateUserAsync(ApplicationUser user)
+    public async Task<string?> CreateUserAsync(ApplicationUser user)
     {
         try
-            {
-                await _db.AddAsync(user);
-                await _db.SaveChangesAsync();
+        {
+            await _db.AddAsync(user);
+            await _db.SaveChangesAsync();
 
-                return user.Id;
-            }
-            catch (IOException e)
-            {
-                Log.Error(e.ToString());
-                return user.Id;
-            }
+            return user.Id;
+        }
+        catch (IOException e)
+        {
+            Log.Error(e.ToString());
+            return null;
+        }
     }
 
     public async Task<ApplicationUser?> GetUserByIdAsync(string Id)
     {
         Log.Information($"Info: Get User By Id {Id}");
 
-            var foundUser = new ApplicationUser();
-            try
-            {
-                foundUser = await _db.Users.FindAsync(Id);
+        var foundUser = new ApplicationUser();
 
+        try
+        {
+            foundUser = await _db.Users.FindAsync(Id);
+            if (!Id.Equals(AppConstants.ByeUserId))
+            {
                 if (foundUser is null)
                 {
                     throw new UserNotFoundException("GetUserByIdAsync");
+
                 }
                 else
                 {
                     return foundUser;
                 }
-
             }
-            catch (UserNotFoundException e)
+            else
             {
-                Log.Information($"Error: User not found or otherwise null\n  {e}");
+                Log.Information("Bye User Processed. Will not be found in database.");
                 return null;
             }
+
+        }
+        catch (UserNotFoundException e)
+        {
+            Log.Error($"{e}");
+            return null;
+        }
+
     }
 
     public async Task<ApplicationUser?> GetUserByUserNameAsync(string UserName)
@@ -67,25 +78,27 @@ public class UserManager : IUserManager
         Log.Information("Info: Get User By Username");
 
         var foundUser = new ApplicationUser();
-            try
-            {
-                foundUser = await _db.Users.FindAsync(UserName);
 
-                if (foundUser is null)
-                {
-                    throw new UserNotFoundException("GetUserByUserNameAsync");
-                }
-                else
-                {
-                    return foundUser;
-                }
-
-            }
-            catch (UserNotFoundException e)
+        try
+        {
+            foundUser = await _db.Users.FindAsync(UserName);
+            if (foundUser is null)
             {
-                Log.Information($"Error: User not found or otherwise null\n  {e}");
-                return null;
+                throw new UserNotFoundException("GetUserByUserNameAsync");
             }
+            else
+            {
+                return foundUser;
+            }
+        }
+        catch (UserNotFoundException e)
+        {
+            Log.Error($"{e}");
+            return null;
+        }
+
+
+
     }
 
     public async Task<List<ApplicationUser>?> GetAllUsersAsync()
@@ -104,12 +117,15 @@ public class UserManager : IUserManager
                 throw new EmptyUsersCollectionException("GetAllUsersAsync");
             }
             return Users;
+
         }
         catch (EmptyUsersCollectionException e)
         {
-            Log.Warning($"All Users Returns Zero, Did You Just Reset The DB? \n {e}");
+            Log.Error($"{e}");
             return null;
         }
+
+
     }
 
 
@@ -117,67 +133,63 @@ public class UserManager : IUserManager
     {
         Log.Information("Info: Update User Async");
 
-            try
+        try
+        {
+            if (updateUser is null)
             {
-                if (updateUser is null)
+                throw new UserNotFoundException("UpdateUserAsync");
+            }
+            else
+            {
+                var foundUser = await _db.Users.FindAsync(updateUser.Id);
+
+                if (foundUser is null)
                 {
-                    throw new UserNotFoundException("UpdateUserAsync");
+                    throw new InvalidArgumentException("UpdateUserAsync");
                 }
                 else
                 {
-                    var foundUser = await _db.Users.FindAsync(updateUser.Id);
-
-                    if (foundUser is null)
-                    {
-                        throw new InvalidArgumentException("UpdateUserAsync");
-                    }
-                    else
-                    {
-                        _db.Update(foundUser);
-                        await _db.SaveChangesAsync();
-                        return true;
-                    }
-
+                    _db.Update(foundUser);
+                    await _db.SaveChangesAsync();
+                    return true;
                 }
+
             }
-            catch (UserNotFoundException e)
-            {
-                Log.Error($"Error: updateUser is null. Unable to updateUser \n {e}");
-                return false;
-            }
-            catch (InvalidArgumentException e)
-            {
-                Log.Error($"Error: {e}");
-                return false;
-            }
+        }
+        catch (UserNotFoundException e)
+        {
+            Log.Error($"{e}");
+            return false;
+        }
     }
 
     public async Task<bool> DeleteUserAsync(string Id)
     {
-         Log.Information("Info: Update User Async");
+        Log.Information("Info: Update User Async");
 
-            var foundUser = new ApplicationUser();
+        var foundUser = new ApplicationUser();
 
-            try
+        try
+        {
+            foundUser = await _db.Users.FindAsync(Id);
+
+            if (foundUser == null)
             {
-
-                foundUser = await _db.Users.FindAsync(Id);
-
-                if (foundUser == null)
-                {
-                    throw new UserNotFoundException("DeleteUserAsync");
-                }
-                else
-                {
-                    _db.Users.Remove(foundUser);
-                    await _db.SaveChangesAsync();
-                    return true;
-                }
+                throw new UserNotFoundException("DeleteUserAsync");
             }
-            catch (UserNotFoundException e)
+            else
             {
-                Log.Warning($"Warning: User not found. Unable to delete {e}");
-                return false;
+                _db.Users.Remove(foundUser);
+                await _db.SaveChangesAsync();
+                return true;
             }
+        }
+        catch (UserNotFoundException e)
+        {
+            Log.Error($"{e}");
+            return false;
+        }
+
+
     }
 }

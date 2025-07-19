@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Entities;
+using Helpers;
 using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -21,10 +22,6 @@ public class GameService : IGameService
 
     //list that represents users authenticated but not in a specific game
     public List<ApplicationUser> _userSessions;
-
-    //string representing a dummy user entity to allow
-    //a player entity to skip a round (bye)
-    const string ByeUserId = "00000000-0000-0000-0000-000000000000";
 
     //GameService has a singleton lifetime and is created on application start
     public GameService(IServiceScopeFactory scopeFactory, IServiceProvider serviceProvider)
@@ -43,7 +40,7 @@ public class GameService : IGameService
 
         Game game = new Game
         {
-            Id = Guid.NewGuid()    
+            Id = Guid.NewGuid()
         };
         await InsertGameAsync(game);
         _games.Add(game);
@@ -51,43 +48,43 @@ public class GameService : IGameService
         return game.Id;
     }
 
-    
+
     public async Task InsertGameAsync(Game currentGame)
-{
-    Log.Information("Info: Insert Game Async");
+    {
+        Log.Information("Info: Insert Game Async");
 
-    using var scope = _serviceProvider.CreateScope();
-    var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        using var scope = _serviceProvider.CreateScope();
+        var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    _db.Games.Add(currentGame);
-    await _db.SaveChangesAsync();
-}
+        _db.Games.Add(currentGame);
+        await _db.SaveChangesAsync();
+    }
 
     //api route /SaveGame
     //SaveGame will persist current game state to the database
     public async Task UpdateGameAsync(Guid gameId)
-{
-    Log.Information("Info: Update Game Async");
+    {
+        Log.Information("Info: Update Game Async");
 
-    using var scope = _serviceProvider.CreateScope();
-    var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        using var scope = _serviceProvider.CreateScope();
+        var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    var foundGame = _games.Find(g => g.Id == gameId);
+        var foundGame = _games.Find(g => g.Id == gameId);
         if (foundGame is null)
         {
             throw new GameNotFoundException("UpdateGameAsync");
         }
-        
-    var dbGame = await _db.Games.FindAsync(gameId);
+
+        var dbGame = await _db.Games.FindAsync(gameId);
         if (dbGame is null)
         {
             throw new GameNotFoundException($"Game with ID {gameId} does not exist.");
         }
-        
 
-    _db.Entry(dbGame).CurrentValues.SetValues(foundGame);
-    await _db.SaveChangesAsync();
-}
+
+        _db.Entry(dbGame).CurrentValues.SetValues(foundGame);
+        await _db.SaveChangesAsync();
+    }
 
 
     //LoadGameAsync will check against the db and attempt to restore
@@ -335,7 +332,7 @@ public class GameService : IGameService
                 foundGame.currentPlayers.Add(new Player
                 {
                     Id = Guid.NewGuid(),
-                    UserId = ByeUserId
+                    UserId = AppConstants.ByeUserId
                 });
             }
 
@@ -607,6 +604,20 @@ public class GameService : IGameService
         return true;
     }
 
+    public Game CalculateHighestScore(Game currentGame)
+    {
+        Player highestScore = new Player();
+        foreach (Player player in currentGame.currentPlayers)
+        {
+            //bubble sort to determine who has highest score
+            if (player.CurrentScore > highestScore.CurrentScore)
+            {
+                highestScore = player;
+            }
+        }
+        return currentGame;
+    }
+
     //called by SaveGameAsync or EndGameAsync
     public async Task<bool> UpdateUserScoreAsync(Guid gameId)
     {
@@ -625,24 +636,15 @@ public class GameService : IGameService
                     throw new GameNotFoundException("UpdateUserScore");
                 }
 
-                //foundGame is GetGameByIdAsync()
-                //if foundGame is not null
+                //bubble sort implementation
+                foundGame = CalculateHighestScore(foundGame);
 
-                Player highestScore = new Player();
 
                 foreach (Player player in foundGame.currentPlayers)
                 {
                     //iterate over players, get their userIds
                     //iterate over list<userIds> use current player score values
                     var currentUser = await userRepository.GetUserByIdAsync(player.UserId);
-
-                    //bubble sort to determine who has highest score
-                    if (player.CurrentScore > highestScore.CurrentScore)
-                    {
-                        highestScore = player;
-                    }
-
-
                     //"real" user is an actual user and not a user created to allow players to skip rounds 
                     //or a "bye" user
 
@@ -664,13 +666,13 @@ public class GameService : IGameService
                             {
                                 throw new InvalidObjectStateException("UpdateUserScore");
                             }
-                        await userRepository.UpdateUserAsync(currentUser);
+                            await userRepository.UpdateUserAsync(currentUser);
                         }
                         else
                         {
                             Log.Warning("Warning: UpdateUserScore called, but some users aren't on the same round as their game");
                         }
-                        
+
                     }
 
 
@@ -686,7 +688,7 @@ public class GameService : IGameService
 
     public bool IsUserRealUser(ApplicationUser currentUser, string userId)
     {
-        if (currentUser is null && userId.Equals(ByeUserId))
+        if (currentUser is null && userId.Equals(AppConstants.ByeUserId))
         {
             return false;
         }

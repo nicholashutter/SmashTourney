@@ -9,5 +9,5 @@ public interface IUserManager
     Task<List<ApplicationUser>?> GetAllUsersAsync();
     Task<bool> UpdateUserAsync(ApplicationUser user);
     Task<bool> DeleteUserAsync(string Id);
-    Task<ApplicationUser?> GetUserByUserNameAsync(string UserName); 
+    Task<ApplicationUser?> GetUserByUserNameAsync(string UserName);
 }

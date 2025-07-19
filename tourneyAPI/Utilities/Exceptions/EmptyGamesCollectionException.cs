@@ -1,7 +1,8 @@
 namespace CustomExceptions;
 
-using System;
+using System.Diagnostics.CodeAnalysis;
 
+[ExcludeFromCodeCoverage]
 public class EmptyGamesCollectionException : Exception
 {
     public EmptyGamesCollectionException()
