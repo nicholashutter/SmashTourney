@@ -5,12 +5,13 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ApiTests;
 
-public class AuthServiceTest : IClassFixture<WebApplicationFactory<Program>>
+public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory<Program> _factory;
 
-    public AuthServiceTest(WebApplicationFactory<Program> factory)
+    public AuthServiceTest(CustomWebApplicationFactory<Program> factory)
     {
         _factory = factory;
     }

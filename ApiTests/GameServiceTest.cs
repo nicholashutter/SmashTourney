@@ -6,17 +6,18 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.Extensions.DependencyInjection;
 using Services;
+using ApiTests;
 
-public class _gameServiceTest : IClassFixture<WebApplicationFactory<Program>>
+public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
 
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory<Program> _factory;
 
     private readonly IGameService _gameService;
 
-    public _gameServiceTest()
+    public _gameServiceTest(CustomWebApplicationFactory<Program> factory)
     {
-        _factory = new WebApplicationFactory<Program>();
+        _factory = factory;
 
         using (var scope = _factory.Services.CreateScope())
         {
