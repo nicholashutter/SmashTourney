@@ -11,9 +11,13 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
 
-    public UserServiceTest(CustomWebApplicationFactory<Program> factory)
+    public UserServiceTest()
     {
-        _factory = factory;
+        _factory = _factory = new CustomWebApplicationFactory<Program>();
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        db.Database.EnsureCreated();
     }
 
     [Fact]

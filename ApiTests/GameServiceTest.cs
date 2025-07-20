@@ -15,14 +15,15 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
 
     private readonly IGameService _gameService;
 
-    public _gameServiceTest(CustomWebApplicationFactory<Program> factory)
+    public _gameServiceTest()
     {
-        _factory = factory;
+        _factory = new CustomWebApplicationFactory<Program>();
 
-        using (var scope = _factory.Services.CreateScope())
-        {
-            _gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
-        }
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        db.Database.EnsureCreated(); 
+
+        _gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
     }
 
     [Fact]

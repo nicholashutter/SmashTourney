@@ -2,12 +2,8 @@ using Routers;
 using Services;
 using Serilog;
 using Helpers;
-using Microsoft.AspNetCore.Identity;
 using Entities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.Data.Sqlite;
-
 
 
 var builder = WebApplication.CreateBuilder(args);

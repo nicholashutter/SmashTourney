@@ -5,7 +5,7 @@ using CustomExceptions;
 
 public static class SessionHandler
 {
-    public static async void HandleSession(CookieSignedInContext context, string username)
+    public static async Task HandleSession(CookieSignedInContext context, string username)
     {
         if (username is not null)
         {
@@ -24,7 +24,7 @@ public static class SessionHandler
                 }
                 else
                 {
-                    throw new UserNotFoundException("HandleSession: TILT - should not get here"); 
+                    throw new UserNotFoundException("HandleSession: TILT - should not get here");
                 }
             }
         }

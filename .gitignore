@@ -4,6 +4,8 @@ CoverageReport/
 # .NET build artifacts
 bin/
 obj/
+/obj/
+/bin/
 *.user
 *.rsuser
 *.suo
@@ -12,6 +14,8 @@ obj/
 *.vspscc
 *.vssscc
 
+tourneyAPI/obj
+Servies/obj
 # Entity Framework migrations
 Migrations/
 *.efbundle

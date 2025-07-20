@@ -4,16 +4,24 @@ namespace ApiTests;
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;
 using System.Net.Http.Json;
+using Services;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using ApiTests;
 
 public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
 
-    public AuthServiceTest(CustomWebApplicationFactory<Program> factory)
+    public AuthServiceTest()
     {
-        _factory = factory;
+        _factory = new CustomWebApplicationFactory<Program>();
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        db.Database.EnsureCreated();
     }
 
     public class RegisterRequest

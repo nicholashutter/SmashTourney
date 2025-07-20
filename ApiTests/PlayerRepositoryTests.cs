@@ -17,9 +17,13 @@ public class PlayerRepositoryTest : IClassFixture<CustomWebApplicationFactory<Pr
 
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
-    public PlayerRepositoryTest(CustomWebApplicationFactory<Program> factory)
+    public PlayerRepositoryTest()
     {
-        _factory = factory;
+        _factory = new CustomWebApplicationFactory<Program>();
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        db.Database.EnsureCreated();
     }
 
     [Fact]
