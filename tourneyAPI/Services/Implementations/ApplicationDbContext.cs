@@ -18,8 +18,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
 
     }
-
-    public static string Setup()
+    public static string SetupProd()
     {
         var dbFileName = "tourneyDb.db";
         var applicationTitle = "tourneyAPI";
@@ -30,5 +29,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         string dbPath = $"DataSource={Path.Combine(dbFolder, dbFileName)}";
         return dbPath;
     }
+
+    
 }
 

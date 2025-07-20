@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 
 
 
@@ -14,15 +15,9 @@ var builder = WebApplication.CreateBuilder(args);
 //static init function for logger
 SetupLogging.Setup();
 
-//static init function for AppDbContext
-var dbPath = ApplicationDbContext.Setup();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-{
-    options.UseSqlite(dbPath);
-    options.EnableSensitiveDataLogging();
-});
-
+    options.UseSqlite(ApplicationDbContext.SetupProd()));
 
 //scoped services will be destroyed after the function scope that uses them closes 
 builder.Services.AddScoped<IPlayerManager, PlayerManager>();
@@ -58,29 +53,8 @@ builder.Services.ConfigureApplicationCookie(options =>
         // options.Cookie.SameSite = SameSiteMode.Strict;
         options.Events.OnSignedIn = async context =>
             {
-                var username = context.Principal.Identity?.Name;
-
-                if (username is not null)
-                {
-                    using (var scope = context.HttpContext.RequestServices.CreateAsyncScope())
-                    {
-                        var scopedServices = scope.ServiceProvider;
-
-                        var _gameService = scopedServices.GetRequiredService<IGameService>();
-                        var _userRepository = scopedServices.GetRequiredService<IUserManager>();
-
-                        var foundUser = await _userRepository.GetUserByUserNameAsync(username);
-
-                        if (foundUser is not null)
-                        {
-                            _gameService.CreateUserSession(foundUser);
-                        }
-                        else
-                        {
-                            Log.Warning("User has entered application for the first time. No session created.");
-                        }
-                    }
-                }
+                //assign signed in users a server side session
+                SessionHandler.HandleSession(context, context.Principal.Identity?.Name);
             };
     });
 
@@ -97,8 +71,6 @@ app.UseStaticFiles();
 
 
 //add route handlers
-
-//test dev only get request hello world route handler
 
 app.MapIdentityApi<ApplicationUser>();
 //extend IdentityApi provided routes

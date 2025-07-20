@@ -7,13 +7,13 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Services;
 
-public class UserServiceTest : IClassFixture<WebApplicationFactory<Program>>
+public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory<Program> _factory;
 
-    public UserServiceTest()
+    public UserServiceTest(CustomWebApplicationFactory<Program> factory)
     {
-        _factory = new WebApplicationFactory<Program>();
+        _factory = factory;
     }
 
     [Fact]
