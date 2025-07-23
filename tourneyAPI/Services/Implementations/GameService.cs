@@ -249,8 +249,8 @@ public class GameService : IGameService
             Each ApplicationUser with a session where Player.UserId 
             equals User.UserId add player to game using gameId 
             provided by front end
-            */ 
-            
+            */
+
             foreach (ApplicationUser user in _userSessions)
             {
                 foreach (Player player in players)
@@ -270,7 +270,7 @@ public class GameService : IGameService
             return false;
         }
     }
-    
+
 
     //api route StartGame
     public async Task<bool> StartGameAsync(Guid existingGameId)
@@ -331,7 +331,7 @@ public class GameService : IGameService
 
             CalculateByes(foundGame);
 
-            InsertByes(foundGame); 
+            InsertByes(foundGame);
 
             ShuffleBracket(foundGame);
         }
@@ -504,9 +504,10 @@ public class GameService : IGameService
         //load two new players
         List<Player> currentPlayers = new List<Player>();
 
-
-        //two players loaded into return array based on round counter
-        //so that two players are loaded every round and should stay in sync with bracket
+        /* 
+            two players loaded into return array based on round counter
+            so that two players are loaded every match and should stay in sync with bracket
+        */ 
         var currentPlayerOne = foundGame.currentPlayers[foundGame.currentMatch];
         var currentPlayerTwo = foundGame.currentPlayers[foundGame.currentMatch++];
 
@@ -514,7 +515,7 @@ public class GameService : IGameService
         {
             throw new RoundMismatchException("StartMatch");
         }
-        else if (currentPlayerTwo.CurrentRound != foundGame.currentRound + 1)
+        else if (currentPlayerTwo.CurrentRound != foundGame.currentRound)
         {
             throw new RoundMismatchException("StartMatch");
         }
@@ -522,13 +523,11 @@ public class GameService : IGameService
         currentPlayers.Add(currentPlayerOne);
         currentPlayers.Add(currentPlayerTwo);
 
-        //players themselves also track their round so that round stays syncronized
-        //all players who have played therefor have a higher round than currentRound
+        /*players themselves also track their round so that round stays syncronized
+        all players who have played should have a higher round than currentRound */ 
         currentPlayerOne.CurrentRound = currentPlayerOne.CurrentRound++;
         currentPlayerTwo.CurrentRound = currentPlayerTwo.CurrentRound++;
 
-
-        //return those players to the front end
         foundGame.currentMatch++;
         return currentPlayers;
     }
@@ -571,8 +570,8 @@ public class GameService : IGameService
         }
         return true;
     }
-    
-    //called by endMatchAsync
+
+    //Handle votes for match winner
     private bool VoteHandler(Guid gameId, Player MatchWinner)
 
     {
@@ -614,12 +613,11 @@ public class GameService : IGameService
     }
 
 
+    //Individual Vote Casting Logic
     private void CastVote(Game foundGame, Player MatchWinner)
     {
         var currentVotes = foundGame.GetVotes();
-        //only once two votes are received should the round move forward
-        //use the submitted players Id to increment the game VOTE enum 
-        //set the players individual properties as winner and loser 
+        /* only if two votes are received should the MatchWinner's score increment */ 
         foundGame.SetVotes((Votes)((int)currentVotes + 1));
 
         switch (currentVotes)
@@ -634,6 +632,7 @@ public class GameService : IGameService
         }
     }
 
+    //Calculate highest score in game
     private Game CalculateHighestScore(Game currentGame)
     {
         Player highestScore = new Player();
@@ -682,15 +681,7 @@ public class GameService : IGameService
                         //increment and decrement totals wins / losses / games played
                         if (foundGame.currentRound == player.CurrentRound)
                         {
-                            currentUser.AllTimeMatches = player.CurrentRound + currentUser.AllTimeMatches;
-                            var currentWins = Math.Abs(player.CurrentScore - player.CurrentRound);
-                            currentUser.AllTimeWins = currentWins + currentUser.AllTimeWins;
-                            var currentLosses = Math.Abs(player.CurrentRound - currentWins);
-
-                            if (currentLosses + currentWins != player.CurrentRound)
-                            {
-                                throw new InvalidObjectStateException("UpdateUserScore");
-                            }
+                            UpdateUser(currentUser, player); 
                             await userRepository.UpdateUserAsync(currentUser);
                         }
                         else
@@ -711,6 +702,8 @@ public class GameService : IGameService
         return true;
     }
 
+    //validate if user is null object pattern (bye user)
+    //or "real" ApplicationUser
     private bool IsRealUser(ApplicationUser currentUser, string userId)
     {
         if (currentUser is null && userId.Equals(AppConstants.ByeUserId))
@@ -721,6 +714,22 @@ public class GameService : IGameService
         {
             return true;
         }
+    }
+
+    //Update User Values Post Match 
+    private ApplicationUser UpdateUser(ApplicationUser currentUser, Player player)
+    {
+        currentUser.AllTimeMatches = player.CurrentRound + currentUser.AllTimeMatches;
+        var currentWins = Math.Abs(player.CurrentScore - player.CurrentRound);
+        currentUser.AllTimeWins = currentWins + currentUser.AllTimeWins;
+        var currentLosses = Math.Abs(player.CurrentRound - currentWins);
+
+        if (currentLosses + currentWins != player.CurrentRound)
+        {
+            throw new InvalidObjectStateException("UpdateUserScore");
+        }
+
+        return currentUser;
     }
 
 }
