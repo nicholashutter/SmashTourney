@@ -86,9 +86,7 @@ public class GameService : IGameService
         await _db.SaveChangesAsync();
     }
 
-
-    //LoadGameAsync will check against the db and attempt to restore
-    //game state from games persisted in db
+    //api route /ResumeGame
     public async Task<bool> LoadGameAsync(Guid gameId)
     {
         Log.Information($"Info: Create New Game Async");
@@ -118,7 +116,7 @@ public class GameService : IGameService
         }
     }
 
-    //api route /GetAllGames (debug)
+    //api route /GetAllGames
     public async Task<List<Game>?> GetAllGamesAsync()
     {
         Log.Information($"Info: Get All Games");
@@ -155,7 +153,7 @@ public class GameService : IGameService
         }
     }
 
-    //api route /GetGameById (debug)
+    //api route /GetGameById
     public async Task<Game?> GetGameByIdAsync(Guid gameId)
     {
         Log.Information($"Info: Get Game By Id {gameId}");
@@ -233,15 +231,13 @@ public class GameService : IGameService
     }
 
     //api route /AllPlayersIn
-    //players list should come from the httprequest from the front end
+    //List<Players> comes from the front end
     public bool AddPlayersToGame(List<Player> players, Guid gameId)
     {
         Log.Information($"Info: Loading Users and Creating Their Corresponding Players");
 
         try
         {
-            //only adds users already in lobby to game if their UserId from the back end and 
-            //userId from the player object submitted by the front end agree
             var foundGame = _games.Find(g => g.Id == gameId);
 
             if (foundGame is null)
@@ -249,10 +245,12 @@ public class GameService : IGameService
                 throw new GameNotFoundException("AddPlayersToGameAsync");
             }
 
-            //check each User entity if in _userSessions
-            //check each Player in Players (from front end)
-            //where Player.UserId matches a user with a session
-            //add player to gameId also provided by front end
+            /* 
+            Each ApplicationUser with a session where Player.UserId 
+            equals User.UserId add player to game using gameId 
+            provided by front end
+            */ 
+            
             foreach (ApplicationUser user in _userSessions)
             {
                 foreach (Player player in players)
@@ -260,7 +258,6 @@ public class GameService : IGameService
                     if (user.Id.Equals(player.UserId))
                     {
                         foundGame.currentPlayers.Add(player);
-
                     }
                 }
             }
@@ -273,95 +270,7 @@ public class GameService : IGameService
             return false;
         }
     }
-    //called by StartGame
-    public bool GenerateBracket(Guid gameId)
-    {
-        Log.Information($"Info: Generate Bracket {gameId}");
-
-        try
-        {
-            var foundGame = _games.Find(g => g.Id == gameId);
-
-            if (foundGame is null)
-            {
-                throw new GameNotFoundException("GenerateBracketAsync");
-            }
-
-            if (foundGame.currentPlayers.Count < 2)
-            {
-                throw new BracketGenrationException($"Bracket size invalid {foundGame.currentPlayers.Count}");
-            }
-            else if (foundGame.currentPlayers.Count < 4)
-            {
-                foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 4);
-            }
-            else if (foundGame.currentPlayers.Count < 8)
-            {
-                foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 8);
-            }
-            else if (foundGame.currentPlayers.Count < 16)
-            {
-                foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 16);
-            }
-            else if (foundGame.currentPlayers.Count < 32)
-            {
-                foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 32);
-            }
-            else if (foundGame.currentPlayers.Count < 64)
-            {
-                foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 64);
-            }
-            else if (foundGame.currentPlayers.Count < 128)
-            {
-                foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 128);
-            }
-            else if (foundGame.currentPlayers.Count < 256)
-            {
-                foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 256);
-            }
-            else
-            {
-                throw new BracketGenrationException($"Bracket size invalid {foundGame.currentPlayers.Count}");
-            }
-
-            for (int i = 0; i < foundGame.byes; i++)
-            {
-
-                //use null object pattern or dummy player 
-                //who always loses and is randomly inserted bye number of times
-                foundGame.currentPlayers.Add(new Player
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = AppConstants.ByeUserId
-                });
-            }
-
-            Random rnd = new Random();
-
-            int n = foundGame.currentPlayers.Count;
-            int l = rnd.Next(1, 10);
-
-            //Swap elements in place to randomize bracket order
-            //(No seed involved currently)
-            //perform randomization calculation 1 to 10 times
-            for (int i = 0; i < l; i++)
-            {
-                while (n > 1)
-                {
-                    n--;
-                    int k = rnd.Next(n + 1);
-                    (foundGame.currentPlayers[k], foundGame.currentPlayers[n]) = (foundGame.currentPlayers[n], foundGame.currentPlayers[k]);
-                }
-
-            }
-        }
-        catch (GameNotFoundException e)
-        {
-            Log.Error($"{e}");
-            return false;
-        }
-        return true;
-    }
+    
 
     //api route StartGame
     public async Task<bool> StartGameAsync(Guid existingGameId)
@@ -373,7 +282,8 @@ public class GameService : IGameService
         try
         {
             var foundGame = await GetGameByIdAsync(existingGameId);
-            var success = false;
+
+            bool success = false;
             if (foundGame is null)
             {
                 success = await LoadGameAsync(existingGameId);
@@ -402,6 +312,112 @@ public class GameService : IGameService
         {
             Log.Error($"{e}");
             return false;
+        }
+    }
+
+    //called by StartGame
+    private bool GenerateBracket(Guid gameId)
+    {
+        Log.Information($"Info: Generate Bracket {gameId}");
+
+        try
+        {
+            var foundGame = _games.Find(g => g.Id == gameId);
+
+            if (foundGame is null)
+            {
+                throw new GameNotFoundException("GenerateBracketAsync");
+            }
+
+            CalculateByes(foundGame);
+
+            InsertByes(foundGame); 
+
+            ShuffleBracket(foundGame);
+        }
+        catch (GameNotFoundException e)
+        {
+            Log.Error($"{e}");
+            return false;
+        }
+        return true;
+    }
+
+    //calculate how many null objects to insert into foundGame based on currentPlayers
+    private void CalculateByes(Game foundGame)
+    {
+        if (foundGame.currentPlayers.Count < 2)
+        {
+            throw new BracketGenrationException($"Bracket size invalid {foundGame.currentPlayers.Count}");
+        }
+        else if (foundGame.currentPlayers.Count < 4)
+        {
+            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 4);
+        }
+        else if (foundGame.currentPlayers.Count < 8)
+        {
+            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 8);
+        }
+        else if (foundGame.currentPlayers.Count < 16)
+        {
+            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 16);
+        }
+        else if (foundGame.currentPlayers.Count < 32)
+        {
+            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 32);
+        }
+        else if (foundGame.currentPlayers.Count < 64)
+        {
+            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 64);
+        }
+        else if (foundGame.currentPlayers.Count < 128)
+        {
+            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 128);
+        }
+        else if (foundGame.currentPlayers.Count < 256)
+        {
+            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 256);
+        }
+        else
+        {
+            throw new BracketGenrationException($"Bracket size invalid {foundGame.currentPlayers.Count}");
+        }
+    }
+
+    private void InsertByes(Game foundGame)
+    {
+        for (int i = 0; i < foundGame.byes; i++)
+        {
+
+            //use null object pattern or dummy player 
+            //who always loses and is randomly inserted bye number of times
+            foundGame.currentPlayers.Add(new Player
+            {
+                Id = Guid.NewGuid(),
+                UserId = AppConstants.ByeUserId
+            });
+        }
+    }
+
+    private void ShuffleBracket(Game foundGame)
+    {
+        Random rnd = new Random();
+
+        int n = foundGame.currentPlayers.Count;
+        int l = rnd.Next(1, 10);
+
+        //Swap elements in place to randomize bracket order
+        //(No seed involved currently)
+        //perform randomization calculation 1 to 10 times
+        for (int i = 0; i < l; i++)
+        {
+            while (n > 1)
+            {
+                n--;
+                int k = rnd.Next(n + 1);
+                (foundGame.currentPlayers[k], foundGame.currentPlayers[n]) = (foundGame.currentPlayers[n], foundGame.currentPlayers[k]);
+            }
+
         }
     }
 
@@ -466,35 +482,8 @@ public class GameService : IGameService
                 throw new GameNotFoundException("StartMatch");
             }
 
-            //load two new players
-            List<Player> currentPlayers = new List<Player>();
+            var currentPlayers = PreMatchSetup(foundGame);
 
-
-            //two players loaded into return array based on round counter
-            //so that two players are loaded every round and should stay in sync with bracket
-            var currentPlayerOne = foundGame.currentPlayers[foundGame.currentMatch];
-            var currentPlayerTwo = foundGame.currentPlayers[foundGame.currentMatch++];
-
-            if (currentPlayerOne.CurrentRound != foundGame.currentRound)
-            {
-                throw new RoundMismatchException("StartMatch");
-            }
-            else if (currentPlayerTwo.CurrentRound != foundGame.currentRound + 1)
-            {
-                throw new RoundMismatchException("StartMatch");
-            }
-
-            currentPlayers.Add(currentPlayerOne);
-            currentPlayers.Add(currentPlayerTwo);
-
-            //players themselves also track their round so that round stays syncronized
-            //all players who have played therefor have a higher round than currentRound
-            currentPlayerOne.CurrentRound = currentPlayerOne.CurrentRound++;
-            currentPlayerTwo.CurrentRound = currentPlayerTwo.CurrentRound++;
-
-
-            //return those players to the front end
-            foundGame.currentMatch++;
             return currentPlayers;
 
         }
@@ -508,6 +497,40 @@ public class GameService : IGameService
             Log.Error($"{e}");
             return null;
         }
+    }
+
+    private List<Player> PreMatchSetup(Game foundGame)
+    {
+        //load two new players
+        List<Player> currentPlayers = new List<Player>();
+
+
+        //two players loaded into return array based on round counter
+        //so that two players are loaded every round and should stay in sync with bracket
+        var currentPlayerOne = foundGame.currentPlayers[foundGame.currentMatch];
+        var currentPlayerTwo = foundGame.currentPlayers[foundGame.currentMatch++];
+
+        if (currentPlayerOne.CurrentRound != foundGame.currentRound)
+        {
+            throw new RoundMismatchException("StartMatch");
+        }
+        else if (currentPlayerTwo.CurrentRound != foundGame.currentRound + 1)
+        {
+            throw new RoundMismatchException("StartMatch");
+        }
+
+        currentPlayers.Add(currentPlayerOne);
+        currentPlayers.Add(currentPlayerTwo);
+
+        //players themselves also track their round so that round stays syncronized
+        //all players who have played therefor have a higher round than currentRound
+        currentPlayerOne.CurrentRound = currentPlayerOne.CurrentRound++;
+        currentPlayerTwo.CurrentRound = currentPlayerTwo.CurrentRound++;
+
+
+        //return those players to the front end
+        foundGame.currentMatch++;
+        return currentPlayers;
     }
     //api route EndMatch
     public async Task<bool> EndMatchAsync(Guid gameId, Player matchWinner, Player matchLoser)
@@ -534,7 +557,7 @@ public class GameService : IGameService
             }
 
 
-            var success = await UpdateUserScoreAsync(foundGame.Id);
+            var success = await PostMatchShutdown(foundGame.Id);
 
             if (!success)
             {
@@ -548,9 +571,9 @@ public class GameService : IGameService
         }
         return true;
     }
-    //called by endRoundAsync
-    //may become private
-    public bool VoteHandler(Guid gameId, Player MatchWinner)
+    
+    //called by endMatchAsync
+    private bool VoteHandler(Guid gameId, Player MatchWinner)
 
     {
 
@@ -568,6 +591,7 @@ public class GameService : IGameService
             }
 
             MatchWinner = foundGame.currentPlayers.Find(p => p.Id == MatchWinner.Id);
+
             if (MatchWinner is null)
             {
                 throw new PlayerNotFoundException("VoteHandlerAsync");
@@ -579,22 +603,7 @@ public class GameService : IGameService
                 throw new PlayerNotFoundException("VoteHandlerAsync");
             }
 
-            var currentVotes = foundGame.GetVotes();
-            //only once two votes are received should the round move forward
-            //use the submitted players Id to increment the game VOTE enum 
-            //set the players individual properties as winner and loser 
-            foundGame.SetVotes((Votes)((int)currentVotes + 1));
-
-            switch (currentVotes)
-            {
-                case Votes.ZERO:
-                    break;
-                case Votes.ONE:
-                    break;
-                case Votes.TWO:
-                    MatchWinner.CurrentScore++;
-                    break;
-            }
+            CastVote(foundGame, MatchWinner);
         }
         catch (PlayerNotFoundException e)
         {
@@ -604,7 +613,28 @@ public class GameService : IGameService
         return true;
     }
 
-    public Game CalculateHighestScore(Game currentGame)
+
+    private void CastVote(Game foundGame, Player MatchWinner)
+    {
+        var currentVotes = foundGame.GetVotes();
+        //only once two votes are received should the round move forward
+        //use the submitted players Id to increment the game VOTE enum 
+        //set the players individual properties as winner and loser 
+        foundGame.SetVotes((Votes)((int)currentVotes + 1));
+
+        switch (currentVotes)
+        {
+            case Votes.ZERO:
+                break;
+            case Votes.ONE:
+                break;
+            case Votes.TWO:
+                MatchWinner.CurrentScore++;
+                break;
+        }
+    }
+
+    private Game CalculateHighestScore(Game currentGame)
     {
         Player highestScore = new Player();
         foreach (Player player in currentGame.currentPlayers)
@@ -619,7 +649,7 @@ public class GameService : IGameService
     }
 
     //called by SaveGameAsync or EndGameAsync
-    public async Task<bool> UpdateUserScoreAsync(Guid gameId)
+    private async Task<bool> PostMatchShutdown(Guid gameId)
     {
         Log.Information($"Info: UpdateUserScore {gameId}");
 
@@ -636,20 +666,15 @@ public class GameService : IGameService
                     throw new GameNotFoundException("UpdateUserScore");
                 }
 
-                //bubble sort implementation
                 foundGame = CalculateHighestScore(foundGame);
-
 
                 foreach (Player player in foundGame.currentPlayers)
                 {
-                    //iterate over players, get their userIds
-                    //iterate over list<userIds> use current player score values
                     var currentUser = await userRepository.GetUserByIdAsync(player.UserId);
                     //"real" user is an actual user and not a user created to allow players to skip rounds 
-                    //or a "bye" user
 
-                    //bye users always lose there is no need to process their score they should just fall out
-                    bool isUserReal = IsUserRealUser(currentUser, player.UserId);
+                    //bye users always lose there is no need to process their score
+                    bool isUserReal = IsRealUser(currentUser, player.UserId);
 
                     if (isUserReal)
                     {
@@ -686,7 +711,7 @@ public class GameService : IGameService
         return true;
     }
 
-    public bool IsUserRealUser(ApplicationUser currentUser, string userId)
+    private bool IsRealUser(ApplicationUser currentUser, string userId)
     {
         if (currentUser is null && userId.Equals(AppConstants.ByeUserId))
         {

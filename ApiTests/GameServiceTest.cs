@@ -21,7 +21,7 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        db.Database.EnsureCreated(); 
+        db.Database.EnsureCreated();
 
         _gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
     }
@@ -147,24 +147,6 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
 
     }
 
-    [Fact]
-    public async Task GenerateBracketAsyncCalculatesByesProperly()
-    {
-        var gameId = await _gameService.CreateGame();
-
-        List<Player> players = await SetupDummyUsersAndPlayers(gameId);
-
-        _gameService.AddPlayersToGame(players, gameId);
-
-        _gameService.GenerateBracket(gameId);
-
-        var foundGame = await _gameService.GetGameByIdAsync(gameId);
-
-        //number of players determines number of double elimination bracket slots
-        //six will always be the bye rounds calculated from 10 players
-        Assert.Equal(foundGame.byes, 6);
-    }
-
 
 
 
@@ -180,9 +162,7 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
 
         _gameService.AddPlayersToGame(players, gameId);
 
-        _gameService.GenerateBracket(gameId);
-
-        var exception = Record.ExceptionAsync(async () => await _gameService.UpdateUserScoreAsync(gameId));
+        //TODO convert to endMatch testing method;
     }
 
     [Fact]
@@ -195,10 +175,6 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
         List<Player> players = await SetupDummyUsersAndPlayers(gameId);
 
         _gameService.AddPlayersToGame(players, gameId);
-
-        _gameService.GenerateBracket(gameId);
-
-        await _gameService.UpdateUserScoreAsync(gameId);
 
         _gameService.StartRound(gameId);
 
@@ -221,10 +197,6 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
         List<Player> players = await SetupDummyUsersAndPlayers(gameId);
 
         _gameService.AddPlayersToGame(players, gameId);
-
-        _gameService.GenerateBracket(gameId);
-
-        await _gameService.UpdateUserScoreAsync(gameId);
 
         _gameService.StartRound(gameId);
 
@@ -284,7 +256,6 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
         }
     }
 
-    //need another test to test that game and players are always on same round
     [Fact]
     public async Task EndMatchEndsMatchCorrectly()
     {
@@ -303,5 +274,7 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
             var exception = Record.ExceptionAsync(async () => await _gameService.EndMatchAsync(gameId, players[0], players[1]));
         }
     }
+
+    //TODO need a start to finish test of gameService then we can write route handlers
 
 }

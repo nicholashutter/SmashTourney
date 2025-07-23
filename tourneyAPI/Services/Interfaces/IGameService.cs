@@ -19,13 +19,11 @@ public interface IGameService
     Task<List<Game>?> GetAllGamesAsync();
 
     // API route /AddUserToLobby
+    //Also called by callback when ApplicationUser successfully Auths into app
     bool CreateUserSession(ApplicationUser addUser);
 
     // API route /AllPlayersIn
     bool AddPlayersToGame(List<Player> players, Guid gameId);
-
-    // Called by StartGame
-    bool GenerateBracket(Guid gameId);
 
     // API route StartGame
     Task<bool> StartGameAsync(Guid existingGameId);
@@ -38,12 +36,8 @@ public interface IGameService
     // SaveGame will persist current game state to the database
     Task UpdateGameAsync(Guid gameId);
 
+    //API route /NewGame
     Task InsertGameAsync(Game currentGame);
-
-    // Called by SaveGameAsync or EndGameAsync
-    Task<bool> UpdateUserScoreAsync(Guid gameId);
-
-    bool IsUserRealUser(ApplicationUser currentUser, string userId);
 
     // Gameservice will need to pass itself to roundService and track an instance of roundService
     // API route //StartRound
@@ -57,10 +51,6 @@ public interface IGameService
 
     // API route EndMatch
     Task<bool> EndMatchAsync(Guid gameId, Player matchWinner, Player matchLoser);
-
-    // Called by EndRound
-    // May become private
-    bool VoteHandler(Guid gameId, Player MatchWinner);
 
     /*----------------------------------------------------END GAME SERVICE---------------------------------------------------- */
 }
