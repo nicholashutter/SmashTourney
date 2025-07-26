@@ -6,127 +6,171 @@ using Microsoft.Extensions.Logging;
 using Services;
 using System;
 using Serilog;
-using System.Diagnostics.CodeAnalysis;
+using Microsoft.AspNetCore.Mvc;
 
-[ExcludeFromCodeCoverage]
 public static class GameRouter
 {
     public static void Map(WebApplication app)
     {
         var GameRoutes = app.MapGroup("/Games");
 
-        GameRoutes.MapGet("/", async (HttpContext context, ApplicationDbContext db) =>
+
+        GameRoutes.MapGet("/getAllGames", async (HttpContext context, IGameService gameService) =>
         {
-            Log.Information("Request Type: Get \n URL: '/Games' \n Time:{Timestamp}", DateTime.UtcNow);
+            Log.Information("Request Type: Get \n URL: '/Games/getAllGames' \n Time:{Timestamp}", DateTime.UtcNow);
 
-            try
-            {
-                var Games = await db.Games.ToListAsync();
+            List<Game?> games = await gameService.GetAllGamesAsync();
 
-                context.Response.StatusCode = StatusCodes.Status200OK;
-                Log.Information("Games Retrieved Successfully \n Time: {Timestamp}", DateTime.UtcNow);
-                await context.Response.WriteAsJsonAsync(Games);
-            }
-            catch (Exception e)
+            if (games is null)
             {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occurred: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                await context.Response.WriteAsJsonAsync(e.ToString());
+                return Results.Problem("Internal Server Error");
             }
+
+            var response = new { Games = games };
+
+            return Results.Ok(response);
         });
 
-        GameRoutes.MapPost("/", async (HttpContext context, ApplicationDbContext db) =>
+        GameRoutes.MapPost("/CreateGame", async (HttpContext context, IGameService gameService) =>
         {
-            Log.Information("Request Type: Post \n URL: '/Games' \n Time:{Timestamp}", DateTime.UtcNow);
+            Log.Information("Request Type: Post \n URL: '/Games/CreateGame' \n Time:{Timestamp}", DateTime.UtcNow);
 
-            try
-            {
-                var newGame = await context.Request.ReadFromJsonAsync<Game>();
+            Guid gameId = await gameService.CreateGame();
 
-                if (newGame is null)
-                {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    Log.Warning("Warning: newGame is null\n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.BadRequest("Invalid JSON Payload");
-                }
-                else
-                {
-                    db.Add(newGame);
-                    await db.SaveChangesAsync();
-                    context.Response.StatusCode = StatusCodes.Status201Created;
-                    Log.Information("Game Created Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.Created();
-                }
-            }
-            catch (Exception e)
-            {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occurred: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                return Results.BadRequest("Unknown Error Occurred");
-            }
+            var response = new { GameId = gameId };
+
+            return Results.Ok(response);
         });
 
 
-        GameRoutes.MapPut("/", async (HttpContext context, ApplicationDbContext db) =>
+        GameRoutes.MapGet("/GetGameById/{gameId}", async (HttpContext context, Guid gameId, IGameService gameService) =>
         {
-            Log.Information("Request Type: Put \n URL: '/Games' \n Time:{Timestamp}", DateTime.UtcNow);
+            Log.Information("Request Type: Get \n URL: '/Games/GetGameById' \n Time:{Timestamp}", DateTime.UtcNow);
 
-            try
-            {
-                var updateGame = await context.Request.ReadFromJsonAsync<Game>(); // Assuming you have a 'Game' model
+            Game? game = await gameService.GetGameByIdAsync(gameId);
 
-                if (updateGame is null)
-                {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    Log.Warning("Warning: updateGame is null\n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.BadRequest("Invalid JSON Payload");
-                }
-                else
-                {
-                    db.Update(updateGame);
-                    await db.SaveChangesAsync();
-                    context.Response.StatusCode = StatusCodes.Status202Accepted;
-                    Log.Information("Game Updated Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.Accepted();
-                }
-            }
-            catch (Exception e)
+            if (game is null)
             {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occurred: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                return Results.BadRequest("Unknown Error Occurred");
+                return Results.NotFound();
             }
+
+            var response = new { Game = game };
+
+            return Results.Ok(response);
         });
 
 
-        GameRoutes.MapDelete("/", async (HttpContext context, ApplicationDbContext db) =>
+        GameRoutes.MapGet("/EndGame/{gameId}", (HttpContext context, Guid gameId, IGameService gameService) =>
         {
-            Log.Information("Request Type: Delete \n URL: '/Games' \n Time:{Timestamp}", DateTime.UtcNow);
-            try
-            {
-                var deleteGame = await context.Request.ReadFromJsonAsync<Game>();
+            Log.Information("Request Type: Get \n URL: '/Games/EndGame' \n Time:{Timestamp}", DateTime.UtcNow);
 
-                if (deleteGame is null)
-                {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    Log.Warning("Warning: deleteGame is null\n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.BadRequest("Invalid JSON Payload");
-                }
-                else
-                {
-                    db.Games.Remove(deleteGame);
-                    await db.SaveChangesAsync();
-                    context.Response.StatusCode = StatusCodes.Status202Accepted;
-                    Log.Information("Game Deleted Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.Accepted("Game Delete Success");
-                }
-            }
-            catch (Exception e)
+            bool success = gameService.EndGame(gameId);
+
+            if (!success)
             {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occurred: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                return Results.BadRequest("Unknown Error Occurred");
+                return Results.Problem("Internal Server Error");
             }
+
+            return Results.Ok();
         });
+
+        GameRoutes.MapPost("/AllPlayersIn", (HttpContext context, IGameService gameService, Guid gameId, List<Player> players) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/Games/AllPlayersIn' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            bool success = gameService.AddPlayersToGame(players, gameId);
+
+            if (!success)
+            {
+                return Results.Problem("Internal Server Error");
+            }
+
+            return Results.Ok($"Players Added to Game {gameId}");
+        });
+
+        GameRoutes.MapPost("/StartGame", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/Games/StartGame' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            bool success = await gameService.StartGameAsync(gameId);
+
+            if (!success)
+            {
+                return Results.Problem("Internal Server Error");
+            }
+
+            return Results.Ok($"Game {gameId} successfully started");
+        });
+
+        GameRoutes.MapPost("/LoadGame", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/Games/LoadGame' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            bool success = await gameService.LoadGameAsync(gameId);
+
+            if (!success)
+            {
+                return Results.Problem("Internal Server Error");
+            }
+
+            return Results.Ok($"Game {gameId} successfully loaded");
+        });
+
+        GameRoutes.MapPost("/SaveGame", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/Games/SaveGame' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            await gameService.UpdateGameAsync(gameId);
+
+            return Results.Ok($"Game {gameId} saved");
+        });
+
+        GameRoutes.MapPost("/StartRound", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/Games/StartRound' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            List<Player>? players = gameService.StartRound(gameId);
+
+            if (players is null)
+            {
+                return Results.Problem("Internal Server Error");
+            }
+
+            var response = new { Players = players };
+
+            return Results.Ok(response);
+        });
+
+
+        GameRoutes.MapPost("/StartMatch", async (HttpContext context, IGameService gameService, Guid gameId) =>
+                {
+                    Log.Information("Request Type: Post \n URL: '/Games/StartMatch' \n Time:{Timestamp}", DateTime.UtcNow);
+
+                    List<Player>? players = gameService.StartMatch(gameId);
+
+                    if (players is null)
+                    {
+                        return Results.Problem("Internal Server Error");
+                    }
+
+                    var response = new { Players = players };
+
+                    return Results.Ok(response);
+                });
+        
+        GameRoutes.MapPost("/EndMatch", async (HttpContext context, IGameService gameService, Guid gameId, [FromBody] Player MatchWinner) =>
+                {
+                    Log.Information("Request Type: Post \n URL: '/Games/EndMatch' \n Time:{Timestamp}", DateTime.UtcNow);
+
+                    bool success = await gameService.EndMatchAsync(gameId, MatchWinner);
+
+                    if (!success)
+                    {
+                        return Results.Problem("Internal Server Error");
+                    }
+
+                    return Results.Ok($"Current match for game {gameId} ended");
+                });
+
     }
 }

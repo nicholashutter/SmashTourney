@@ -18,8 +18,7 @@ public interface IGameService
     // API route /GetAllGames (debug)
     Task<List<Game>?> GetAllGamesAsync();
 
-    // API route /AddUserToLobby
-    //Also called by callback when ApplicationUser successfully Auths into app
+    //Called by callback when ApplicationUser successfully Auths into app
     bool CreateUserSession(ApplicationUser addUser);
 
     // API route /AllPlayersIn
@@ -36,9 +35,6 @@ public interface IGameService
     // SaveGame will persist current game state to the database
     Task UpdateGameAsync(Guid gameId);
 
-    //API route /NewGame
-    Task InsertGameAsync(Game currentGame);
-
     // Gameservice will need to pass itself to roundService and track an instance of roundService
     // API route //StartRound
     List<Player>? StartRound(Guid gameId);
@@ -50,7 +46,7 @@ public interface IGameService
     List<Player>? StartMatch(Guid gameId);
 
     // API route EndMatch
-    Task<bool> EndMatchAsync(Guid gameId, Player matchWinner, Player matchLoser);
+    Task<bool> EndMatchAsync(Guid gameId, Player matchWinner);
 
     /*----------------------------------------------------END GAME SERVICE---------------------------------------------------- */
 }

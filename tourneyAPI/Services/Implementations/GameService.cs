@@ -49,7 +49,7 @@ public class GameService : IGameService
     }
 
 
-    public async Task InsertGameAsync(Game currentGame)
+    private async Task InsertGameAsync(Game currentGame)
     {
         Log.Information("Info: Insert Game Async");
 
@@ -507,7 +507,7 @@ public class GameService : IGameService
         /* 
             two players loaded into return array based on round counter
             so that two players are loaded every match and should stay in sync with bracket
-        */ 
+        */
         var currentPlayerOne = foundGame.currentPlayers[foundGame.currentMatch];
         var currentPlayerTwo = foundGame.currentPlayers[foundGame.currentMatch++];
 
@@ -524,7 +524,7 @@ public class GameService : IGameService
         currentPlayers.Add(currentPlayerTwo);
 
         /*players themselves also track their round so that round stays syncronized
-        all players who have played should have a higher round than currentRound */ 
+        all players who have played should have a higher round than currentRound */
         currentPlayerOne.CurrentRound = currentPlayerOne.CurrentRound++;
         currentPlayerTwo.CurrentRound = currentPlayerTwo.CurrentRound++;
 
@@ -532,7 +532,7 @@ public class GameService : IGameService
         return currentPlayers;
     }
     //api route EndMatch
-    public async Task<bool> EndMatchAsync(Guid gameId, Player matchWinner, Player matchLoser)
+    public async Task<bool> EndMatchAsync(Guid gameId, Player matchWinner)
     {
 
         Log.Information($"Info: End Match Async {gameId}");
@@ -617,7 +617,7 @@ public class GameService : IGameService
     private void CastVote(Game foundGame, Player MatchWinner)
     {
         var currentVotes = foundGame.GetVotes();
-        /* only if two votes are received should the MatchWinner's score increment */ 
+        /* only if two votes are received should the MatchWinner's score increment */
         foundGame.SetVotes((Votes)((int)currentVotes + 1));
 
         switch (currentVotes)
@@ -681,7 +681,7 @@ public class GameService : IGameService
                         //increment and decrement totals wins / losses / games played
                         if (foundGame.currentRound == player.CurrentRound)
                         {
-                            UpdateUser(currentUser, player); 
+                            UpdateUser(currentUser, player);
                             await userRepository.UpdateUserAsync(currentUser);
                         }
                         else
