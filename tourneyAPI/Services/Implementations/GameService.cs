@@ -205,16 +205,9 @@ public class GameService : IGameService
             }
             else
             {
-                if (_games.Count is 0)
-                {
-                    throw new Exception();
-                }
-                else
-                {
-                    _userSessions.Add(addUser);
-                    Log.Information($"User {addUser.UserName} Added To _userSessions.");
-                    return true;
-                }
+                _userSessions.Add(addUser);
+                Log.Information($"User {addUser.UserName} Added To _userSessions.");
+                return true;
             }
         }
         catch (GameNotFoundException e)

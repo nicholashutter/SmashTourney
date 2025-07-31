@@ -83,9 +83,7 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         });
         using var scope = _factory.Services.CreateAsyncScope();
         var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-        var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
-
-        Guid gameId = await gameService.CreateGame();
+       
 
         var email = $"test{Guid.NewGuid()}@email.com";
         var password = "SecureP@ssw0rd123!";
@@ -144,9 +142,7 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
          using var scope = _factory.Services.CreateAsyncScope();
         var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-        var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
-
-        Guid gameId = await gameService.CreateGame();
+        
 
         var email = $"test{Guid.NewGuid()}@email.com";
         var password = "SecureP@ssw0rd123!";
