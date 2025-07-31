@@ -1,11 +1,25 @@
+namespace Helpers;
+
+using Serilog;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Services;
 using Serilog;
 using CustomExceptions;
 
-public static class SessionHandler
+public class AppSetup
 {
-    public static async Task HandleSession(CookieSignedInContext context, string username)
+    public static void SetupLogging()
+    {
+        //setup logger system using serlog library
+        //typical implementation for writing to file and console
+        Log.Logger = new LoggerConfiguration()
+            .WriteTo.Console()
+            //WriteTo.File provides a path inside the logs folder filename is today's date
+            .WriteTo.File($"logs/{DateOnly.FromDateTime(DateTime.Now).ToString("MMMM dd yyyy")}")
+            .CreateLogger();
+    }
+
+    public static async Task HandleUserSession(CookieSignedInContext context, string username)
     {
         if (username is not null)
         {
@@ -29,4 +43,6 @@ public static class SessionHandler
             }
         }
     }
+
+
 }

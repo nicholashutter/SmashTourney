@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 //static init function for logger
-SetupLogging.Setup();
+AppSetup.SetupLogging();
 
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -50,7 +50,7 @@ builder.Services.ConfigureApplicationCookie(options =>
         options.Events.OnSignedIn = async context =>
             {
                 //assign signed in users a server side session
-                SessionHandler.HandleSession(context, context.Principal.Identity?.Name);
+                await AppSetup.HandleUserSession(context, context.Principal.Identity?.Name);
             };
     });
 

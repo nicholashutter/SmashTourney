@@ -1,10 +1,10 @@
 namespace ApiTests;
 
-
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;
 using System.Net.Http.Json;
 using Services;
+using Entities;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -14,6 +14,8 @@ using ApiTests;
 public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
+
+
 
     public AuthServiceTest()
     {
@@ -79,23 +81,44 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         {
             HandleCookies = true
         });
+        using var scope = _factory.Services.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
+        var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
 
-        var req = new RegisterRequest
+        Guid gameId = await gameService.CreateGame();
+
+        var email = $"test{Guid.NewGuid()}@email.com";
+        var password = "SecureP@ssw0rd123!";
+        var userName = email;
+
+        var newUser = new ApplicationUser
         {
-            Email = $"test{Guid.NewGuid()}@email.com",
-            Password = "SecureP@ssw0rd123!"
+            UserName = userName,
+            Email = email,
+            RegistrationDate = DateTime.UtcNow,
+            LastLoginDate = DateTime.UtcNow,
+            AllTimeMatches = 0,
+            AllTimeWins = 0,
+            AllTimeLosses = 0
         };
 
-        var registerResponse = await client.PostAsJsonAsync("/register", req);
+        var result = await userManager.CreateUserAsync(newUser, password);
 
-        var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", req);
+        Assert.True(result.Succeeded);
 
+        var loginReq = new RegisterRequest
+        {
+            Email = email,
+            Password = password
+        };
+
+        var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", loginReq);
         loginResponse.EnsureSuccessStatusCode();
 
         var afterLoginResponse = await client.GetAsync("/");
-
         Assert.Equal(HttpStatusCode.OK, afterLoginResponse.StatusCode);
     }
+
 
     [Fact]
     public async Task testSecureEndpointNoCookie()
@@ -119,11 +142,39 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
             HandleCookies = true
         });
 
+         using var scope = _factory.Services.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
+        var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+        Guid gameId = await gameService.CreateGame();
+
+        var email = $"test{Guid.NewGuid()}@email.com";
+        var password = "SecureP@ssw0rd123!";
+        var userName = email;
+
+        var newUser = new ApplicationUser
+        {
+            UserName = userName,
+            Email = email,
+            RegistrationDate = DateTime.UtcNow,
+            LastLoginDate = DateTime.UtcNow,
+            AllTimeMatches = 0,
+            AllTimeWins = 0,
+            AllTimeLosses = 0
+        };
+
+        var result = await userManager.CreateUserAsync(newUser, password);
+
+        Assert.True(result.Succeeded);
+
+
         var req = new RegisterRequest
         {
-            Email = $"test{Guid.NewGuid()}@email.com",
-            Password = "SecureP@ssw0rd123!"
+            Email = email,
+            Password = password
         };
+
+        
 
         var registerResponse = await client.PostAsJsonAsync("/register", req);
 

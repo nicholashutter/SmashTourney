@@ -121,14 +121,18 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
 
                 var UserProperties = Guid.NewGuid();
 
+                var email = $"test{Guid.NewGuid()}@email.com";
+                var password = "SecureP@ssw0rd123!";
+                var userName = email;
+
                 var User = new ApplicationUser
                 {
                     Id = UserProperties.ToString(),
-                    UserName = UserProperties.ToString(),
-                    Email = $"{UserProperties}@mail.com"
+                    UserName = email,
+                    Email = email
                 };
 
-                await _userRepository.CreateUserAsync(User);
+                await _userRepository.CreateUserAsync(User, password);
 
                 var Player = new Player
                 {
@@ -178,7 +182,7 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
 
         _gameService.StartRound(gameId);
 
-        await _gameService.EndMatchAsync(gameId, players[0], players[1]);
+        await _gameService.EndMatchAsync(gameId, players[0]);
 
         _gameService.EndRound(gameId);
 
@@ -200,7 +204,7 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
 
         _gameService.StartRound(gameId);
 
-        await _gameService.EndMatchAsync(gameId, players[0], players[1]);
+        await _gameService.EndMatchAsync(gameId, players[0]);
 
         _gameService.EndRound(gameId);
 
@@ -271,7 +275,7 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
 
             _gameService.StartMatch(gameId);
 
-            var exception = Record.ExceptionAsync(async () => await _gameService.EndMatchAsync(gameId, players[0], players[1]));
+            var exception = Record.ExceptionAsync(async () => await _gameService.EndMatchAsync(gameId, players[0]));
         }
     }
 

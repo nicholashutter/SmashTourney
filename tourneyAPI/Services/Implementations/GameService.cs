@@ -401,24 +401,19 @@ public class GameService : IGameService
 
     private void ShuffleBracket(Game foundGame)
     {
-        Random rnd = new Random();
+        Random random = new Random();
 
-        int n = foundGame.currentPlayers.Count;
-        int l = rnd.Next(1, 10);
+        int numberOfPlayers = foundGame.currentPlayers.Count;
 
-        //Swap elements in place to randomize bracket order
-        //(No seed involved currently)
-        //perform randomization calculation 1 to 10 times
-        for (int i = 0; i < l; i++)
+        //fisher yates randomization
+        for (int i = numberOfPlayers - 1; i > 0; i--)
         {
-            while (n > 1)
-            {
-                n--;
-                int k = rnd.Next(n + 1);
-                (foundGame.currentPlayers[k], foundGame.currentPlayers[n]) = (foundGame.currentPlayers[n], foundGame.currentPlayers[k]);
-            }
+            int j = random.Next(0, i + 1);
 
+            (foundGame.currentPlayers[j], foundGame.currentPlayers[i]) = (foundGame.currentPlayers[i], foundGame.currentPlayers[j]);
         }
+
+
     }
 
     //api route /EndGame

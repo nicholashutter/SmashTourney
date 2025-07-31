@@ -31,16 +31,19 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         {
             IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
 
+            string Password = "SecureP@ssw0rd123!";
+
             ApplicationUser user = new ApplicationUser
             {
                 UserName = rand.ToString(),
                 Email = $"{rand}@mail.com"
             };
 
-            userId = await userManager.CreateUserAsync(user);
-        }
+            var result = await userManager.CreateUserAsync(user, Password);
 
-        Assert.False(string.IsNullOrEmpty(userId));
+            Assert.True(result.Succeeded,
+                $"User creation failed. Errors: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+        }
     }
 
     [Fact]
@@ -51,15 +54,19 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         using IServiceScope scope = _factory.Services.CreateScope();
         IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
 
+        var Password = "SecureP@ssw0rd123!";
+
         ApplicationUser user = new ApplicationUser
         {
             UserName = rand,
             Email = $"{rand}@mail.com"
         };
 
-        string userId = await userManager.CreateUserAsync(user);
+        var result = await userManager.CreateUserAsync(user, Password);
 
-        Assert.False(string.IsNullOrEmpty(userId));
+        ApplicationUser foundUser = await userManager.GetUserByUserNameAsync(rand);
+
+        Assert.False(string.IsNullOrEmpty(foundUser.Id));
     }
 
     [Fact]
@@ -71,13 +78,15 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
         ApplicationDbContext dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+        var Password = "SecureP@ssw0rd123!";
+
         ApplicationUser user = new ApplicationUser
         {
             UserName = rand,
             Email = $"{rand}@mail.com"
         };
 
-        await userManager.CreateUserAsync(user);
+        await userManager.CreateUserAsync(user, Password);
 
         ApplicationUser foundUser = await userManager.GetUserByIdAsync(user.Id);
 
@@ -94,13 +103,15 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
 
+        var Password = "SecureP@ssw0rd123!";
+
         ApplicationUser user = new ApplicationUser
         {
             UserName = rand.ToString(),
             Email = $"{rand}@mail.com"
         };
 
-        await userManager.CreateUserAsync(user);
+        await userManager.CreateUserAsync(user, Password);
 
         string newName = "edit@mail.com";
         user.UserName = newName;
@@ -121,13 +132,15 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
 
+        var Password = "SecureP@ssw0rd123!";
+
         ApplicationUser user = new ApplicationUser
         {
             UserName = rand,
             Email = $"{rand}@mail.com"
         };
 
-        await userManager.CreateUserAsync(user);
+        await userManager.CreateUserAsync(user, Password);
         await userManager.DeleteUserAsync(user.Id);
 
         ApplicationUser deletedUser = await userManager.GetUserByIdAsync(user.Id);

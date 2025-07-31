@@ -30,7 +30,6 @@ public static class UserRouter
 
         var UserRoutes = app.MapGroup("/users");
 
-        //GETALLUSERS
         UserRoutes.MapGet("/", async () =>
         {
 
@@ -52,7 +51,7 @@ public static class UserRouter
 
         }).RequireAuthorization();
 
-        //DELETEUSER(user) <ApplicationUser>
+
         UserRoutes.MapDelete("/{Id}", async (HttpContext context, string Id) =>
         {
             Log.Information("Request Type: Delete \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
@@ -61,9 +60,9 @@ public static class UserRouter
             {
                 var userRepository = scope.ServiceProvider.GetRequiredService<UserManager>();
 
-                var success = await userRepository.DeleteUserAsync(Id);
+                var result = await userRepository.DeleteUserAsync(Id);
 
-                if (success)
+                if (result.Succeeded)
                 {
                     return Results.StatusCode(200);
                 }
