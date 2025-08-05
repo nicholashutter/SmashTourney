@@ -8,7 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 public class Character
 {
     public Guid Id { get; set; }
-    public string CharacterName { get; set; } = default!;
+    public CharacterName CharacterName { get; set; } = CharacterName.NONE;
 
     public Archetype archetype { get; set; }
 

@@ -7,7 +7,6 @@ using Services;
 using Entities;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using ApiTests;
 
@@ -169,8 +168,6 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
             Email = email,
             Password = password
         };
-
-        
 
         var registerResponse = await client.PostAsJsonAsync("/register", req);
 

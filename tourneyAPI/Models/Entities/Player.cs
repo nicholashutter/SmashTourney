@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Enums;
 
 namespace Entities;
 
@@ -19,7 +20,7 @@ public class Player
     public Guid CurrentOpponent { get; set; }
 
     [Required]
-    public string CurrentCharacter { get; set; } = "";
+    public CharacterName CurrentCharacter { get; set; } = CharacterName.NONE;
 
     [Required]
     public DateTime CurrentDate { get; set; } = DateTime.UtcNow;

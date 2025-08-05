@@ -26,19 +26,14 @@ public static class UserRouter
 
     public static void Map(WebApplication app)
     {
-        var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AppLog");
-
         var UserRoutes = app.MapGroup("/users");
 
-        UserRoutes.MapGet("/", async () =>
+        UserRoutes.MapGet("/GetAllUsers", async (HttpContext context, IUserManager userManager) =>
         {
 
-            Log.Information("Request Type: Get \n URL: '/Users' \n Time: {Timestamp}", DateTime.UtcNow);
+            Log.Information("Request Type: Get \n URL: '/GetAllUsers' \n Time: {Timestamp}", DateTime.UtcNow);
 
-            using var scope = app.Services.CreateAsyncScope();
-            var userRepository = scope.ServiceProvider.GetRequiredService<UserManager>();
-
-            var users = await userRepository.GetAllUsersAsync();
+            var users = await userManager.GetAllUsersAsync();
 
             if (users is not null)
             {
@@ -51,6 +46,59 @@ public static class UserRouter
 
         }).RequireAuthorization();
 
+        UserRoutes.MapGet("/GetById{Id}", async (HttpContext context, IUserManager userManager, string Id) =>
+        {
+
+            Log.Information("Request Type: Get \n URL: '/GetAllUsers' \n Time: {Timestamp}", DateTime.UtcNow);
+
+            var foundUser = await userManager.GetUserByIdAsync(Id);
+
+            if (foundUser is not null)
+            {
+                return Results.Ok(foundUser);
+            }
+            else
+            {
+                return Results.StatusCode(500);
+            }
+
+        }).RequireAuthorization();
+
+        UserRoutes.MapGet("/GetByUserName{UserName}", async (HttpContext context, IUserManager userManager, string UserName) =>
+        {
+
+            Log.Information("Request Type: Get \n URL: '/GetAllUsers' \n Time: {Timestamp}", DateTime.UtcNow);
+
+            var foundUser = await userManager.GetUserByIdAsync(UserName);
+
+            if (foundUser is not null)
+            {
+                return Results.Ok(foundUser);
+            }
+            else
+            {
+                return Results.StatusCode(500);
+            }
+
+        }).RequireAuthorization();
+
+        UserRoutes.MapPut("/UpdateUser", async (HttpContext context, IUserManager userManager, ApplicationUser user) =>
+      {
+
+          Log.Information("Request Type: Get \n URL: '/GetAllUsers' \n Time: {Timestamp}", DateTime.UtcNow);
+
+          var results = await userManager.UpdateUserAsync(user);
+
+          if (results.Succeeded)
+          {
+              return Results.Ok();
+          }
+          else
+          {
+              return Results.StatusCode(500);
+          }
+
+      }).RequireAuthorization();
 
         UserRoutes.MapDelete("/{Id}", async (HttpContext context, string Id) =>
         {
@@ -74,6 +122,8 @@ public static class UserRouter
 
 
         }).RequireAuthorization();
+
+
 
         UserRoutes.MapPost("/logout", async (HttpContext context) =>
         {

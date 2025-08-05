@@ -25,24 +25,16 @@ public class UserManager : IUserManager
 
     public async Task<IdentityResult> CreateUserAsync(ApplicationUser user, string password)
     {
-        try
+        var result = await _identityUserManager.CreateAsync(user, password);
+        if (!result.Succeeded)
         {
-            var result = await _identityUserManager.CreateAsync(user, password);
-            if (!result.Succeeded)
+            foreach (var error in result.Errors)
             {
-                foreach (var error in result.Errors)
-                {
-                    Log.Error($"Identity user creation error: Code={error.Code}, Description={error.Description}");
-                }
+                Log.Error($"Identity user creation error: Code={error.Code}, Description={error.Description}");
             }
+        }
 
-            return result;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "An unexpected error occurred during user creation in IUserManager.");
-            return IdentityResult.Failed(new IdentityError { Description = "An unexpected error occurred." });
-        }
+        return result;
     }
 
     public async Task<ApplicationUser?> GetUserByIdAsync(string id)
@@ -55,22 +47,14 @@ public class UserManager : IUserManager
             return null;
         }
 
-        try
-        {
-            var foundUser = await _identityUserManager.FindByIdAsync(id);
+        var foundUser = await _identityUserManager.FindByIdAsync(id);
 
-            if (foundUser == null)
-            {
-                Log.Warning("User with ID '{UserId}' not found.", id);
-            }
-
-            return foundUser;
-        }
-        catch (Exception ex)
+        if (foundUser == null)
         {
-            Log.Error(ex, "An unexpected error occurred while retrieving user by ID: {UserId}", id);
-            return null;
+            Log.Warning("User with ID '{UserId}' not found.", id);
         }
+
+        return foundUser;
     }
 
 
@@ -78,50 +62,30 @@ public class UserManager : IUserManager
     {
         Log.Information("Attempting to retrieve user by username: {UserName}", userName);
 
-        try
+        var foundUser = await _identityUserManager.FindByNameAsync(userName);
+
+        if (foundUser == null)
         {
 
-            var foundUser = await _identityUserManager.FindByNameAsync(userName);
-
-            if (foundUser == null)
-            {
-
-                Log.Warning("User with username '{UserName}' not found.", userName);
-            }
-
-            return foundUser;
+            Log.Warning("User with username '{UserName}' not found.", userName);
         }
-        catch (Exception ex)
-        {
 
-            Log.Error(ex, "An unexpected error occurred while retrieving user by username: {UserName}", userName);
-            return null;
-        }
+        return foundUser;
     }
 
     public async Task<List<ApplicationUser>?> GetAllUsersAsync()
     {
         Log.Information("Attempting to retrieve all users.");
 
-        try
+        var allUsers = await _identityUserManager.Users.ToListAsync();
+
+        if (allUsers.Count == 0)
         {
 
-            var allUsers = await _identityUserManager.Users.ToListAsync();
-
-            if (allUsers.Count == 0)
-            {
-
-                Log.Information("No users found in the database.");
-            }
-
-            return allUsers;
+            Log.Information("No users found in the database.");
         }
-        catch (Exception ex)
-        {
 
-            Log.Error(ex, "An unexpected error occurred while retrieving all users.");
-            return null;
-        }
+        return allUsers;
     }
 
 
@@ -136,42 +100,33 @@ public class UserManager : IUserManager
             return IdentityResult.Failed(new IdentityError { Description = "Update user object cannot be null." });
         }
 
-        try
+        var existingUser = await _identityUserManager.FindByIdAsync(updateUser.Id);
+
+        if (existingUser == null)
         {
-
-            var existingUser = await _identityUserManager.FindByIdAsync(updateUser.Id);
-
-            if (existingUser == null)
-            {
-                Log.Warning("User with ID '{UserId}' not found for update.", updateUser.Id);
-                return IdentityResult.Failed(new IdentityError { Description = $"User with ID '{updateUser.Id}' not found for update." });
-            }
-
-            existingUser.Email = updateUser.Email;
-            existingUser.UserName = updateUser.UserName;
-            existingUser.RegistrationDate = updateUser.RegistrationDate;
-            existingUser.LastLoginDate = updateUser.LastLoginDate;
-            existingUser.AllTimeMatches = updateUser.AllTimeMatches;
-            existingUser.AllTimeWins = updateUser.AllTimeWins;
-            existingUser.AllTimeLosses = updateUser.AllTimeLosses;
-
-            var result = await _identityUserManager.UpdateAsync(existingUser);
-
-            if (!result.Succeeded)
-            {
-                foreach (var error in result.Errors)
-                {
-                    Log.Error("User update failed for ID '{UserId}': Code={ErrorCode}, Description={ErrorDescription}",
-                        updateUser.Id, error.Code, error.Description);
-                }
-            }
-            return result;
+            Log.Warning("User with ID '{UserId}' not found for update.", updateUser.Id);
+            return IdentityResult.Failed(new IdentityError { Description = $"User with ID '{updateUser.Id}' not found for update." });
         }
-        catch (Exception ex)
+
+        existingUser.Email = updateUser.Email;
+        existingUser.UserName = updateUser.UserName;
+        existingUser.RegistrationDate = updateUser.RegistrationDate;
+        existingUser.LastLoginDate = updateUser.LastLoginDate;
+        existingUser.AllTimeMatches = updateUser.AllTimeMatches;
+        existingUser.AllTimeWins = updateUser.AllTimeWins;
+        existingUser.AllTimeLosses = updateUser.AllTimeLosses;
+
+        var result = await _identityUserManager.UpdateAsync(existingUser);
+
+        if (!result.Succeeded)
         {
-            Log.Error(ex, "An unexpected error occurred while updating user with ID: {UserId}", updateUser.Id);
-            return IdentityResult.Failed(new IdentityError { Description = "An unexpected error occurred during user update." });
+            foreach (var error in result.Errors)
+            {
+                Log.Error("User update failed for ID '{UserId}': Code={ErrorCode}, Description={ErrorDescription}",
+                    updateUser.Id, error.Code, error.Description);
+            }
         }
+        return result;
     }
 
     public async Task<IdentityResult> DeleteUserAsync(string id)
@@ -184,37 +139,27 @@ public class UserManager : IUserManager
             return IdentityResult.Failed(new IdentityError { Description = "User ID cannot be null or empty." });
         }
 
-        try
+        var userToDelete = await _identityUserManager.FindByIdAsync(id);
+
+        if (userToDelete == null)
+        {
+            Log.Warning("User with ID '{UserId}' not found for deletion.", id);
+            return IdentityResult.Failed(new IdentityError { Description = $"User with ID '{id}' not found for deletion." });
+        }
+
+        var result = await _identityUserManager.DeleteAsync(userToDelete);
+
+        if (!result.Succeeded)
         {
 
-            var userToDelete = await _identityUserManager.FindByIdAsync(id);
-
-            if (userToDelete == null)
+            foreach (var error in result.Errors)
             {
-                Log.Warning("User with ID '{UserId}' not found for deletion.", id);
-                return IdentityResult.Failed(new IdentityError { Description = $"User with ID '{id}' not found for deletion." });
+                Log.Error("User deletion failed for ID '{UserId}': Code={ErrorCode}, Description={ErrorDescription}",
+                    id, error.Code, error.Description);
             }
-
-            var result = await _identityUserManager.DeleteAsync(userToDelete);
-
-            if (!result.Succeeded)
-            {
-
-                foreach (var error in result.Errors)
-                {
-                    Log.Error("User deletion failed for ID '{UserId}': Code={ErrorCode}, Description={ErrorDescription}",
-                        id, error.Code, error.Description);
-                }
-            }
-
-            return result;
         }
-        catch (Exception ex)
-        {
 
-            Log.Error(ex, "An unexpected error occurred while deleting user with ID: {UserId}", id);
-            return IdentityResult.Failed(new IdentityError { Description = "An unexpected error occurred during user deletion." });
-        }
+        return result;
     }
 
 }
