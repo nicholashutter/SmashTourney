@@ -52,7 +52,7 @@ public class PlayerRepositoryTest : IClassFixture<CustomWebApplicationFactory<Pr
                 await playerManager.CreateAsync(newPlayer);
             }
 
-            List<Player>? result = await playerManager.GetAllAsync();
+            List<Player>? result = await playerManager.GetAllPlayersAsync();
             Assert.Equal(10, result.Count);
         }
     }

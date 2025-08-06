@@ -7,6 +7,7 @@ using Services;
 using System;
 using Serilog;
 using Microsoft.AspNetCore.Mvc;
+using Validators;
 
 public static class GameRouter
 {
@@ -19,7 +20,7 @@ public static class GameRouter
         {
             Log.Information("Request Type: Get \n URL: '/Games/getAllGames' \n Time:{Timestamp}", DateTime.UtcNow);
 
-            List<Game?> games = await gameService.GetAllGamesAsync();
+            List<Game>? games = await gameService.GetAllGamesAsync();
 
             if (games is null)
             {
@@ -74,9 +75,11 @@ public static class GameRouter
             return Results.Ok();
         });
 
-        GameRoutes.MapPost("/AllPlayersIn", (HttpContext context, IGameService gameService, Guid gameId, List<Player> players) =>
+        GameRoutes.MapPost("/AddPlayers", (HttpContext context, IGameService gameService, Guid gameId, List<Player> players) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/AllPlayersIn' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            PlayersValidator.Validate(players, "AddPlayersRoute");
 
             bool success = gameService.AddPlayersToGame(players, gameId);
 
@@ -102,7 +105,7 @@ public static class GameRouter
             return Results.Ok($"Game {gameId} successfully started");
         });
 
-        GameRoutes.MapPost("/LoadGame", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        GameRoutes.MapPost("/LoadGame", async(HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/LoadGame' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -125,7 +128,7 @@ public static class GameRouter
             return Results.Ok($"Game {gameId} saved");
         });
 
-        GameRoutes.MapPost("/StartRound", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        GameRoutes.MapPost("/StartRound", (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/StartRound' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -142,7 +145,7 @@ public static class GameRouter
         });
 
 
-        GameRoutes.MapPost("/StartMatch", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        GameRoutes.MapPost("/StartMatch", (HttpContext context, IGameService gameService, Guid gameId) =>
                 {
                     Log.Information("Request Type: Post \n URL: '/Games/StartMatch' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -157,10 +160,12 @@ public static class GameRouter
 
                     return Results.Ok(response);
                 });
-        
-        GameRoutes.MapPost("/EndMatch", async (HttpContext context, IGameService gameService, Guid gameId, [FromBody] Player MatchWinner) =>
+
+        GameRoutes.MapPost("/EndMatch", async (HttpContext context, IGameService gameService, Guid gameId, Player MatchWinner) =>
                 {
                     Log.Information("Request Type: Post \n URL: '/Games/EndMatch' \n Time:{Timestamp}", DateTime.UtcNow);
+
+                    PlayerValidator.Validate(MatchWinner, "EndMatchRoute");
 
                     bool success = await gameService.EndMatchAsync(gameId, MatchWinner);
 

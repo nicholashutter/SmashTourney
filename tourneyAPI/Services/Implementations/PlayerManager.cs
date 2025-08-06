@@ -73,7 +73,7 @@ public class PlayerManager : IPlayerManager
         }
     }
 
-    public async Task<List<Player>?> GetAllAsync()
+    public async Task<List<Player>?> GetAllPlayersAsync()
     {
         Log.Information("Info: Get All Players");
 

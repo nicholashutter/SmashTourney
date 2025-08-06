@@ -50,7 +50,7 @@ builder.Services.ConfigureApplicationCookie(options =>
         options.Events.OnSignedIn = async context =>
             {
                 //assign signed in users a server side session
-                await AppSetup.HandleUserSession(context, context.Principal.Identity?.Name);
+                await AppSetup.HandleUserSession(context, context.Principal.Identity.Name);
             };
     });
 

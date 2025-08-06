@@ -3,12 +3,15 @@ namespace Routers;
 using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Validators;
 using Services;
 using System;
 using Serilog;
 using System.Diagnostics.CodeAnalysis;
 
 [ExcludeFromCodeCoverage]
+
+/* this playerRouter class may not need to be exposed and may be deleted */
 public static class PlayerRouter
 {
     public static void Map(WebApplication app)
@@ -16,120 +19,71 @@ public static class PlayerRouter
 
         var PlayerRoutes = app.MapGroup("/Players");
 
-        PlayerRoutes.MapGet("/", async (HttpContext context, ApplicationDbContext db) =>
+        PlayerRoutes.MapGet("/", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager) =>
         {
             Log.Information("Request Type: Get \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
 
             try
             {
-                var Players = await db.Players.ToListAsync();
+                var Players = await playerManager.GetAllPlayersAsync();
 
-
-                context.Response.StatusCode = StatusCodes.Status200OK;
-                Log.Information("Players Retrieved Successfully \n Time: {Timestamp}", DateTime.UtcNow);
-                await context.Response.WriteAsJsonAsync(Players);
+                return Results.Ok(Players);
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                await context.Response.WriteAsJsonAsync(e.ToString());
+                return Results.Problem("Internal Server Error");
             }
         });
 
-        PlayerRoutes.MapPost("/", async (HttpContext context, ApplicationDbContext db) =>
+        PlayerRoutes.MapPost("/", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager, Player player) =>
         {
             Log.Information("Request Type: Post \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
 
             try
             {
-                var newPlayer = await context.Request.ReadFromJsonAsync<Player>();
+                PlayerValidator.Validate(player, "CreatePlayerRoute");
 
-                if (newPlayer is null)
-                {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    Log.Warning("Warning: newPlayer is null\n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.BadRequest("Invalid JSON Payload");
-                }
-                else
-                {
-                    db.Add(newPlayer);
-                    await db.SaveChangesAsync();
-                    context.Response.StatusCode = StatusCodes.Status201Created;
-                    Log.Information("Player Created Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.Created();
-                }
+                await playerManager.CreateAsync(player);
 
-
+                return Results.Created();
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                return Results.BadRequest("Unknown Error Occured");
+                return Results.BadRequest("Invalid JSON Payload");
             }
 
         });
 
-        PlayerRoutes.MapPut("/", async (HttpContext context, ApplicationDbContext db) =>
+        PlayerRoutes.MapPut("/", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager, Player player) =>
         {
             Log.Information("Request Type: Put \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
 
             try
             {
-                var updatePlayer = await context.Request.ReadFromJsonAsync<Player>();
+                PlayerValidator.Validate(player, "UpdatePlayerRoute");
 
-                if (updatePlayer is null)
-                {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    Log.Warning("Warning: updatePlayer is null\n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.BadRequest("Invalid JSON Payload");
-                }
-                else
-                {
-                    db.Add(updatePlayer);
-                    await db.SaveChangesAsync();
-                    context.Response.StatusCode = StatusCodes.Status202Accepted;
-                    Log.Information("Player Updated Successfully. \n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.Created();
-                }
-
+                await playerManager.UpdateAsync(player);
+                return Results.Ok();
 
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                return Results.BadRequest("Unknown Error Occured");
+                return Results.BadRequest("Invalid JSON Payload");
             }
         });
 
-        PlayerRoutes.MapDelete("/", async (HttpContext context, ApplicationDbContext db) =>
+        PlayerRoutes.MapDelete("/{Id}", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager, string Id) =>
         {
             Log.Information("Request Type: Delete \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
             try
             {
-                var deletePlayer = await context.Request.ReadFromJsonAsync<Player>();
+                await playerManager.DeleteAsync(Guid.Parse(Id));
+                return Results.Accepted("Player Delete Success");
 
-                if (deletePlayer is null)
-                {
-                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                    Log.Warning("Warning: deletePlayer is null\n Time: {Timestamp}", DateTime.UtcNow);
-                    return Results.BadRequest("Invalid JSON Payload");
-                }
-                else
-                {
-                    db.Players.Remove(deletePlayer);
-                    context.Response.StatusCode = StatusCodes.Status202Accepted;
-                    await db.SaveChangesAsync();
-                    return Results.Accepted("Player Delete Success");
-                }
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                Log.Error("Unknown Error Occured: {e} Time: {Timestamp}", e.ToString(), DateTime.UtcNow);
-                return Results.BadRequest("Unknown Error Occured");
+                return Results.BadRequest("Invalid JSON Payload");
             }
         });
     }

@@ -3,7 +3,6 @@ namespace Helpers;
 using Serilog;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Services;
-using Serilog;
 using CustomExceptions;
 
 public class AppSetup
