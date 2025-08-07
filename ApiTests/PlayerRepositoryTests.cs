@@ -53,27 +53,10 @@ public class PlayerRepositoryTest : IClassFixture<CustomWebApplicationFactory<Pr
             }
 
             List<Player>? result = await playerManager.GetAllPlayersAsync();
+            Assert.NotNull(result);
             Assert.Equal(10, result.Count);
         }
     }
 
-
-    [Fact]
-    public async Task getByIdAsync()
-    {
-
-    }
-    [Fact]
-    public async Task updateAsync()
-    {
-
-
-    }
-
-    [Fact]
-    public async Task deleteAsync()
-    {
-
-    }
 
 }

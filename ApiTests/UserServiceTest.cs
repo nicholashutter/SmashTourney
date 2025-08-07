@@ -25,8 +25,6 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     {
 
         Guid rand = Guid.NewGuid();
-
-        string userId = "";
         using (IServiceScope scope = _factory.Services.CreateScope())
         {
             IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
@@ -64,9 +62,9 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         var result = await userManager.CreateUserAsync(user, Password);
 
-        ApplicationUser foundUser = await userManager.GetUserByUserNameAsync(rand);
+        ApplicationUser? foundUser = await userManager.GetUserByUserNameAsync(rand);
 
-        Assert.False(string.IsNullOrEmpty(foundUser.Id));
+        Assert.False(string.IsNullOrEmpty(foundUser?.Id));
     }
 
     [Fact]
@@ -88,7 +86,7 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         await userManager.CreateUserAsync(user, Password);
 
-        ApplicationUser foundUser = await userManager.GetUserByIdAsync(user.Id);
+        ApplicationUser? foundUser = await userManager.GetUserByIdAsync(user.Id);
 
         Assert.Equivalent(user, foundUser);
     }
@@ -117,9 +115,9 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         user.UserName = newName;
 
         await userManager.UpdateUserAsync(user);
-        ApplicationUser foundUser = await userManager.GetUserByIdAsync(user.Id);
+        ApplicationUser? foundUser = await userManager.GetUserByIdAsync(user.Id);
 
-        Assert.Equal(newName, foundUser.UserName);
+        Assert.Equal(newName, foundUser?.UserName);
     }
 
 
@@ -143,7 +141,7 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         await userManager.CreateUserAsync(user, Password);
         await userManager.DeleteUserAsync(user.Id);
 
-        ApplicationUser deletedUser = await userManager.GetUserByIdAsync(user.Id);
+        ApplicationUser? deletedUser = await userManager.GetUserByIdAsync(user.Id);
         Assert.Null(deletedUser);
     }
 
