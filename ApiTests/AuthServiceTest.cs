@@ -27,8 +27,8 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
     public class RegisterRequest
     {
-        public string Email { get; set; }
-        public string Password { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
     }
 
     [Theory]
@@ -82,7 +82,7 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         });
         using var scope = _factory.Services.CreateAsyncScope();
         var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-       
+
 
         var email = $"test{Guid.NewGuid()}@email.com";
         var password = "SecureP@ssw0rd123!";
@@ -125,7 +125,7 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
             HandleCookies = true
         });
 
-        var requestNoCookie = await client.GetAsync("/users");
+        var requestNoCookie = await client.GetAsync("/users/GetAllUsers");
 
         Assert.Equal(HttpStatusCode.Unauthorized, requestNoCookie.StatusCode);
     }
@@ -139,9 +139,9 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
             HandleCookies = true
         });
 
-         using var scope = _factory.Services.CreateAsyncScope();
+        using var scope = _factory.Services.CreateAsyncScope();
         var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-        
+
 
         var email = $"test{Guid.NewGuid()}@email.com";
         var password = "SecureP@ssw0rd123!";

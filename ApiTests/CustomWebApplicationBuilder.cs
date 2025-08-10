@@ -18,17 +18,24 @@ public class CustomWebApplicationFactory<TProgram>
     {
         builder.ConfigureServices(services =>
         {
+            // Remove the existing ApplicationDbContext registration only when the running tests
             var dbContextDescriptor = services.SingleOrDefault(
                 d => d.ServiceType ==
                     typeof(DbContextOptions<ApplicationDbContext>));
 
-            services.Remove(dbContextDescriptor);
+            if (dbContextDescriptor != null)
+            {
+                services.Remove(dbContextDescriptor);
+            }
 
             var dbConnectionDescriptor = services.SingleOrDefault(
                 d => d.ServiceType ==
                     typeof(DbConnection));
 
-            services.Remove(dbConnectionDescriptor);
+            if (dbConnectionDescriptor != null)
+            {
+                services.Remove(dbConnectionDescriptor);
+            }
 
             // Create open SqliteConnection so EF won't automatically close it.
             services.AddSingleton<DbConnection>(container =>

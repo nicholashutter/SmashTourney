@@ -59,7 +59,9 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
             inputGames.Add(i, gameId);
         }
 
-        List<Game> runningGames = await _gameService.GetAllGamesAsync();
+        List<Game>? runningGames = await _gameService.GetAllGamesAsync();
+
+        Assert.NotNull(runningGames);
 
         Assert.Equal(10, runningGames.Count);
 
@@ -102,6 +104,8 @@ public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Progra
         var gameId = await _gameService.CreateGame();
 
         var foundGame = await _gameService.GetGameByIdAsync(gameId);
+
+        Assert.NotNull(foundGame);
 
         Assert.Equal(gameId, foundGame.Id);
     }
