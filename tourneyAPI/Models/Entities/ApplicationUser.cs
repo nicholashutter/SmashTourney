@@ -1,9 +1,11 @@
 ﻿namespace Entities;
 
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration.UserSecrets;
 
 public class ApplicationUser : IdentityUser
 {
+
         public DateTime RegistrationDate { get; set; } = DateTime.UtcNow;
         public DateTime? LastLoginDate { get; set; } = DateTime.UtcNow;
         public int AllTimeMatches { get; set; } = 0;

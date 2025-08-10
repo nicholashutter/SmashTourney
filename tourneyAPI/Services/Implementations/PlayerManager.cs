@@ -26,7 +26,7 @@ public class PlayerManager : IPlayerManager
 
     public async Task<Guid?> CreateAsync(Player newPlayer)
     {
-        Log.Information("Info: Create Player Async");
+        Log.Information("Creating New Player");
 
         try
         {
@@ -43,16 +43,16 @@ public class PlayerManager : IPlayerManager
         }
         catch (PlayerNotFoundException e)
         {
-            Log.Error($"Error: newPlayer is null. Unable to create newPlayer\n {e}");
+            Log.Error($"NewPlayer is null. Unable to create newPlayer\n {e}");
             return null;
         }
     }
 
     public async Task<Player?> GetByIdAsync(Guid id)
     {
-        Log.Information("Info: Get Player By Id {id}", id);
+        Log.Information("Getting Player By Id {id}", id);
 
-        var foundPlayer = new Player();
+        var foundPlayer = new Player { UserId = "" };
         try
         {
             foundPlayer = await _db.Players.FindAsync(id);
@@ -75,7 +75,7 @@ public class PlayerManager : IPlayerManager
 
     public async Task<List<Player>?> GetAllPlayersAsync()
     {
-        Log.Information("Info: Get All Players");
+        Log.Information("Get All Players");
 
         var Players = new List<Player>();
 
@@ -98,7 +98,7 @@ public class PlayerManager : IPlayerManager
 
     public async Task<bool> UpdateAsync(Player updatePlayer)
     {
-        Log.Information("Info: Update Player Async");
+        Log.Information("Update Player Async");
 
         try
         {
@@ -123,7 +123,7 @@ public class PlayerManager : IPlayerManager
         }
         catch (PlayerNotFoundException e)
         {
-            Log.Error($"Error: updatePlayer is null. Unable to updatePlayer\n {e}");
+            Log.Error($"UpdatePlayer is null. Unable to updatePlayer\n {e}");
             return false;
         }
         catch (InvalidArgumentException e)
@@ -135,9 +135,9 @@ public class PlayerManager : IPlayerManager
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        Log.Information("Info: Delete Player Async");
+        Log.Information($"Delete Player {id}");
 
-        var foundPlayer = new Player();
+        var foundPlayer = new Player { UserId = "" };
 
         try
         {
@@ -156,7 +156,7 @@ public class PlayerManager : IPlayerManager
         }
         catch (PlayerNotFoundException e)
         {
-            Log.Warning($"Warning: Player not found. Unable to delete\n {e}");
+            Log.Warning($"Player not found. Unable to delete\n {e}");
             return false;
         }
     }

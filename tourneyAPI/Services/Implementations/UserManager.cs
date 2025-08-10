@@ -1,7 +1,6 @@
 
 namespace Services;
 
-/* UserRepository implements a repository layer for User Objects to persist them to the database */
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -12,10 +11,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Serilog;
 
+/* UserManager is an identityUser service that implements repository pattern */ 
 public class UserManager : IUserManager
 {
-
-
     private readonly UserManager<ApplicationUser> _identityUserManager;
 
     public UserManager(UserManager<ApplicationUser> identityUserManager)

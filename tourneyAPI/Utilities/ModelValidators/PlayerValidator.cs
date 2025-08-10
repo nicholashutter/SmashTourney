@@ -1,8 +1,8 @@
 using CustomExceptions;
 using Entities;
 using System.Diagnostics.CodeAnalysis;
-using Enums; 
-using System; 
+using Enums;
+using System;
 
 namespace Validators;
 
@@ -20,7 +20,7 @@ public class PlayerValidator()
         {
             throw new PlayerValidationException($"{TAG}: UserId cannot be blank.");
         }
-        
+
         if (!Guid.TryParse(validatePlayer.UserId, out _))
         {
             throw new PlayerValidationException($"{TAG}: UserId is not a valid GUID.");
@@ -34,11 +34,6 @@ public class PlayerValidator()
         if (validatePlayer.CurrentCharacter == CharacterName.NONE)
         {
             throw new PlayerValidationException($"{TAG}: CurrentCharacter cannot be NONE.");
-        }
-
-        if (validatePlayer.CurrentDate == DateTime.MinValue || validatePlayer.CurrentDate > DateTime.UtcNow.AddMinutes(1)) // Allowing a small buffer for UTCNow
-        {
-            throw new PlayerValidationException($"{TAG}: CurrentDate is not a valid UTCNow timestamp.");
         }
 
         if (validatePlayer.CurrentGameID == Guid.Empty)

@@ -47,6 +47,4 @@ public interface IGameService
 
     // API route EndMatch
     Task<bool> EndMatchAsync(Guid gameId, Player matchWinner);
-
-    /*----------------------------------------------------END GAME SERVICE---------------------------------------------------- */
 }

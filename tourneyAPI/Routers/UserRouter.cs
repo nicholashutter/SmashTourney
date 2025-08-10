@@ -1,18 +1,11 @@
 ﻿namespace Routers;
 
 using Entities;
-using Validators;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Services;
 using System;
 using Serilog;
-using Microsoft.EntityFrameworkCore.Internal;
-using Microsoft.AspNetCore.WebUtilities;
-using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
-using System.Diagnostics.CodeAnalysis;
 
 /*
 
@@ -20,7 +13,6 @@ This class was written prior to integrating my User model into efcore as a Ident
 This class may be removed at some point
 
 */
-[ExcludeFromCodeCoverage]
 public static class UserRouter
 {
 

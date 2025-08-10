@@ -36,7 +36,7 @@ public class GameService : IGameService
     public async Task<Guid> CreateGame()
     {
 
-        Log.Information($"Info: CreateGame");
+        Log.Information("CreateGame");
 
         Game game = new Game
         {
@@ -44,14 +44,14 @@ public class GameService : IGameService
         };
         await InsertGameAsync(game);
         _games.Add(game);
-        Log.Information($"Info: New Game with gameId {game.Id}");
+        Log.Information($"New Game with gameId {game.Id} created");
         return game.Id;
     }
 
 
     private async Task InsertGameAsync(Game currentGame)
     {
-        Log.Information("Info: Insert Game Async");
+        Log.Information("Insert Game");
 
         using var scope = _serviceProvider.CreateScope();
         var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -64,7 +64,7 @@ public class GameService : IGameService
     //SaveGame will persist current game state to the database
     public async Task UpdateGameAsync(Guid gameId)
     {
-        Log.Information("Info: Update Game Async");
+        Log.Information("Update Game Async");
 
         using var scope = _serviceProvider.CreateScope();
         var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -89,7 +89,7 @@ public class GameService : IGameService
     //api route /ResumeGame
     public async Task<bool> LoadGameAsync(Guid gameId)
     {
-        Log.Information($"Info: Create New Game Async");
+        Log.Information($"Load Game {gameId}");
 
         using (var scope = _serviceProvider.CreateScope())
         {
@@ -110,7 +110,7 @@ public class GameService : IGameService
             }
             catch (GameNotFoundException e)
             {
-                Log.Warning($"Error: foundGame is null. Unable to load game not found \n {e}");
+                Log.Warning($"FoundGame is null. Unable to load game \n {e}");
                 return false;
             }
         }
@@ -119,7 +119,7 @@ public class GameService : IGameService
     //api route /GetAllGames
     public async Task<List<Game>?> GetAllGamesAsync()
     {
-        Log.Information($"Info: Get All Games");
+        Log.Information($"Get All Games");
 
         using (var scope = _serviceProvider.CreateScope())
         {
@@ -156,7 +156,7 @@ public class GameService : IGameService
     //api route /GetGameById
     public async Task<Game?> GetGameByIdAsync(Guid gameId)
     {
-        Log.Information($"Info: Get Game By Id {gameId}");
+        Log.Information($"Get Game By Id {gameId}");
 
         using (var scope = _serviceProvider.CreateScope())
         {
@@ -181,7 +181,7 @@ public class GameService : IGameService
             }
             catch (GameNotFoundException e)
             {
-                Log.Information($"Error: Game not found or otherwise null\n {e}");
+                Log.Information($"Game not found or otherwise null\n {e}");
                 return null;
             }
         }
@@ -193,7 +193,7 @@ public class GameService : IGameService
     //will only let authenticated users further inside the application if the gameID presented is valid
     public bool CreateUserSession(ApplicationUser addUser)
     {
-        Log.Information($"Info: Adding User {addUser.UserName} to _userSessions.");
+        Log.Information($"Adding User {addUser.UserName} to user sessions.");
 
         try
         {
@@ -206,7 +206,7 @@ public class GameService : IGameService
             else
             {
                 _userSessions.Add(addUser);
-                Log.Information($"User {addUser.UserName} Added To _userSessions.");
+                Log.Information($"User {addUser.UserName} added to user sessions.");
                 return true;
             }
         }
@@ -227,7 +227,7 @@ public class GameService : IGameService
     //List<Players> comes from the front end
     public bool AddPlayersToGame(List<Player> players, Guid gameId)
     {
-        Log.Information($"Info: Loading Users and Creating Their Corresponding Players");
+        Log.Information("Loading Users and Creating Their Corresponding Players");
 
         try
         {
@@ -254,12 +254,12 @@ public class GameService : IGameService
                     }
                 }
             }
-            Log.Information($"Info: Players Created From Users");
+            Log.Information($"Players Created From Users");
             return true;
         }
         catch (GameNotFoundException e)
         {
-            Log.Information($"Error: Failed to Create Players from Users \n {e}");
+            Log.Information($"Failed to Create Players from Users \n {e}");
             return false;
         }
     }
@@ -270,7 +270,7 @@ public class GameService : IGameService
 
     {
 
-        Log.Information($"Info: End Game {existingGameId}");
+        Log.Information($"End Game {existingGameId}");
 
         try
         {
@@ -311,7 +311,7 @@ public class GameService : IGameService
     //called by StartGame
     private bool GenerateBracket(Guid gameId)
     {
-        Log.Information($"Info: Generate Bracket {gameId}");
+        Log.Information($"Generate Bracket {gameId}");
 
         try
         {
@@ -341,7 +341,7 @@ public class GameService : IGameService
     {
         if (foundGame.currentPlayers.Count < 2)
         {
-            throw new BracketGenrationException($"Bracket size invalid {foundGame.currentPlayers.Count}");
+            throw new BracketGenrationException($"Bracket size invalid: {foundGame.currentPlayers.Count}");
         }
         else if (foundGame.currentPlayers.Count < 4)
         {
@@ -373,7 +373,7 @@ public class GameService : IGameService
         }
         else
         {
-            throw new BracketGenrationException($"Bracket size invalid {foundGame.currentPlayers.Count}");
+            throw new BracketGenrationException($"Bracket size invalid: {foundGame.currentPlayers.Count}");
         }
     }
 
@@ -412,14 +412,14 @@ public class GameService : IGameService
     //api route /EndGame
     public bool EndGame(Guid endGameId)
     {
-        Log.Information($"Info: End Game {endGameId}");
+        Log.Information($"End Game {endGameId}");
 
         foreach (Game g in _games)
         {
             if (endGameId == g.Id)
             {
                 _games.Remove(g);
-                Log.Information($"Info: Game with gameId {g.Id} removed");
+                Log.Information($"Game with gameId {g.Id} removed");
                 return true;
             }
         }
@@ -435,7 +435,7 @@ public class GameService : IGameService
     public bool EndRound(Guid gameId)
     {
 
-        Log.Information($"Info: EndRoundAsync {gameId}");
+        Log.Information($"EndRoundAsync {gameId}");
 
         try
         {
@@ -458,7 +458,7 @@ public class GameService : IGameService
     //list of players should be unpacked by route and returned in HTTP response
     public List<Player>? StartMatch(Guid gameId)
     {
-        Log.Information($"Info: StartMatch {gameId}");
+        Log.Information($"StartMatch {gameId}");
 
         try
         {
@@ -523,7 +523,7 @@ public class GameService : IGameService
     public async Task<bool> EndMatchAsync(Guid gameId, Player matchWinner)
     {
 
-        Log.Information($"Info: End Match Async {gameId}");
+        Log.Information($"End Match Async {gameId}");
 
         try
         {
@@ -556,6 +556,7 @@ public class GameService : IGameService
             Log.Error($"{e}");
             return false;
         }
+
         return true;
     }
 
@@ -564,33 +565,39 @@ public class GameService : IGameService
 
     {
 
-        Log.Information($"Info: VoteHandlerAsync {gameId}");
+        Log.Information($"VoteHandlerAsync {gameId}");
 
         try
         {
-
             //get game context and current players 
             var foundGame = _games.Find(g => g.Id == gameId);
+
+            Player foundPlayer = new Player { UserId = MatchWinner.UserId };
 
             if (foundGame is null)
             {
                 throw new GameNotFoundException("VoteHandlerAsync");
             }
 
-            MatchWinner = foundGame.currentPlayers.Find(p => p.Id == MatchWinner.Id);
+            foundPlayer = foundGame.currentPlayers.Find(p => p.Id == MatchWinner.Id);
 
-            if (MatchWinner is null)
+            if (foundPlayer is null)
             {
                 throw new PlayerNotFoundException("VoteHandlerAsync");
             }
 
             MatchWinner = foundGame.currentPlayers.Find(p => p.Id == MatchWinner.Id);
-            if (MatchWinner is null)
+            if (foundPlayer is null)
             {
                 throw new PlayerNotFoundException("VoteHandlerAsync");
             }
 
             CastVote(foundGame, MatchWinner);
+        }
+        catch (GameNotFoundException e)
+        {
+            Log.Error($"{e}");
+            return false;
         }
         catch (PlayerNotFoundException e)
         {
@@ -623,7 +630,7 @@ public class GameService : IGameService
     //Calculate highest score in game
     private Game CalculateHighestScore(Game currentGame)
     {
-        Player highestScore = new Player();
+        Player highestScore = new Player { UserId = "" };
         foreach (Player player in currentGame.currentPlayers)
         {
             //bubble sort to determine who has highest score
@@ -638,7 +645,7 @@ public class GameService : IGameService
     //called by SaveGameAsync or EndGameAsync
     private async Task<bool> PostMatchShutdown(Guid gameId)
     {
-        Log.Information($"Info: UpdateUserScore {gameId}");
+        Log.Information($"UpdateUserScore {gameId}");
 
         //create userService context
         await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -661,6 +668,11 @@ public class GameService : IGameService
                     //"real" user is an actual user and not a user created to allow players to skip rounds 
 
                     //bye users always lose there is no need to process their score
+
+                    if (currentUser is null)
+                    {
+                        throw new UserNotFoundException("PostMatchShutdown");
+                    }
                     bool isUserReal = IsRealUser(currentUser, player.UserId);
 
                     if (isUserReal)
@@ -681,6 +693,10 @@ public class GameService : IGameService
 
 
                 }
+            }
+            catch (UserNotFoundException e)
+            {
+                Log.Error($"{e}");
             }
             catch (GameNotFoundException e)
             {

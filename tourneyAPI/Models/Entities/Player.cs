@@ -9,7 +9,7 @@ public class Player
     public Guid Id { get; set; }
 
     [Required]
-    public string UserId { get; set; }
+    public required string UserId { get; set; } = "";
 
     [Required]
     public string DisplayName { get; set; } = "";
