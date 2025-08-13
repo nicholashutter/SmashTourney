@@ -8,14 +8,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Services;
 using ApiTests;
 
-public class _gameServiceTest : IClassFixture<CustomWebApplicationFactory<Program>>
+public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
 
     private readonly CustomWebApplicationFactory<Program> _factory;
 
     private readonly IGameService _gameService;
 
-    public _gameServiceTest()
+    public GameServiceTest()
     {
         _factory = new CustomWebApplicationFactory<Program>();
 

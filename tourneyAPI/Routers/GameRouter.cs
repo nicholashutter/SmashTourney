@@ -75,7 +75,7 @@ public static class GameRouter
             return Results.Ok();
         });
 
-        GameRoutes.MapPost("/AddPlayers", (HttpContext context, IGameService gameService, Guid gameId, List<Player> players) =>
+        GameRoutes.MapPost("/AddPlayers/{gameId}", (HttpContext context, IGameService gameService, Guid gameId, List<Player> players) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/AllPlayersIn' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -105,7 +105,7 @@ public static class GameRouter
             return Results.Ok($"Game {gameId} successfully started");
         });
 
-        GameRoutes.MapPost("/LoadGame", async(HttpContext context, IGameService gameService, Guid gameId) =>
+        GameRoutes.MapPost("/LoadGame", async (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/LoadGame' \n Time:{Timestamp}", DateTime.UtcNow);
 

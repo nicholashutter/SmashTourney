@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Net.Http.Headers;
 using System;
+using Enums;
 
 namespace Entities;
 
