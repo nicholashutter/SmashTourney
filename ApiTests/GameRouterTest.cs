@@ -1,15 +1,34 @@
 namespace ApiTests;
+
 using System.Threading.Tasks;
 using Entities;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Services;
+using System.Security.Cryptography.X509Certificates;
+using System.Runtime.CompilerServices;
 
 public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
+
+    class CreateGameRes
+    {
+        public Guid gameId { get; set; }
+    }
+
+    class GetByIdRes
+    {
+        public Game game { get; set; }
+    }
+
+    class GetAllGamesRes
+    {
+        public List<Game> games { get; set; }
+    }
 
     public GameRouterTest()
     {
@@ -38,6 +57,9 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         Assert.NotEqual(Guid.Empty, gameId);
     }
 
+
+    
+
     [Fact]
     public async Task GetAllGamesReturnsAllValidGames()
     {
@@ -55,15 +77,16 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
 
         getResponse.EnsureSuccessStatusCode();
 
+
         var jsonResponse = await getResponse.Content.ReadAsStringAsync();
-        var games = JsonSerializer.Deserialize<List<Game>>(jsonResponse, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
+        var responseData = JsonSerializer.Deserialize<GetAllGamesRes>(jsonResponse);
+
+        var games = responseData?.games;
 
         Assert.NotNull(games);
         Assert.Equal(10, games.Count);
     }
+
 
     [Fact]
     public async Task GetGameByIdReturnsValidGame()
@@ -74,11 +97,14 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         initialResponse.EnsureSuccessStatusCode();
 
         var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<Dictionary<string, Guid>>(jsonResponse);
+        var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
 
         Assert.NotNull(responseData);
 
-        var gameId = responseData["gameId"];
+        var gameId = responseData.gameId;
 
         Assert.NotEqual(Guid.Empty, gameId);
 
@@ -88,10 +114,13 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
 
         var nextJsonResponse = await nextResponse.Content.ReadAsStringAsync();
 
-        var nextResponseData = JsonSerializer.Deserialize<Dictionary<string, Game>>(jsonResponse);
+        var nextResponseData = JsonSerializer.Deserialize<GetByIdRes>(nextJsonResponse, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
 
-        Assert.NotNull(nextResponseData);
-        Assert.Equal(gameId, nextResponseData["game"].Id);
+        Assert.NotNull(nextResponseData.game);
+        Assert.Equal(gameId, nextResponseData?.game?.Id);
     }
 
     [Fact]
@@ -154,7 +183,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         addResponse.EnsureSuccessStatusCode();
 
     }
-        
+
 
 
 
