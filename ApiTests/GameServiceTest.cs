@@ -283,6 +283,70 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         }
     }
 
+    [Fact]
+    public async Task StartGameToEndGameNoByes()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+
+            var gameId = await _gameService.CreateGame();
+
+            var players = await SetupDummyUsersAndPlayers(gameId);
+
+            _gameService.AddPlayersToGame(players, gameId);
+
+            for (int i = 0; i < 8; i++)
+            {
+                _gameService.StartRound(gameId);
+
+                _gameService.StartMatch(gameId);
+
+                var matchResult = await _gameService.EndMatchAsync(gameId, players[i]);
+
+                Assert.True(matchResult);
+
+                _gameService.EndRound(gameId);
+
+                await _gameService.UpdateGameAsync(gameId);
+            }
+
+            _gameService.EndGame(gameId);
+
+        }
+    }
+
+    [Fact]
+    public async Task StartGameToEndGameWithByes()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+
+            var gameId = await _gameService.CreateGame();
+
+            var players = await SetupDummyUsersAndPlayers(gameId);
+
+            _gameService.AddPlayersToGame(players, gameId);
+
+            for (int i = 0; i < 10; i++)
+            {
+                _gameService.StartRound(gameId);
+
+                _gameService.StartMatch(gameId);
+
+                var matchResult = await _gameService.EndMatchAsync(gameId, players[i]);
+
+                Assert.True(matchResult);
+
+                _gameService.EndRound(gameId);
+
+                await _gameService.UpdateGameAsync(gameId);
+            }
+
+            _gameService.EndGame(gameId);
+
+        }
+    }
+
     //TODO need a start to finish test of gameService then we can write route handlers
 
 }

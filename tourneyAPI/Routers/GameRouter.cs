@@ -91,7 +91,7 @@ public static class GameRouter
             return Results.Ok($"Players Added to Game {gameId}");
         });
 
-        GameRoutes.MapPost("/StartGame", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        GameRoutes.MapPost("/StartGame/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/StartGame' \n Time:{Timestamp}", DateTime.UtcNow);
 

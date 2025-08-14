@@ -38,6 +38,25 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         db.Database.EnsureCreated();
     }
 
+    private List<Player> CreateDummyPlayers(Guid gameId)
+    {
+        var playerList = new List<Player>();
+
+        for (int i = 0; i < 10; i++)
+        {
+            playerList.Add(new Player
+            {
+                UserId = Guid.NewGuid().ToString(),
+                DisplayName = $"Player{i}",
+                CurrentCharacter = Enums.CharacterName.MARIO,
+                CurrentGameID = gameId,
+                CurrentOpponent = Guid.NewGuid()
+            });
+        }
+
+        return playerList;
+    }
+
     [Fact]
     public async Task CreateGameReturnsSuccess()
     {
@@ -58,7 +77,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     }
 
 
-    
+
 
     [Fact]
     public async Task GetAllGamesReturnsAllValidGames()
@@ -141,24 +160,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         endResponse.EnsureSuccessStatusCode();
     }
 
-    private List<Player> CreateDummyPlayers(Guid gameId)
-    {
-        var playerList = new List<Player>();
-
-        for (int i = 0; i < 10; i++)
-        {
-            playerList.Add(new Player
-            {
-                UserId = Guid.NewGuid().ToString(),
-                DisplayName = $"Player{i}",
-                CurrentCharacter = Enums.CharacterName.MARIO,
-                CurrentGameID = gameId,
-                CurrentOpponent = Guid.NewGuid()
-            });
-        }
-
-        return playerList;
-    }
+    
 
     [Fact]
     public async Task AddPlayersReturnsSuccess()
@@ -183,6 +185,63 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         addResponse.EnsureSuccessStatusCode();
 
     }
+      /*
+    [Fact]
+    public async Task StartGameStartsGameSuccessfully()
+    {
+        using var client = _factory.CreateClient();
+        var initialResponse = await client.PostAsync("/Games/CreateGame", null);
+        initialResponse.EnsureSuccessStatusCode();
+        var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
+        var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+        Assert.NotNull(responseData);
+        var gameId = responseData.gameId;
+
+        var playersList = CreateDummyPlayers(gameId);
+
+        var playersJson = JsonSerializer.Serialize(playersList);
+
+        var playersContent = new StringContent(playersJson, System.Text.Encoding.UTF8, "application/json");
+
+        var secondResponse = await client.PostAsync($"/Games/AddPlayers/{gameId}", playersContent);
+
+        var thirdResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
+
+        secondResponse.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task EndGameEndsGameSuccessfully()
+    {
+        using var client = _factory.CreateClient();
+        var initialResponse = await client.PostAsync("/Games/CreateGame", null);
+        initialResponse.EnsureSuccessStatusCode();
+        var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
+        var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+        Assert.NotNull(responseData);
+        var gameId = responseData.gameId;
+
+        var playersList = CreateDummyPlayers(gameId);
+
+        var playersJson = JsonSerializer.Serialize(playersList);
+
+        var playersContent = new StringContent(playersJson, System.Text.Encoding.UTF8, "application/json");
+
+        var secondResponse = await client.PostAsync($"/Games/AddPlayers/{gameId}", playersContent);
+
+        secondResponse.EnsureSuccessStatusCode();
+
+        var finalResponse = await client.GetAsync($"/Games/EndGame/{gameId}");
+
+        finalResponse.EnsureSuccessStatusCode();
+    }
+        */ 
 
 
 
