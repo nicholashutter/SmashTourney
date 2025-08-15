@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.Extensions.DependencyInjection;
 using Services;
 using ApiTests;
+using Helpers;
 
 public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
@@ -92,7 +93,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     {
         var gameId = await _gameService.CreateGame();
 
-        List<Player> players = await SetupDummyUsersAndPlayers(gameId);
+        var players = await SetupDummyUsersAndPlayers(10);
 
         var exception = Record.Exception(() => _gameService.AddPlayersToGame(players, gameId));
 
@@ -110,14 +111,14 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         Assert.Equal(gameId, foundGame.Id);
     }
 
-    private async Task<List<Player>> SetupDummyUsersAndPlayers(Guid gameId)
+    private async Task<List<Player>> SetupDummyUsersAndPlayers(int playerCount)
     {
 
         using (var scope = _factory.Services.CreateAsyncScope())
         {
             List<Player> players = new List<Player>();
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < playerCount; i++)
             {
                 var _userRepository = scope.ServiceProvider.GetRequiredService<IUserManager>();
 
@@ -166,7 +167,8 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         var foundGame = await _gameService.GetGameByIdAsync(gameId);
 
-        List<Player> players = await SetupDummyUsersAndPlayers(gameId);
+        var players = await SetupDummyUsersAndPlayers(10);
+
 
         _gameService.AddPlayersToGame(players, gameId);
 
@@ -174,13 +176,13 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     }
 
     [Fact]
-    public async Task SaveGame()
+    public async Task SaveGameSavesSuccessfully()
     {
         var gameId = await _gameService.CreateGame();
 
         var foundGame = await _gameService.GetGameByIdAsync(gameId);
 
-        List<Player> players = await SetupDummyUsersAndPlayers(gameId);
+        var players = await SetupDummyUsersAndPlayers(10);
 
         _gameService.AddPlayersToGame(players, gameId);
 
@@ -196,13 +198,13 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     }
 
     [Fact]
-    public async Task LoadGame()
+    public async Task LoadGameLoadsSuccessfully()
     {
         var gameId = await _gameService.CreateGame();
 
         var foundGame = await _gameService.GetGameByIdAsync(gameId);
 
-        List<Player> players = await SetupDummyUsersAndPlayers(gameId);
+        var players = await SetupDummyUsersAndPlayers(10);
 
         _gameService.AddPlayersToGame(players, gameId);
 
@@ -224,7 +226,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     {
         var gameId = await _gameService.CreateGame();
 
-        var players = await SetupDummyUsersAndPlayers(gameId);
+        var players = await SetupDummyUsersAndPlayers(10);
 
         _gameService.AddPlayersToGame(players, gameId);
 
@@ -236,11 +238,11 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     {
         var gameId = await _gameService.CreateGame();
 
-        var players = await SetupDummyUsersAndPlayers(gameId);
+        var players = await SetupDummyUsersAndPlayers(10);
 
         _gameService.AddPlayersToGame(players, gameId);
 
-        var currentPlayers = _gameService.StartRound(gameId);
+        _gameService.StartRound(gameId);
 
         var exception = Record.Exception(() => _gameService.EndRound(gameId));
     }
@@ -254,7 +256,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         {
             var gameId = await _gameService.CreateGame();
 
-            var players = await SetupDummyUsersAndPlayers(gameId);
+            var players = await SetupDummyUsersAndPlayers(10);
 
             _gameService.AddPlayersToGame(players, gameId);
 
@@ -271,8 +273,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         {
             var gameId = await _gameService.CreateGame();
 
-            var players = await SetupDummyUsersAndPlayers(gameId);
-
+            var players = await SetupDummyUsersAndPlayers(10);
             _gameService.AddPlayersToGame(players, gameId);
 
             _gameService.StartRound(gameId);
@@ -288,22 +289,32 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     {
         using (var scope = _factory.Services.CreateScope())
         {
+            const int NUM_PLAYERS_NO_BYES = 8;
+
 
             var gameId = await _gameService.CreateGame();
 
-            var players = await SetupDummyUsersAndPlayers(gameId);
+            var players = await SetupDummyUsersAndPlayers(NUM_PLAYERS_NO_BYES);
 
             _gameService.AddPlayersToGame(players, gameId);
 
-            for (int i = 0; i < 8; i++)
+            await _gameService.StartGameAsync(gameId);
+
+            //test all ten players play a match for one round
+            //and then end the round and game
+
+            for (int i = 0; i < NUM_PLAYERS_NO_BYES; i++)
             {
                 _gameService.StartRound(gameId);
 
-                _gameService.StartMatch(gameId);
+                for (int j = 0; j < players.Count; j++)
+                {
+                    _gameService.StartMatch(gameId);
 
-                var matchResult = await _gameService.EndMatchAsync(gameId, players[i]);
+                    var matchResult = await _gameService.EndMatchAsync(gameId, players[j]);
 
-                Assert.True(matchResult);
+                    Assert.True(matchResult);
+                }
 
                 _gameService.EndRound(gameId);
 
@@ -320,22 +331,31 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     {
         using (var scope = _factory.Services.CreateScope())
         {
+            const int NUM_PLAYERS_TWO_BYES = 10;
 
             var gameId = await _gameService.CreateGame();
 
-            var players = await SetupDummyUsersAndPlayers(gameId);
+            var players = await SetupDummyUsersAndPlayers(NUM_PLAYERS_TWO_BYES);
 
             _gameService.AddPlayersToGame(players, gameId);
 
-            for (int i = 0; i < 10; i++)
+            await _gameService.StartGameAsync(gameId);
+
+            //test all ten players play a match for one round
+            //and then end the round and game
+
+            for (int i = 0; i < NUM_PLAYERS_TWO_BYES; i++)
             {
                 _gameService.StartRound(gameId);
 
-                _gameService.StartMatch(gameId);
+                for (int j = 0; j < players.Count; j++)
+                {
+                    _gameService.StartMatch(gameId);
 
-                var matchResult = await _gameService.EndMatchAsync(gameId, players[i]);
+                    var matchResult = await _gameService.EndMatchAsync(gameId, players[j]);
 
-                Assert.True(matchResult);
+                    Assert.True(matchResult);
+                }
 
                 _gameService.EndRound(gameId);
 

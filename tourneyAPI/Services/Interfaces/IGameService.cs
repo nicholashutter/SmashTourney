@@ -37,7 +37,7 @@ public interface IGameService
 
     // Gameservice will need to pass itself to roundService and track an instance of roundService
     // API route //StartRound
-    List<Player>? StartRound(Guid gameId);
+    void StartRound(Guid gameId);
 
     // API route /EndRound
     bool EndRound(Guid gameId);

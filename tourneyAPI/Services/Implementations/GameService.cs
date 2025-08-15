@@ -23,6 +23,10 @@ public class GameService : IGameService
     //list that represents users authenticated but not in a specific game
     public List<ApplicationUser> _userSessions;
 
+
+    //these lists are used to allow for game and player round syncronization
+    private Stack<Player> _hasNotPlayed = new Stack<Player>();
+
     //GameService has a singleton lifetime and is created on application start
     public GameService(IServiceScopeFactory scopeFactory, IServiceProvider serviceProvider)
     {
@@ -276,11 +280,10 @@ public class GameService : IGameService
         {
             var foundGame = await GetGameByIdAsync(existingGameId);
 
-            bool success = false;
             if (foundGame is null)
             {
-                success = await LoadGameAsync(existingGameId);
-                if (!success)
+                bool LoadGameFromDb = await LoadGameAsync(existingGameId);
+                if (!LoadGameFromDb)
                 {
                     foundGame = _games.Find(g => g.Id == existingGameId);
                     if (foundGame is null)
@@ -289,8 +292,7 @@ public class GameService : IGameService
                     }
                 }
             }
-            success = GenerateBracket(existingGameId);
-            if (!success)
+            if (!GenerateBracket(existingGameId))
             {
                 throw new InvalidFunctionResponseException("StartGameAsync");
             }
@@ -425,11 +427,28 @@ public class GameService : IGameService
         }
         return false;
     }
-    //api route //StartRound
-    public List<Player>? StartRound(Guid gameId)
+
+    //get the game from gameId
+    //foreach put each player in hasNotPlayed
+    private void LoadPlayersForRound(Guid gameId)
     {
-        return StartMatch(gameId);
+        var foundGame = _games.Find(g => g.Id == gameId);
+        if (foundGame is null)
+        {
+            throw new GameNotFoundException("LoadPlayersForRound");
+        }
+        foreach (Player player in foundGame.currentPlayers)
+        {
+            _hasNotPlayed.Push(player);
+        }
     }
+    //api route //StartRound
+    public void StartRound(Guid gameId)
+    {
+        LoadPlayersForRound(gameId);
+    }
+
+
 
     //api route /EndRound
     public bool EndRound(Guid gameId)
@@ -444,6 +463,12 @@ public class GameService : IGameService
             {
                 throw new GameNotFoundException("EndRoundAsync");
             }
+            //increment player round and game round together to stay in sync
+            foreach (Player player in foundGame.currentPlayers)
+            {
+                player.CurrentRound++;
+            }
+
             foundGame.currentRound++;
             return true;
 
@@ -453,6 +478,37 @@ public class GameService : IGameService
             Log.Error($"{e}");
             return false;
         }
+    }
+
+
+    private List<Player> PreMatchSetup(Game foundGame)
+    {
+
+        var currentPlayers = new List<Player>();
+        if (_hasNotPlayed.Count > 0)
+        {
+            var currentPlayerOne = _hasNotPlayed.Pop();
+            var currentPlayerTwo = _hasNotPlayed.Pop();
+
+            if (currentPlayerOne.CurrentRound != foundGame.currentRound)
+            {
+                throw new RoundMismatchException("StartMatch");
+            }
+            else if (currentPlayerTwo.CurrentRound != foundGame.currentRound)
+            {
+                throw new RoundMismatchException("StartMatch");
+            }
+
+            currentPlayers = new List<Player> { currentPlayerOne, currentPlayerTwo };
+
+            foundGame.currentMatch++;
+        }
+        else
+        {
+            EndRound(foundGame.Id);
+        }
+
+        return currentPlayers;
     }
     //api route StartMatch
     //list of players should be unpacked by route and returned in HTTP response
@@ -487,38 +543,6 @@ public class GameService : IGameService
         }
     }
 
-    private List<Player> PreMatchSetup(Game foundGame)
-    {
-        //load two new players
-        List<Player> currentPlayers = new List<Player>();
-
-        /* 
-            two players loaded into return array based on round counter
-            so that two players are loaded every match and should stay in sync with bracket
-        */
-        var currentPlayerOne = foundGame.currentPlayers[foundGame.currentMatch];
-        var currentPlayerTwo = foundGame.currentPlayers[foundGame.currentMatch++];
-
-        if (currentPlayerOne.CurrentRound != foundGame.currentRound)
-        {
-            throw new RoundMismatchException("StartMatch");
-        }
-        else if (currentPlayerTwo.CurrentRound != foundGame.currentRound)
-        {
-            throw new RoundMismatchException("StartMatch");
-        }
-
-        currentPlayers.Add(currentPlayerOne);
-        currentPlayers.Add(currentPlayerTwo);
-
-        /*players themselves also track their round so that round stays syncronized
-        all players who have played should have a higher round than currentRound */
-        currentPlayerOne.CurrentRound = currentPlayerOne.CurrentRound++;
-        currentPlayerTwo.CurrentRound = currentPlayerTwo.CurrentRound++;
-
-        foundGame.currentMatch++;
-        return currentPlayers;
-    }
     //api route EndMatch
     public async Task<bool> EndMatchAsync(Guid gameId, Player matchWinner)
     {
@@ -645,7 +669,7 @@ public class GameService : IGameService
     //called by SaveGameAsync or EndGameAsync
     private async Task<bool> PostMatchShutdown(Guid gameId)
     {
-        Log.Information($"UpdateUserScore {gameId}");
+        Log.Information($"PostMatchShutdown {gameId}");
 
         //create userService context
         await using (var scope = _scopeFactory.CreateAsyncScope())
@@ -657,7 +681,7 @@ public class GameService : IGameService
 
                 if (foundGame is null)
                 {
-                    throw new GameNotFoundException("UpdateUserScore");
+                    throw new GameNotFoundException("PostMatchShutdown");
                 }
 
                 foundGame = CalculateHighestScore(foundGame);
@@ -665,17 +689,10 @@ public class GameService : IGameService
                 foreach (Player player in foundGame.currentPlayers)
                 {
                     var currentUser = await userRepository.GetUserByIdAsync(player.UserId);
-                    //"real" user is an actual user and not a user created to allow players to skip rounds 
 
-                    //bye users always lose there is no need to process their score
+                    var userType = IsRealUser(currentUser, player.UserId);
 
-                    if (currentUser is null)
-                    {
-                        throw new UserNotFoundException("PostMatchShutdown");
-                    }
-                    bool isUserReal = IsRealUser(currentUser, player.UserId);
-
-                    if (isUserReal)
+                    if (userType == UserType.RealUser)
                     {
                         //set new timestamps for relevant timestamp fields
                         //increment and decrement totals wins / losses / games played
@@ -690,6 +707,18 @@ public class GameService : IGameService
                         }
 
                     }
+                    else if (userType == UserType.ByeUser)
+                    {
+                        Log.Information($"Bye User processed. No score update needed.");
+                    }
+                    else if (userType == UserType.NullUser)
+                    {
+                        throw new UserNotFoundException("PostMatchShutdown");
+                    }
+                    else
+                    {
+                        throw new InvalidObjectStateException("PostMatchShutdown");
+                    }
 
 
                 }
@@ -702,36 +731,71 @@ public class GameService : IGameService
             {
                 Log.Error($"{e}");
             }
+            catch (InvalidObjectStateException e)
+            {
+                Log.Error($"{e}");
+            }
         }
         return true;
     }
 
     //validate if user is null object pattern (bye user)
     //or "real" ApplicationUser
-    private bool IsRealUser(ApplicationUser currentUser, string userId)
+
+    enum UserType
     {
-        if (currentUser is null && userId.Equals(AppConstants.ByeUserId))
+        RealUser,
+        ByeUser,
+
+        NullUser
+    }
+    private UserType IsRealUser(ApplicationUser currentUser, string userId)
+    {
+        if (userId.Equals(AppConstants.ByeUserId))
         {
-            return false;
+            return UserType.ByeUser;
+        }
+        else if (currentUser is not null)
+        {
+            return UserType.RealUser;
         }
         else
         {
-            return true;
+            return UserType.NullUser;
         }
     }
 
     //Update User Values Post Match 
     private ApplicationUser UpdateUser(ApplicationUser currentUser, Player player)
     {
-        currentUser.AllTimeMatches = player.CurrentRound + currentUser.AllTimeMatches;
-        var currentWins = Math.Abs(player.CurrentScore - player.CurrentRound);
-        currentUser.AllTimeWins = currentWins + currentUser.AllTimeWins;
-        var currentLosses = Math.Abs(player.CurrentRound - currentWins);
+        var isRealUser = IsRealUser(currentUser, currentUser.Id);
 
-        if (currentLosses + currentWins != player.CurrentRound)
+        try
         {
-            throw new InvalidObjectStateException("UpdateUserScore");
+            if (isRealUser == UserType.RealUser)
+            {
+                currentUser.AllTimeMatches = player.CurrentRound + currentUser.AllTimeMatches;
+                var currentWins = Math.Abs(player.CurrentScore - player.CurrentRound);
+                currentUser.AllTimeWins = currentWins + currentUser.AllTimeWins;
+                var currentLosses = Math.Abs(player.CurrentRound - currentWins);
+            }
+            else if (isRealUser == UserType.ByeUser)
+            {
+                Log.Information($"Bye User processed. No score update needed.");
+                return currentUser;
+            }
+            else if (isRealUser == UserType.NullUser)
+            {
+                throw new UserNotFoundException("UpdateUser");
+            }
         }
+        catch (UserNotFoundException e)
+        {
+            Log.Error($"{e}");
+            return currentUser;
+        }
+
+
 
         return currentUser;
     }

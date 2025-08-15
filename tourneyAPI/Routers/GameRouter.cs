@@ -132,16 +132,9 @@ public static class GameRouter
         {
             Log.Information("Request Type: Post \n URL: '/Games/StartRound' \n Time:{Timestamp}", DateTime.UtcNow);
 
-            List<Player>? players = gameService.StartRound(gameId);
+            gameService.StartRound(gameId);
 
-            if (players is null)
-            {
-                return Results.Problem("Internal Server Error");
-            }
-
-            var response = new { Players = players };
-
-            return Results.Ok(response);
+            return Results.Ok();
         });
 
 

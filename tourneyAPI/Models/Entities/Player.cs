@@ -17,16 +17,8 @@ public class Player
     public int CurrentRound { get; set; } = 0;
 
     [Required]
-    public Guid CurrentOpponent { get; set; }
-
-    [Required]
     public CharacterName CurrentCharacter { get; set; } = CharacterName.NONE;
 
     [Required]
-    public DateTime CurrentDate { get; set; } = DateTime.UtcNow;
-
-    [Required]
     public Guid CurrentGameID { get; set; }
-    public bool HasVoted { get; set; } = false;
-    public Guid MatchWinner { get; set; }
 }

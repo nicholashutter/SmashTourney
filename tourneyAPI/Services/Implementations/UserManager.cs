@@ -10,8 +10,9 @@ using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Serilog;
+using System.Diagnostics.Eventing.Reader;
 
-/* UserManager is an identityUser service that implements repository pattern */ 
+/* UserManager is an identityUser service that implements repository pattern */
 public class UserManager : IUserManager
 {
     private readonly UserManager<ApplicationUser> _identityUserManager;
