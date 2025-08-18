@@ -10,6 +10,7 @@ using System.Text.Json.Nodes;
 using Services;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.CompilerServices;
+using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 
 public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
@@ -38,18 +39,25 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         db.Database.EnsureCreated();
     }
 
-    private List<Player> CreateDummyPlayers(Guid gameId)
+    private Dictionary<Player, ApplicationUser> CreateDummyPlayersAndUsers(Guid gameId, int numberOfPlayers)
     {
-        var playerList = new List<Player>();
+        var playerList = new Dictionary<Player, ApplicationUser>();
 
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < numberOfPlayers; i++)
         {
+            var UserId = Guid.NewGuid(); 
             playerList.Add(new Player
             {
-                UserId = Guid.NewGuid().ToString(),
+                UserId = UserId.ToString(),
                 DisplayName = $"Player{i}",
                 CurrentCharacter = Enums.CharacterName.MARIO,
                 CurrentGameID = gameId
+            },
+            new ApplicationUser
+            {
+                Id = UserId.ToString(),
+                UserName = $"Player{i}",
+                Email = $"" + i + "@example.com"
             });
         }
 
@@ -66,13 +74,33 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         response.EnsureSuccessStatusCode();
 
         var jsonResponse = await response.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<Dictionary<string, Guid>>(jsonResponse);
+        var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse);
 
         Assert.NotNull(responseData);
 
-        var gameId = responseData["gameId"];
+        var gameId = responseData?.gameId;
+
+        Assert.NotNull(gameId);
 
         Assert.NotEqual(Guid.Empty, gameId);
+    }
+
+    [Fact]
+    public async Task CreateUserSessionTakesValidUserReturnsSuccess()
+    {
+        using var client = _factory.CreateClient();
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid().ToString(),
+            UserName = "TestUser",
+            Email = "" + Guid.NewGuid() + "@example.com"
+        };
+
+        var userJson = JsonSerializer.Serialize(user);
+        var usersContent = new StringContent(userJson, System.Text.Encoding.UTF8, "application/json");
+        var response = await client.PostAsync("/Games/CreateUserSession", usersContent);
+
+        response.EnsureSuccessStatusCode();
     }
 
 
@@ -168,12 +196,32 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         var initialResponse = await client.PostAsync("/Games/CreateGame", null);
         initialResponse.EnsureSuccessStatusCode();
         var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<Dictionary<string, Guid>>(jsonResponse);
-        Assert.NotNull(responseData);
-        var gameId = responseData["gameId"];
-        Assert.NotEqual(Guid.Empty, gameId);
+        var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse, new JsonSerializerOptions
+      {
+          PropertyNameCaseInsensitive = true
+      });
 
-        var playersList = CreateDummyPlayers(gameId);
+      Assert.NotNull(responseData);
+      var gameId = responseData.gameId;
+
+        const int NUM_PLAYERS = 10; 
+
+        Dictionary<Player, ApplicationUser> playersAndUsers = CreateDummyPlayersAndUsers(gameId, NUM_PLAYERS);
+
+        var playersList = playersAndUsers.Keys.ToList();
+
+        var usersList = playersAndUsers.Values.ToList();
+        
+
+        foreach (var user in usersList)
+
+        {
+            var userJson = JsonSerializer.Serialize(user);
+            var usersContent = new StringContent(userJson, System.Text.Encoding.UTF8, "application/json");
+            var userResponse = await client.PostAsync("/Games/CreateUserSession", usersContent);
+
+        userResponse.EnsureSuccessStatusCode();
+        }
 
         var playersJson = JsonSerializer.Serialize(playersList);
 
@@ -189,27 +237,51 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
   public async Task StartGameStartsGameSuccessfully()
   {
       using var client = _factory.CreateClient();
+
+      const int NUM_PLAYERS = 10;
+
       var initialResponse = await client.PostAsync("/Games/CreateGame", null);
+
       initialResponse.EnsureSuccessStatusCode();
+
       var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
       var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse, new JsonSerializerOptions
       {
           PropertyNameCaseInsensitive = true
       });
+
       Assert.NotNull(responseData);
       var gameId = responseData.gameId;
 
-      var playersList = CreateDummyPlayers(gameId);
+      var playersAndUsers = CreateDummyPlayersAndUsers(gameId, NUM_PLAYERS);
+
+        var playersList = playersAndUsers.Keys.ToList();
+
+        var usersList = playersAndUsers.Values.ToList();
 
       var playersJson = JsonSerializer.Serialize(playersList);
 
       var playersContent = new StringContent(playersJson, System.Text.Encoding.UTF8, "application/json");
 
-      var secondResponse = await client.PostAsync($"/Games/AddPlayers/{gameId}", playersContent);
+        
 
-      var thirdResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
+        foreach (var user in usersList)
+        {
+            var usesrJson = JsonSerializer.Serialize(user);
 
-      secondResponse.EnsureSuccessStatusCode();
+            var usersContent = new StringContent(usesrJson, System.Text.Encoding.UTF8, "application/json");
+            var secondResponse = await client.PostAsync("/Games/CreateUserSession", usersContent);
+
+            secondResponse.EnsureSuccessStatusCode();
+        }
+
+        var thirdResponse = await client.PostAsync($"/Games/AddPlayers/{gameId}", playersContent);
+
+    thirdResponse.EnsureSuccessStatusCode();
+
+      var fourthResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
+
+      fourthResponse.EnsureSuccessStatusCode();
   }
 
   [Fact]
@@ -226,11 +298,28 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
       Assert.NotNull(responseData);
       var gameId = responseData.gameId;
 
-      var playersList = CreateDummyPlayers(gameId);
+        const int NUM_PLAYERS = 10;
+
+        var playersAndUsers = CreateDummyPlayersAndUsers(gameId, NUM_PLAYERS);
+
+        var playersList = playersAndUsers.Keys.ToList();
+        var usersList = playersAndUsers.Values.ToList();
+
 
       var playersJson = JsonSerializer.Serialize(playersList);
 
       var playersContent = new StringContent(playersJson, System.Text.Encoding.UTF8, "application/json");
+
+      foreach (var user in usersList)
+        {
+            var usesrJson = JsonSerializer.Serialize(user);
+
+            var usersContent = new StringContent(usesrJson, System.Text.Encoding.UTF8, "application/json");
+            var innerResponse = await client.PostAsync("/Games/CreateUserSession", usersContent);
+            innerResponse.EnsureSuccessStatusCode();
+        }
+
+        
 
       var secondResponse = await client.PostAsync($"/Games/AddPlayers/{gameId}", playersContent);
 

@@ -193,7 +193,7 @@ public class GameService : IGameService
 
     }
 
-    //Api route /AddUserToLobby
+    //Api route /CreateUserSession
     //will only let authenticated users further inside the application if the gameID presented is valid
     public bool CreateUserSession(ApplicationUser addUser)
     {

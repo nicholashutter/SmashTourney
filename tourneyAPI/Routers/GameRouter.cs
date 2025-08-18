@@ -91,6 +91,23 @@ public static class GameRouter
             return Results.Ok($"Players Added to Game {gameId}");
         });
 
+
+        GameRoutes.MapPost("/CreateUserSession", (HttpContext context, IGameService gameService, ApplicationUser user) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/Games/AllPlayersIn' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            UserValidator.Validate(user, "CreateUserSessionRoute");
+
+            bool success = gameService.CreateUserSession(user);
+
+            if (!success)
+            {
+                return Results.Problem("Internal Server Error");
+            }
+
+            return Results.Ok($"User Session Created for {user.UserName}");
+        });
+
         GameRoutes.MapPost("/StartGame/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/StartGame' \n Time:{Timestamp}", DateTime.UtcNow);
