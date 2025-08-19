@@ -1,6 +1,7 @@
 namespace Services;
 
 using System.Security;
+using System.Security.Claims;
 using Entities;
 using Microsoft.Extensions.Configuration.UserSecrets;
 
@@ -20,6 +21,8 @@ public interface IGameService
 
     //Called by callback when ApplicationUser successfully Auths into app
     bool CreateUserSession(ApplicationUser addUser);
+
+    bool EndUserSession(ClaimsPrincipal user);
 
     // API route /AllPlayersIn
     bool AddPlayersToGame(List<Player> players, Guid gameId);

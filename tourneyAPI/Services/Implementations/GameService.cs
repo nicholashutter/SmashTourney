@@ -10,6 +10,8 @@ using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Microsoft.Extensions.Configuration.UserSecrets;
+using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
 
 public class GameService : IGameService
 {
@@ -225,6 +227,41 @@ public class GameService : IGameService
             return false;
         }
 
+    }
+
+    public bool EndUserSession(ClaimsPrincipal user)
+    {
+        Log.Information($"Ending User Session for {user.Identity.Name}");
+
+        try
+        {
+            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (userId is null)
+            {
+                Log.Error($"Unable to end User Session: userId could not be parsed from ClaimsPrincipal");
+                throw new InvalidArgumentException("EndUserSession");
+            }
+
+            var foundUser = _userSessions.Find(u => u.Id == userId);
+
+            if (foundUser is null)
+            {
+                Log.Warning($"Unable to end User Session: User not found in user sessions");
+                throw new UserNotFoundException("EndUserSession");
+            }
+        }
+        catch (UserNotFoundException e)
+        {
+            Log.Error($"{e}");
+            return false;
+        }
+        catch (InvalidArgumentException e)
+        {
+            Log.Error($"{e}");
+            return false;
+        }
+        return true; 
     }
 
     //api route /AllPlayersIn

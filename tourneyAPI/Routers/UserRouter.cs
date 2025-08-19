@@ -117,9 +117,18 @@ public static class UserRouter
 
 
 
-        UserRoutes.MapPost("/logout", async (HttpContext context) =>
+        UserRoutes.MapPost("/logout", async (HttpContext context, IGameService gameService) =>
         {
             await context.SignOutAsync(IdentityConstants.ApplicationScheme);
+
+            Log.Information("Request Type: Post \n URL: '/users/logout' \n Time: {Timestamp}", DateTime.UtcNow);
+
+            bool success = gameService.EndUserSession(context.User);
+
+            if (!success)
+            {
+                return Results.Problem("Internal Server Error");
+            }
 
             return Results.Ok();
         }).RequireAuthorization();
