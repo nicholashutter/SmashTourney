@@ -25,6 +25,7 @@ public enum Archetype
     HALF_GRAPPLER,
     HALF_HEALER,
     DYNAMIC,
+    TANK,
     AURA,
     FIRST_STRIKE,
     PRECISION
