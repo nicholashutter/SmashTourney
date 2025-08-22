@@ -26,11 +26,6 @@ public class PlayerValidator()
             throw new PlayerValidationException($"{TAG}: UserId is not a valid GUID.");
         }
 
-        if (validatePlayer.CurrentCharacter == CharacterName.NONE)
-        {
-            throw new PlayerValidationException($"{TAG}: CurrentCharacter cannot be NONE.");
-        }
-
         if (validatePlayer.CurrentGameID == Guid.Empty)
         {
             throw new PlayerValidationException($"{TAG}: CurrentGameID cannot be an empty GUID.");

@@ -122,7 +122,7 @@ public static class GameRouter
             return Results.Ok($"Game {gameId} successfully started");
         });
 
-        GameRoutes.MapPost("/LoadGame", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        GameRoutes.MapPost("/LoadGame/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/LoadGame' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -136,7 +136,7 @@ public static class GameRouter
             return Results.Ok($"Game {gameId} successfully loaded");
         });
 
-        GameRoutes.MapPost("/SaveGame", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        GameRoutes.MapPost("/SaveGame/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/SaveGame' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -145,7 +145,7 @@ public static class GameRouter
             return Results.Ok($"Game {gameId} saved");
         });
 
-        GameRoutes.MapPost("/StartRound", (HttpContext context, IGameService gameService, Guid gameId) =>
+        GameRoutes.MapPost("/StartRound/{gameId}", (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/StartRound' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -155,7 +155,7 @@ public static class GameRouter
         });
 
 
-        GameRoutes.MapPost("/StartMatch", (HttpContext context, IGameService gameService, Guid gameId) =>
+        GameRoutes.MapPost("/StartMatch/{gameId}", (HttpContext context, IGameService gameService, Guid gameId) =>
                 {
                     Log.Information("Request Type: Post \n URL: '/Games/StartMatch' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -171,7 +171,7 @@ public static class GameRouter
                     return Results.Ok(response);
                 });
 
-        GameRoutes.MapPost("/EndMatch", async (HttpContext context, IGameService gameService, Guid gameId, Player MatchWinner) =>
+        GameRoutes.MapPost("/EndMatch/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId, Player MatchWinner) =>
                 {
                     Log.Information("Request Type: Post \n URL: '/Games/EndMatch' \n Time:{Timestamp}", DateTime.UtcNow);
 

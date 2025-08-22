@@ -2,6 +2,7 @@ namespace Enums;
 
 public enum TierPlacement
 {
+
     S,
     A,
     B,

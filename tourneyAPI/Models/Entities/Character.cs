@@ -7,8 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 [ExcludeFromCodeCoverage]
 public class Character
 {
-    public Guid Id { get; set; }
-    public CharacterName CharacterName { get; set; } = CharacterName.NONE;
+    public CharacterName characterName { get; set; }
 
     public Archetype archetype { get; set; }
 

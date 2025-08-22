@@ -1,6 +1,7 @@
 namespace Enums; 
 public enum Archetype
 {
+    
     ALL_ROUNDER,
     RUSHDOWN,
     PRESSURER,
@@ -19,6 +20,8 @@ public enum Archetype
     TURTLE,
     KEEP_AWAY,
     STAGE_CONTROL,
+    NINJA,
+    GRAPPLER,
     HALF_GRAPPLER,
     HALF_HEALER,
     DYNAMIC,

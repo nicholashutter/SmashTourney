@@ -2,7 +2,6 @@ namespace Enums;
 
 public enum CharacterName
 {
-    NONE,
     MARIO,
     DONKEY_KONG,
     LINK,

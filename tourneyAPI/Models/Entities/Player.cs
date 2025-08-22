@@ -17,7 +17,7 @@ public class Player
     public int CurrentRound { get; set; } = 0;
 
     [Required]
-    public CharacterName CurrentCharacter { get; set; } = CharacterName.NONE;
+    public Character CurrentCharacter { get; set; } = new Character();
 
     [Required]
     public Guid CurrentGameID { get; set; }
