@@ -1,15 +1,13 @@
-
-
 namespace Entities;
 
 using Enums;
 
-public class ToonLink : Character
+public class Sora : Character
 {
-    public ToonLink()
+    public Sora()
     {
-        characterName = CharacterName.TOON_LINK;
-        archetype = Archetype.TURTLE;
+        characterName = CharacterName.SORA;
+        archetype = Archetype.MIX_UP;
         fallSpeed = FallSpeed.FLOATY;
         weightClass = WeightClass.LIGHTWEIGHT;
         tierPlacement = TierPlacement.A;

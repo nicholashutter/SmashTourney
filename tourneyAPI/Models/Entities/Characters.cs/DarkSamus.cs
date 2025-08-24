@@ -4,14 +4,14 @@ namespace Entities;
 
 using Enums;
 
-public class ToonLink : Character
+public class DarkSamus : Character
 {
-    public ToonLink()
+    public DarkSamus()
     {
-        characterName = CharacterName.TOON_LINK;
+        characterName = CharacterName.DARK_SAMUS;
         archetype = Archetype.TURTLE;
         fallSpeed = FallSpeed.FLOATY;
-        weightClass = WeightClass.LIGHTWEIGHT;
+        weightClass = WeightClass.MIDDLEWEIGHT;
         tierPlacement = TierPlacement.A;
     }
 

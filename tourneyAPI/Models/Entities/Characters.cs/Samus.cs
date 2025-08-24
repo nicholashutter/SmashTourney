@@ -10,7 +10,7 @@ public class Samus : Character
     {
         characterName = CharacterName.SAMUS;
         archetype = Archetype.TURTLE;
-        fallSpeed = FallSpeed.FAST_FALLERS;
+        fallSpeed = FallSpeed.FLOATY;
         weightClass = WeightClass.MIDDLEWEIGHT;
         tierPlacement = TierPlacement.A;
     }
