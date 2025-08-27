@@ -1,59 +1,29 @@
-'use client'
-import User from "@/app/resources/user";
-import Link from "next/link";
-import "./page.css";
-import { useState, ReactNode } from "react";
-import Button from "@mui/material/Button"; 
+import BasicInput from "../components/BasicInput";
+import BasicHeading from "../components/BasicHeading";
+import SubmitButton from "../components/SubmitButton";
 
 
 
-const SignUp = (props: { children?: ReactNode }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [playerName, setPlayerName] = useState("");
-  const [register, setRegister] = useState(false);
-  
-  const clientUser:User = 
-  {
-    playerName: playerName,
-    email: email,
-    passwordHash: password
-  }
-
-  function handleSubmit (e:React.FormEvent)
-  {
-   window.alert("Submission Success"); 
-  }
+const SignUp = () =>
+{
 
   return (
     <>
       <meta charSet="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>User Registration</title>
-      <div className="container">
-        <h2 className="title">Sign Up</h2>
-        <form action="#" method="post" onSubmit={(e)=> handleSubmit(e)}>
-          <div className="form-group">
-            <label htmlFor="username">Username:</label>
-            <input type="text" id="username" name="username" value={playerName} onChange={(e)=> setPlayerName(e.target.value)} /> 
-          </div>
-          <div className="form-group">
-            <label htmlFor="email">Email:</label>
-            <input type="email" id="email" name="email" value={email} onChange={(e) => setEmail(e.target.value)}/>
-          </div>
-          <div className="form-group">
-            <label htmlFor="password">Password:</label>
-            <input type="password" id="password" name="password" value={password} onChange={(e) => setPassword(e.target.value)}/>
-          </div>
-          <div className="form-group">
-            <input type="button" onClick={handleSubmit} id ="submitButton" defaultValue="Sign Up" />
-          </div>
-          <div className="form-group"> 
-            <span className="switch-text">
-              Already have an account? <Link  href="/">Sign In Here</Link>
-            </span>
-          </div>
-        </form>
+      <div className="flex flex-col items-center justify-center h-dvh w-dvw">
+        <BasicHeading headingText="Welcome!" />
+        <BasicInput labelText="Username:" htmlFor="username" name="username" id="username" />
+        <BasicInput labelText="Email:" htmlFor="email" name="email" id="email" />
+        <BasicInput labelText="Password:" htmlFor="password" name="password" id="password" />
+        <BasicHeading headingText="Already have an account? Sign In Here" />
+        <SubmitButton buttonLabel="Sign Up" onSubmit={
+          () =>
+          {
+            window.alert("Submission Success");
+          }
+        } />
       </div>
     </>
   );
