@@ -1,6 +1,5 @@
 export interface ApplicationUser 
 {
-   UserName:string, 
-   Password:string, 
-   Email:string
+   UserName: string,
+   Password: string
 }

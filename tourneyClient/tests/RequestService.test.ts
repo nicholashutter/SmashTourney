@@ -38,6 +38,7 @@ test("RequestService submits a properly formatted http request", async () =>
         }
     );
 
+    //RequestService is a custom api to wrap fetch that includes type safety for back end
     const result = await RequestService("createUserSession",
         {
             body:
@@ -50,5 +51,16 @@ test("RequestService submits a properly formatted http request", async () =>
             success: true
         }
     )
+
+    //Using mock provided fetch test that shape of data is correct and reponse returns success
+    const [url, options] = (fetch as any).mock.calls[0];
+
+    expect(url).toContain("createUserSession");
+
+    expect(options.method).toBe("POST"); 
+    expect(options.headers["Content-Type"]).toBe("application/json");
+
+    const parsedBody = JSON.parse(options.body);
+    expect(parsedBody.User).toEqual(User);
 
 })

@@ -1,45 +1,61 @@
+import React from "react";
+import { useState } from 'react';
+import BasicInput from "../components/BasicInput";
+import BasicHeading from "../components/BasicHeading";
+import { RequestService } from "../utilities/RequestService";
+import SubmitButton from "../components/SubmitButton";
+import { ApplicationUser } from "../models/entities/ApplicationUser";
 
-'use client'
-import User from "@/app/resources/user";
-import "./page.css";
-import {ReactNode } from "react";
-
-import Button from "@mui/material/Button"; 
 
 
-//this link element will have to be ported over
-import Link from 'next/link';
 
-function handleSubmit(){
-  window.alert("submission success"); 
-}
 
-const GuestSignUp = (props: { children?: ReactNode }) => {
+
+
+
+
+
+const GuestSignUp: React.FC = () =>
+{
+
+  const [userName, setUserName] = useState("");
+
+  const password = "null";
+
+
+
+  const guestUser: ApplicationUser =
+  {
+    UserName: userName,
+    Password: password
+  }
+
+  const handleUserNameChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+  {
+    setUserName(e.target.value);
+  }
+
+  const onSubmit = () =>
+  {
+    RequestService(
+      "createUserSession",
+      {
+        body: guestUser
+      }
+    )
+  }
+
   return (
-    <>
+    <div className="flex flex-col items-center justify-center h-dvh w-dvw">
       <meta charSet="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>User Registration</title>
-      <div className="container">
-        <h2 className="title">Guest Sign Up</h2>
-        <form >
-          <div className="form-group">
-            <label htmlFor="username">Username:</label>
-            <input type="text" id="username" name="username" />
-            <br/>
-            <label id="doNotTrack">Guest Stats Do Not Get Tracked</label>
-          </div>
-          <div className="form-group">
-            <input type="button" id="submitButton" onClick={handleSubmit} defaultValue="Sign Up" />
-          </div>
-          <div className="form-group">
-            <span className="switch-text">
-              Already have an account? <Link href="/">Sign In Here</Link>
-            </span>
-          </div>
-        </form>
-      </div>
-    </>
+      <BasicHeading headingText="Guest Sign Up" />
+      <BasicInput labelText="Username:" htmlFor="userName" name="userName"
+        id="userName" value={userName} onChange={handleUserNameChange} />
+      <BasicHeading headingText="Already Have An Account? " />
+      <SubmitButton buttonLabel="Sign In Here" onSubmit=
+        {onSubmit} />
+    </div>
   );
 };
 

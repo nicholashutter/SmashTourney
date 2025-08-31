@@ -1,8 +1,5 @@
-
-import './page.css';
-
-
-
+import BasicHeading from "../components/BasicHeading";
+import BasicInput from "../components/BasicInput";
 
 function handleSubmit()
 {
@@ -14,12 +11,9 @@ function handleSubmit()
 const CreateTourney = () =>
 {
   return (
-    <>
-      <meta charSet="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Create Tourney</title>
+    <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}
       <div className="container">
-        <h2 className="title">Create Tourney</h2>
+        <BasicHeading headingText="Create Tourney" />
         <form id="createTourneyForm" >
           <div className="form-group">
             <label htmlFor="session-code">Session Code:</label>
@@ -56,7 +50,7 @@ const CreateTourney = () =>
           </div>
         </form>
       </div>
-    </>
+    </div>
   );
 }
 

@@ -1,40 +1,34 @@
- 
-import User from "@/app/resources/user";
+import React from "react";
+import { useState } from "react";
+import BasicInput from "../components/BasicInput";
+import BasicHeading from "../components/BasicHeading";
+import SubmitButton from "../components/SubmitButton";
 
-import "./page.css";
-import Link from "next/link";
-import { Button } from "@mui/material";
 
-const JoinTourney = () => {
+
+
+const JoinTourney = () =>
+{
+  const [sessionCode, setSessionCode] = useState("");
+
+  const handleSessionCode = (e: React.ChangeEvent<HTMLInputElement>) =>
+  {
+    setSessionCode(e.target.value);
+  }
+
   return (
-    <>
-      <meta charSet="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Join Room</title>
-      <div className="container">
-        <h2 className="title">Join Room</h2>
-        <form>
-          <div className="form-group">
-            <label htmlFor="session-code">Session Code:</label>
-            <input
-              type="text"
-              id="session-code"
-              name="session-code"
-              maxLength={4}
-            />
-          </div>
-          <div className="form-group">
-            <Button id="submitButton" variant="contained" type="submit">Join Room</Button>
-            <Link href="/tourneyMenu" className="cancel-link">
-              Cancel and Return to Main Menu
-            </Link>
-          </div>
-        </form>
-        <div id="waiting-message" className="waiting-message">
-          Waiting for other players...
-        </div>
-      </div>
-    </>
+    <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}
+      <BasicHeading headingText="Join Room" />
+      <h2 className="title">Join Room</h2>
+      <BasicInput labelText="Session Code:" htmlFor="sessionCode"
+        id="sessionCode" name="sessionCode" value={sessionCode} onChange={handleSessionCode} />
+      <SubmitButton buttonLabel="Join Room" onSubmit={() => { }} />
+      <SubmitButton buttonLabel="Return To Main Menu" onSubmit={() =>
+      {
+        //when react router is setup, will route back to main page here
+        //then extract it to an external function as all other event handlers
+      }} />
+    </div >
   );
 };
 
