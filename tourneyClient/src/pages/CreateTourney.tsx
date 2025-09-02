@@ -1,5 +1,8 @@
+import { useState } from "react";
+
 import BasicHeading from "../components/BasicHeading";
 import BasicInput from "../components/BasicInput";
+import SubmitButton from "../components/SubmitButton";
 
 function handleSubmit()
 {
@@ -10,46 +13,38 @@ function handleSubmit()
 
 const CreateTourney = () =>
 {
+  const sessionCode = "";
+
+  const [numPlayers, setNumPlayers] = useState("");
+  const [gameType, setGameType] = useState("single");
+
+  const handleMaxPlayers = (e: React.ChangeEvent<HTMLInputElement>) =>
+  {
+    setNumPlayers(e.target.value);
+  }
+
+  const handleSelectGameType = (e: React.ChangeEvent<HTMLSelectElement>) =>
+  {
+    setGameType(e.target.value);
+  }
+
+  const swapGameType = (gameType: boolean) =>
+  {
+    return gameType ? "single" : "double";
+  }
+
   return (
     <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}
-      <div className="container">
-        <BasicHeading headingText="Create Tourney" />
-        <form id="createTourneyForm" >
-          <div className="form-group">
-            <label htmlFor="session-code">Session Code:</label>
-            <input
-              type="text"
-              id="session-code"
-              name="session-code"
-              maxLength={4}
+      <BasicHeading headingText="Create Tourney" />
+      <BasicInput labelText="Session Code:" name="sessionCode" htmlFor="sessionCode" id="sessionCode" value={sessionCode} onChange={() => { }} />
 
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="ruleset">Ruleset:</label>
-            <select id="ruleset" name="ruleset" >
-              <option value="single">Single Elimination</option>
-              <option value="double">Double Elimination</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="max-players">Max Players:</label>
-            <input
-              type="number"
-              id="max-players"
-              name="max-players"
-              min={2}
-
-            />
-          </div>
-          <div className="form-group">
-            <Button type="submit" id="submitButton" onClick={handleSubmit} >Create Tourney</Button>
-            <Link href="/tourneyMenu" className="cancel-link">
-              Cancel and Return to Main Menu
-            </Link>
-          </div>
-        </form>
-      </div>
+      <label htmlFor="ruleset">Ruleset:</label>
+      <select id="ruleset" name="ruleset" onChange={handleSelectGameType}>
+        <option >Single Elimination</option>
+        <option >Double Elimination</option>
+      </select>
+      <BasicInput labelText="Max Players:" htmlFor="maxPlayers" name="maxPlayers" id="maxPlayers" value={numPlayers} onChange={handleMaxPlayers} />
+      <SubmitButton buttonLabel="Create Tourney" onSubmit={handleSubmit} />
     </div>
   );
 }
