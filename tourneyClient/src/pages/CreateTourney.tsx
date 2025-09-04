@@ -16,21 +16,16 @@ const CreateTourney = () =>
   const sessionCode = "";
 
   const [numPlayers, setNumPlayers] = useState("");
-  const [gameType, setGameType] = useState("single");
+  const [gameType, setGameType] = useState(false);
 
   const handleMaxPlayers = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
     setNumPlayers(e.target.value);
   }
 
-  const handleSelectGameType = (e: React.ChangeEvent<HTMLSelectElement>) =>
+  const handleSelectGameType = () =>
   {
-    setGameType(e.target.value);
-  }
-
-  const swapGameType = (gameType: boolean) =>
-  {
-    return gameType ? "single" : "double";
+    setGameType(!gameType);
   }
 
   return (
