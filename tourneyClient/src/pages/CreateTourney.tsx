@@ -30,16 +30,19 @@ const CreateTourney = () =>
 
   return (
     <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}
-      <BasicHeading headingText="Create Tourney" />
+      <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 "> 
+      <title>Create Tourney</title>
+      <BasicHeading headingText="Create Tourney" headingColors="white" />
       <BasicInput labelText="Session Code:" name="sessionCode" htmlFor="sessionCode" id="sessionCode" value={sessionCode} onChange={() => { }} />
 
-      <label htmlFor="ruleset">Ruleset:</label>
-      <select id="ruleset" name="ruleset" onChange={handleSelectGameType}>
-        <option >Single Elimination</option>
-        <option >Double Elimination</option>
+      <label className="text-md" htmlFor="ruleset">Ruleset:</label>
+      <select className="text-sm" id="ruleset" name="ruleset" onChange={handleSelectGameType}>
+        <option className="text-black">Single Elimination</option>
+        <option className="text-black">Double Elimination</option>
       </select>
       <BasicInput labelText="Max Players:" htmlFor="maxPlayers" name="maxPlayers" id="maxPlayers" value={numPlayers} onChange={handleMaxPlayers} />
       <SubmitButton buttonLabel="Create Tourney" onSubmit={handleSubmit} />
+      </div>
     </div>
   );
 }

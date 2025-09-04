@@ -3,8 +3,8 @@ type AppProps = {
     name: string;
     id: string;
     labelText: string;
-    value: string; 
-    onChange:(e:React.ChangeEvent<HTMLInputElement>)=> void;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 };
 
 
@@ -12,7 +12,7 @@ const BasicInput = ({ htmlFor, name, id, labelText, value, onChange }: AppProps)
 {
     return (
         <>
-            <label htmlFor={htmlFor} >{labelText}</label>
+            <label className="text-3xl text-white font-[Arial] text-shadow-lg" htmlFor={htmlFor} >{labelText}</label>
             <input className="shrink bg-white m-5 rounded shadow-md " type="text" id={id} name={name} value={value} onChange={onChange} />
         </>);
 }

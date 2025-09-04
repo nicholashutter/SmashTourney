@@ -40,14 +40,17 @@ const GuestSignUp: React.FC = () =>
 
   return (
     <div className="flex flex-col items-center justify-center h-dvh w-dvw">
+      <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 "> 
+      <title>Guest Sign Up</title>
       <meta charSet="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <BasicHeading headingText="Guest Sign Up" />
+      <BasicHeading headingText="Guest Sign Up" headingColors="white" />
       <BasicInput labelText="Username:" htmlFor="userName" name="userName"
         id="userName" value={userName} onChange={handleUserNameChange} />
-      <BasicHeading headingText="Already Have An Account? " />
+      <BasicHeading headingText="Already Have An Account?" headingColors="white" />
       <SubmitButton buttonLabel="Sign In Here" onSubmit=
         {onSubmit} />
+        </div>
     </div>
   );
 };

@@ -18,7 +18,9 @@ const JoinTourney = () =>
 
   return (
     <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}
-      <BasicHeading headingText="Join Room" />
+    <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
+     <title>Join Tourney</title>
+      <BasicHeading headingText="Join Room" headingColors="white"/>
       <h2 className="title">Join Room</h2>
       <BasicInput labelText="Session Code:" htmlFor="sessionCode"
         id="sessionCode" name="sessionCode" value={sessionCode} onChange={handleSessionCode} />
@@ -28,6 +30,7 @@ const JoinTourney = () =>
         //when react router is setup, will route back to main page here
         //then extract it to an external function as all other event handlers
       }} />
+      </div>
     </div >
   );
 };

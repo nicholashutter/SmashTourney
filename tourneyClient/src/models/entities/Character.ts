@@ -1,8 +1,8 @@
-import { FallSpeed, FallSpeedType } from "../../utilities/Enums/FallSpeed";
-import { Archetype, ArchetypeType } from "../../utilities/Enums/Archetype";
-import { CharacterName, CharacterNameType } from "../../utilities/Enums/CharacterName";
-import { TierPlacement, TierPlacementType } from "../../utilities/Enums/TierPlacement";
-import { WeightClass, WeightClassType } from "../../utilities/Enums/WeightClass";
+import { FallSpeed, FallSpeedType } from "./Enums/FallSpeed";
+import { Archetype, ArchetypeType } from "./Enums/Archetype";
+import { CharacterName, CharacterNameType } from "./Enums/CharacterName";
+import { TierPlacement, TierPlacementType } from "./Enums/TierPlacement";
+import { WeightClass, WeightClassType } from "./Enums/WeightClass";
 
 export interface Character
 {
