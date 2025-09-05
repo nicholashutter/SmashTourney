@@ -8,5 +8,5 @@ export interface Player
     currentScore: number;
     currentRound: number;
     currentCharacter: Character;
-    currentGameID: string;
+    currentGameId: string;
 }

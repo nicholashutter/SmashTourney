@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router';
 
 const CreateTourney = () =>
 {
-  const sessionCode = "";
+  
   const navigate = useNavigate(); 
 
   const [numPlayers, setNumPlayers] = useState("");
@@ -49,10 +49,9 @@ const CreateTourney = () =>
     <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}
       <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
         <title>Create Tourney</title>
-        <BasicHeading headingText="Create Tourney" headingColors="white" />
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
-        <BasicInput labelText="Session Code:" name="sessionCode" htmlFor="sessionCode" id="sessionCode" value={sessionCode} onChange={() => { }} />
-
+        <BasicHeading headingText="Create Tourney" headingColors="white" />
+        
         <label className="text-md" htmlFor="ruleset">Ruleset:</label>
         <select className="text-sm p-4 m-4" id="ruleset" name="ruleset" onChange={handleSelectGameType}>
           <option className="text-black">Single Elimination</option>

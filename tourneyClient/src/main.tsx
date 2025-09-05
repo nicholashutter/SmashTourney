@@ -9,8 +9,9 @@ import CreateTourney from './pages/CreateTourney.tsx';
 import JoinTourney from './pages/JoinTourney.tsx';
 import SignUp from './pages/SignUp.tsx';
 import TourneyMenu from './pages/TourneyMenu.tsx';
-import GenericBracket from './pages/GenericBracket.tsx';
-import WaitingForPlayers from './pages/WaitingForPlayers.tsx';
+import ParentBracket from './pages/Brackets/ParentBracket.tsx';
+import Lobby from './pages/Lobby.tsx';
+import TwoPlayers from './pages/Brackets/TwoPlayers.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <BrowserRouter>
@@ -21,9 +22,12 @@ createRoot(document.getElementById('root')!).render(
       <Route path="/signUp" element={<SignUp />} />
       <Route path="/tourneyMenu" element={<TourneyMenu />} />
       <Route path="/guestSignUp" element={<GuestSignIn />} />
-      <Route path="/lobby" element={<WaitingForPlayers/>}/>
-      <Route path="/genericBracket" element={<GenericBracket children={<label></label>} />} />
+      <Route path="/lobby" element={<Lobby />} />
+      <Route path="/genericBracket" element={<ParentBracket children={<label></label>} />} />
       <Route path="*" element={<NotFound />} />
+      <Route path="brackets/twoPlayers" element={<TwoPlayers />} />
+
+
     </Routes>
   </BrowserRouter>
 )

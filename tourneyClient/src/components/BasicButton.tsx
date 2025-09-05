@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 
-type AppProps = {
+type AppProps = 
+{
     buttonLabel: string;
     href: string;
 };

@@ -13,7 +13,7 @@ const BasicInput = ({ htmlFor, name, id, labelText, value, onChange }: AppProps)
     return (
         <>
             <label className="text-3xl text-white font-[Arial] text-shadow-lg" htmlFor={htmlFor} >{labelText}</label>
-            <input className="shrink bg-white m-5 rounded shadow-md " type="text" id={id} name={name} value={value} onChange={onChange} />
+            <input className="shrink bg-white m-5 rounded shadow-md text-black text-center" type="text" id={id} name={name} value={value} onChange={onChange} />
         </>);
 }
 
