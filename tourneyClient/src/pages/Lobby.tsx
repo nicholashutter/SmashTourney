@@ -9,6 +9,7 @@ import { Archetype } from '@/models/Enums/Archetype';
 import { FallSpeed } from '@/models/Enums/FallSpeed';
 import { TierPlacement } from '@/models/Enums/TierPlacement';
 import { WeightClass } from '@/models/Enums/WeightClass';
+import { RequestService } from '@/services/RequestService';
 
 
 const Lobby = () =>
@@ -73,9 +74,10 @@ const Lobby = () =>
         }
     }
 
-    const dummyPlayers: Player[] = [
-        players.playerOne, players.playerTwo, players.playerThree
-    ]
+    const dummyPlayers: Player[] =
+        [
+            players.playerOne, players.playerTwo, players.playerThree
+        ]
 
     console.log(sessionCode);
 
@@ -90,7 +92,15 @@ const Lobby = () =>
                     <HeadingTwo headingText="Waiting On Additional Players..." />
                     <SubmitButton buttonLabel="All Players In" onSubmit={() =>
                     {
-                        //here will be the request service submission to start the game
+                        RequestService(
+                            "startGame",
+                            {
+                                body:
+                                {
+                                    //accurate request body
+                                }
+                            }
+                        )
                     }
                     } />
                     <BasicButton buttonLabel="Return Home" href="/" />

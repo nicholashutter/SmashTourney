@@ -1,4 +1,4 @@
-import { BASE_URL } from "./ServerConstants";
+import { BASE_URL } from "@/ServerConstants";
 // define interface for http methods used below
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 

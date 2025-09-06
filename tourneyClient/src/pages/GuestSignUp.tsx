@@ -1,7 +1,7 @@
 import React from "react";
 import { useState } from 'react';
 import { useNavigate } from "react-router";
-import { RequestService } from "../utilities/RequestService";
+import { RequestService } from "@/services/RequestService";
 import { ApplicationUser } from "../models/entities/ApplicationUser";
 import BasicInput from "../components/BasicInput";
 import BasicHeading from "../components/BasicHeading";

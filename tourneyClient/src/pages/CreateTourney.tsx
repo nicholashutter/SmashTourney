@@ -3,7 +3,7 @@ import { useState } from "react";
 import BasicHeading from "../components/BasicHeading";
 import BasicInput from "../components/BasicInput";
 import SubmitButton from "../components/SubmitButton";
-import { RequestService } from "../utilities/RequestService";
+import { RequestService } from "@/services/RequestService";
 import { useNavigate } from 'react-router';
 
 
