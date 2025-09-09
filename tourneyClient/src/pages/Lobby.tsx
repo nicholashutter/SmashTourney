@@ -1,7 +1,7 @@
 import PlayerList from '@/components/PlayerList';
-import BasicButton from '../components/BasicButton';
-import BasicInput from "../components/BasicInput";
-import SubmitButton from '../components/SubmitButton';
+import BasicButton from '@/components/BasicButton';
+import BasicInput from '@/components/BasicInput';
+import SubmitButton from '@/components/SubmitButton';
 import HeadingTwo from "@/components/HeadingTwo";
 import { Player } from ".././models/entities/Player";
 import { CharacterName } from '@/models/Enums/CharacterName';

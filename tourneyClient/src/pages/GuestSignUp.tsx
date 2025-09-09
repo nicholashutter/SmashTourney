@@ -2,12 +2,12 @@ import React from "react";
 import { useState } from 'react';
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
-import { ApplicationUser } from "../models/entities/ApplicationUser";
-import BasicInput from "../components/BasicInput";
-import BasicHeading from "../components/BasicHeading";
-import HeadingTwo from "../components/HeadingTwo";
-import SubmitButton from "../components/SubmitButton";
-import BasicButton from "../components/BasicButton";
+import { ApplicationUser } from "@/models/entities/ApplicationUser";
+import BasicInput from "@/components/BasicInput";
+import BasicHeading from "@/components/BasicHeading";
+import HeadingTwo from "@/components/HeadingTwo";
+import SubmitButton from "@/components/SubmitButton";
+import BasicButton from "@/components/BasicButton";
 
 const GuestSignUp: React.FC = () =>
 {

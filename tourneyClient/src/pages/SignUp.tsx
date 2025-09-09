@@ -1,6 +1,6 @@
-import BasicInput from "../components/BasicInput";
-import BasicHeading from "../components/BasicHeading";
-import SubmitButton from "../components/SubmitButton";
+import BasicInput from "@/components/BasicInput";
+import BasicHeading from "@/components/BasicHeading";
+import SubmitButton from "@/components/SubmitButton";
 
 
 

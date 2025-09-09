@@ -2,10 +2,10 @@ import React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
-import BasicInput from "../components/BasicInput";
-import BasicHeading from "../components/BasicHeading";
-import SubmitButton from "../components/SubmitButton";
-import BasicButton from "../components/BasicButton";
+import BasicInput from "@/components/BasicInput";
+import BasicHeading from "@/components/BasicHeading";
+import SubmitButton from "@/components/SubmitButton";
+import BasicButton from "@/components/BasicButton";
 
 
 

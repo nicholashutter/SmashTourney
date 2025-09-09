@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-import BasicHeading from "../components/BasicHeading";
-import BasicInput from "../components/BasicInput";
-import SubmitButton from "../components/SubmitButton";
+import BasicHeading from "@/components/BasicHeading";
+import BasicInput from "@/components/BasicInput";
+import SubmitButton from "@/components/SubmitButton";
 import { RequestService } from "@/services/RequestService";
 import { useNavigate } from 'react-router';
 
