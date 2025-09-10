@@ -6,6 +6,7 @@ public class Hero : Character
 {
     public Hero()
     {
+        Id = CharacterId.Hero;
         characterName = CharacterName.HERO;
         archetype = Archetype.DYNAMIC;
         fallSpeed = FallSpeed.FAST_FALLERS;

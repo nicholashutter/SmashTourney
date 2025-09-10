@@ -6,6 +6,7 @@ public class Mario : Character
 {
     public Mario()
     {
+        Id = CharacterId.Mario;
         characterName = CharacterName.MARIO;
         archetype = Archetype.ALL_ROUNDER;
         fallSpeed = FallSpeed.FAST_FALLERS;

@@ -6,6 +6,7 @@ public class Lucina : Character
 {
     public Lucina()
     {
+        Id = CharacterId.Lucina;
         characterName = CharacterName.LUCINA;
         archetype = Archetype.BAIT_AND_PUNISH;
         fallSpeed = FallSpeed.FAST_FALLERS;

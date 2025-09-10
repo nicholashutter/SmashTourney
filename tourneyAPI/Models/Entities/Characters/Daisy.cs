@@ -6,6 +6,7 @@ public class Daisy : Character
 {
     public Daisy()
     {
+        Id = CharacterId.Daisy;
         characterName = CharacterName.DAISY;
         archetype = Archetype.MIX_UP;
         fallSpeed = FallSpeed.FLOATY;

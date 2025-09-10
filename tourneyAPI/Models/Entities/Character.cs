@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 [ExcludeFromCodeCoverage]
 public class Character
 {
+    public Guid Id { get; set; }
     public CharacterName characterName { get; set; }
 
     public Archetype archetype { get; set; }
@@ -16,6 +17,5 @@ public class Character
     public TierPlacement tierPlacement { get; set; }
 
     public WeightClass weightClass { get; set; }
-
 
 }

@@ -6,6 +6,7 @@ public class Ryu : Character
 {
     public Ryu()
     {
+        Id = CharacterId.Ryu;
         characterName = CharacterName.RYU;
         archetype = Archetype.BAIT_AND_PUNISH;
         fallSpeed = FallSpeed.FAST_FALLERS;

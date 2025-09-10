@@ -6,6 +6,7 @@ public class MetaKnight : Character
 {
     public MetaKnight()
     {
+        Id = CharacterId.MetaKnight;
         characterName = CharacterName.META_KNIGHT;
         archetype = Archetype.BAIT_AND_PUNISH;
         fallSpeed = FallSpeed.FAST_FALLERS;

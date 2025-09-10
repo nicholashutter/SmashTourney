@@ -2,10 +2,12 @@ namespace Entities;
 
 using Enums;
 
+
 public class Ken : Character
 {
     public Ken()
     {
+        Id = CharacterId.Ken;
         characterName = CharacterName.KEN;
         archetype = Archetype.BAIT_AND_PUNISH;
         fallSpeed = FallSpeed.FAST_FALLERS;

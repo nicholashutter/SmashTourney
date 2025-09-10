@@ -6,6 +6,7 @@ public class Marth : Character
 {
     public Marth()
     {
+        Id = CharacterId.Marth;
         characterName = CharacterName.MARTH;
         archetype = Archetype.PRECISION;
         fallSpeed = FallSpeed.FAST_FALLERS;

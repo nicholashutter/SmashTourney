@@ -6,6 +6,7 @@ public class MinMin : Character
 {
     public MinMin()
     {
+        Id = CharacterId.MinMin;
         characterName = CharacterName.MIN_MIN;
         archetype = Archetype.ZONER;
         fallSpeed = FallSpeed.FAST_FALLERS;

@@ -6,6 +6,7 @@ public class Snake : Character
 {
     public Snake()
     {
+        Id = CharacterId.Snake;
         characterName = CharacterName.SNAKE;
         archetype = Archetype.TRAPPER;
         fallSpeed = FallSpeed.FAST_FALLERS;

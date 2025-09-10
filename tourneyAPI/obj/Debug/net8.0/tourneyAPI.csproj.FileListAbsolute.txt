@@ -37,9 +37,11 @@ C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\M
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Microsoft.Extensions.Hosting.Abstractions.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Microsoft.Extensions.Logging.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Microsoft.Extensions.Logging.Abstractions.dll
+C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Microsoft.Extensions.ObjectPool.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Microsoft.Extensions.Options.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Microsoft.Extensions.Primitives.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Mono.TextTemplating.dll
+C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Newtonsoft.Json.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Serilog.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Serilog.AspNetCore.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\Serilog.Extensions.Hosting.dll
@@ -60,6 +62,7 @@ C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\S
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\System.Composition.TypedParts.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\System.Diagnostics.DiagnosticSource.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\System.IO.Pipelines.dll
+C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\System.Net.WebSockets.WebSocketProtocol.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\System.Text.Encodings.Web.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\System.Text.Json.dll
 C:\Development\Full Stack\Smash Tourney Project\V6\tourneyAPI\bin\Debug\net8.0\cs\Microsoft.CodeAnalysis.resources.dll

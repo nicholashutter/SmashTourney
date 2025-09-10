@@ -73,8 +73,9 @@ const Lobby = () =>
 
         }
     }
-
-    const dummyPlayers: Player[] =
+    //this list really needs to be read from api call
+    //some implementation of observer pattern is needed 
+    const Players: Player[] =
         [
             players.playerOne, players.playerTwo, players.playerThree
         ]
@@ -87,9 +88,10 @@ const Lobby = () =>
                 <title>Not Found</title>
                 <div className='shrink flex flex-col text-2xl p-4 m-4 '>
                     <HeadingTwo headingText="Current Players in Game" />
-                    <PlayerList players={dummyPlayers} />
+                    <PlayerList players={Players} />
                     <BasicInput labelText="Session Code:" name="sessionCode" htmlFor="sessionCode" id="sessionCode" value={sessionCode} onChange={() => { }} />
                     <HeadingTwo headingText="Waiting On Additional Players..." />
+
                     <SubmitButton buttonLabel="All Players In" onSubmit={() =>
                     {
                         RequestService(

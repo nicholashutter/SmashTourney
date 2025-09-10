@@ -1,11 +1,13 @@
 namespace Entities;
 
 using Enums;
+using Enums;
 
 public class Steve : Character
 {
     public Steve()
     {
+        Id = CharacterId.Steve;
         characterName = CharacterName.STEVE;
         archetype = Archetype.TRAPPER;
         fallSpeed = FallSpeed.FAST_FALLERS;

@@ -63,9 +63,6 @@ var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-
-
-
 //add route handlers
 
 app.MapIdentityApi<ApplicationUser>();

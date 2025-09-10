@@ -6,6 +6,7 @@ public class PacMan : Character
 {
     public PacMan()
     {
+        Id = CharacterId.PacMan;
         characterName = CharacterName.PAC_MAN;
         archetype = Archetype.MIX_UP;
         fallSpeed = FallSpeed.FAST_FALLERS;

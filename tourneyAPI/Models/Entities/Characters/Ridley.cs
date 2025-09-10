@@ -8,6 +8,7 @@ public class Ridley : Character
 {
     public Ridley()
     {
+        Id = CharacterId.Ridley;
         characterName = CharacterName.RIDLEY;
         archetype = Archetype.PRECISION;
         fallSpeed = FallSpeed.FAST_FALLERS;

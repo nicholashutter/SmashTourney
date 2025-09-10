@@ -6,6 +6,7 @@ public class Pit : Character
 {
     public Pit()
     {
+        Id = CharacterId.Pit;
         characterName = CharacterName.PIT;
         archetype = Archetype.ALL_ROUNDER;
         fallSpeed = FallSpeed.FAST_FALLERS;

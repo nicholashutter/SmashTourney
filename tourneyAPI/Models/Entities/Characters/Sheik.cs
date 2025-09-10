@@ -6,6 +6,7 @@ public class Sheik : Character
 {
     public Sheik()
     {
+        Id = CharacterId.Sheik;
         characterName = CharacterName.SHEIK;
         archetype = Archetype.NINJA;
         fallSpeed = FallSpeed.FAST_FALLERS;

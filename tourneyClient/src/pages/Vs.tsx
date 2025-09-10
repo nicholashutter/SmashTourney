@@ -1,10 +1,13 @@
 import BasicHeading from "@/components/BasicHeading";
+import { useParams } from "react-router";
 
-
+//get PlAYER_ONE and PLAYER_TWO  from useParams from react router
+//
 const Vs = () =>
 {
-    const PLAYER_ONE = "nicholas";
-    const PLAYER_TWO = "easton";
+    const params = useParams();
+    const PLAYER_ONE = params.playerOne;
+    const PLAYER_TWO = params.playerTwo;
     return (
 
         <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}

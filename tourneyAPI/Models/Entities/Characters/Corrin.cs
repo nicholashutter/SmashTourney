@@ -6,6 +6,7 @@ public class Corrin : Character
 {
     public Corrin()
     {
+        Id = CharacterId.Corrin;
         characterName = CharacterName.CORRIN;
         archetype = Archetype.PRECISION;
         fallSpeed = FallSpeed.FAST_FALLERS;

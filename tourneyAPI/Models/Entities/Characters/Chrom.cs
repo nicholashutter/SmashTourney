@@ -6,6 +6,7 @@ public class Chrom : Character
 {
     public Chrom()
     {
+        Id = CharacterId.Chrom;
         characterName = CharacterName.CHROM;
         archetype = Archetype.GLASS_CANNON;
         fallSpeed = FallSpeed.FAST_FALLERS;

@@ -6,6 +6,7 @@ public class MegaMan : Character
 {
     public MegaMan()
     {
+        Id = CharacterId.MegaMan;
         characterName = CharacterName.MEGA_MAN;
         archetype = Archetype.ZONER;
         fallSpeed = FallSpeed.FAST_FALLERS;

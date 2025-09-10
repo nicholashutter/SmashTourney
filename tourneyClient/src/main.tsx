@@ -27,7 +27,7 @@ createRoot(document.getElementById('root')!).render(
       <Route path="/tourneyMenu" element={<TourneyMenu />} />
       <Route path="/guestSignUp" element={<GuestSignIn />} />
       <Route path="/lobby" element={<Lobby />} />
-      <Route path="/vs" element={<Vs/>}/>
+      <Route path="/vs/p/:playerOne/p/:playerTwo" element={<Vs/>}/>
       <Route path= "/inMatch" element={<InMatch/>}/>
       <Route path= "/roundScore" element={<RoundScore/>}/>
       <Route path= "/startGame" element={<StartGame/>}/>

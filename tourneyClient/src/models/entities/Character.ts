@@ -7,6 +7,7 @@ import { WeightClass, WeightClassType } from "../Enums/WeightClass";
 
 export interface Character
 {
+    id: string;
     characterName: CharacterNameType;
     archetype: ArchetypeType;
     fallSpeed: FallSpeedType;

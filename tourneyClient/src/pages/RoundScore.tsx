@@ -3,6 +3,8 @@ import HeadingTwo from "@/components/HeadingTwo";
 
 const RoundScore = () =>
 {
+
+    //this value should be calculated somewhere in the game object and sent back?
     const GAMES_LEFT = 5;
     return (
 
@@ -13,11 +15,11 @@ const RoundScore = () =>
                     <BasicHeading headingText="Current Round:" headingColors="white" />
                     <HeadingTwo headingText="Winners:" />
                     {
-                        //here should be a call to displayWinnersService
+                        //can use playerlist component and filter by winners
                     }
                     <HeadingTwo headingText="Losers:" />
                     {
-                        //here should be a call to displayLosersService
+                        //can use playerlist component and filter by losers
                     }
                     <BasicHeading headingText={`Games Left This Round:${GAMES_LEFT}`} headingColors="white" />
                 </div>

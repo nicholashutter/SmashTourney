@@ -8,6 +8,7 @@ public class YoungLink : Character
 {
     public YoungLink()
     {
+        Id = CharacterId.YoungLink;
         characterName = CharacterName.YOUNG_LINK;
         archetype = Archetype.TURTLE;
         fallSpeed = FallSpeed.FAST_FALLERS;

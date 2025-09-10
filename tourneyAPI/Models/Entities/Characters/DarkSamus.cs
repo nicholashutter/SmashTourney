@@ -8,6 +8,7 @@ public class DarkSamus : Character
 {
     public DarkSamus()
     {
+        Id = CharacterId.DarkSamus;
         characterName = CharacterName.DARK_SAMUS;
         archetype = Archetype.TURTLE;
         fallSpeed = FallSpeed.FLOATY;

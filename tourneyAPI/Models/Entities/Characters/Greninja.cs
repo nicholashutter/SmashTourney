@@ -8,6 +8,7 @@ public class Greninja : Character
 {
     public Greninja()
     {
+        Id = CharacterId.Greninja;
         characterName = CharacterName.GRENINJA;
         archetype = Archetype.NINJA;
         fallSpeed = FallSpeed.FAST_FALLERS;

@@ -6,6 +6,7 @@ public class Fox : Character
 {
     public Fox()
     {
+        Id = CharacterId.Fox;
         characterName = CharacterName.FOX;
         archetype = Archetype.RUSHDOWN;
         fallSpeed = FallSpeed.FAST_FALLERS;

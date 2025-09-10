@@ -8,6 +8,7 @@ public class Mewtwo : Character
 {
     public Mewtwo()
     {
+        Id = CharacterId.Mewtwo;
         characterName = CharacterName.MEWTWO;
         archetype = Archetype.GLASS_CANNON;
         fallSpeed = FallSpeed.FLOATY;

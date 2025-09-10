@@ -6,6 +6,7 @@ public class Richter : Character
 {
     public Richter()
     {
+        Id = CharacterId.Richter;
         characterName = CharacterName.RICHTER;
         archetype = Archetype.TURTLE;
         fallSpeed = FallSpeed.FAST_FALLERS;

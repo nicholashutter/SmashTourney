@@ -6,6 +6,7 @@ public class DiddyKong : Character
 {
     public DiddyKong()
     {
+        Id = CharacterId.DiddyKong;
         characterName = CharacterName.DIDDY_KONG;
         archetype = Archetype.NINJA;
         fallSpeed = FallSpeed.FAST_FALLERS;

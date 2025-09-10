@@ -6,6 +6,7 @@ public class DarkPit : Character
 {
     public DarkPit()
     {
+        Id = CharacterId.DarkPit;
         characterName = CharacterName.DARK_PIT;
         archetype = Archetype.ALL_ROUNDER;
         fallSpeed = FallSpeed.FAST_FALLERS;

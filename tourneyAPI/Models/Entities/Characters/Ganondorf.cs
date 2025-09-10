@@ -8,6 +8,7 @@ public class Ganondorf : Character
 {
     public Ganondorf()
     {
+        Id = CharacterId.Ganondorf;
         characterName = CharacterName.GANONDORF;
         archetype = Archetype.BAIT_AND_PUNISH;
         fallSpeed = FallSpeed.FAST_FALLERS;

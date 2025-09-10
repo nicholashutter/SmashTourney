@@ -6,6 +6,7 @@ public class Simon : Character
 {
     public Simon()
     {
+        Id = CharacterId.Simon;
         characterName = CharacterName.SIMON;
         archetype = Archetype.TURTLE;
         fallSpeed = FallSpeed.FAST_FALLERS;

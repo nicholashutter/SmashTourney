@@ -1,11 +1,13 @@
 namespace Entities;
 
 using Enums;
+using Enums;
 
 public class Sonic : Character
 {
     public Sonic()
     {
+        Id = CharacterId.Sonic;
         characterName = CharacterName.SONIC;
         archetype = Archetype.HIT_AND_RUN;
         fallSpeed = FallSpeed.FAST_FALLERS;
