@@ -9,4 +9,4 @@ export const TierPlacement =
         E: "E",
     } as const;
 
-export type TierPlacementType = typeof TierPlacement[keyof typeof TierPlacement];
+export type TierPlacement = typeof TierPlacement[keyof typeof TierPlacement];

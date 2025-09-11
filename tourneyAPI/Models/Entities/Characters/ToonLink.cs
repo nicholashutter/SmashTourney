@@ -3,7 +3,7 @@
 namespace Entities;
 
 using Enums;
-using Enums;
+
 
 public class ToonLink : Character
 {

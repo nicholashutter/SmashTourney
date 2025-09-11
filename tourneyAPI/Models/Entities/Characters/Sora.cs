@@ -1,7 +1,6 @@
 namespace Entities;
 
 using Enums;
-using Enums;
 
 public class Sora : Character
 {

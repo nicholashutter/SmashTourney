@@ -1,8 +1,8 @@
 export const FallSpeed =
-{
-    FAST_FALLERS: "FAST_FALLERS",
-    FLOATY: "FLOATY"
-} as const;
+    {
+        FAST_FALLERS: "Fast Fallers",
+        FLOATY: "Floaty"
+    } as const;
 
-export type FallSpeedType = typeof FallSpeed[keyof typeof FallSpeed];
+export type FallSpeed = typeof FallSpeed[keyof typeof FallSpeed];
 
