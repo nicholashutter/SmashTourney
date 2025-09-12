@@ -2,6 +2,7 @@ namespace Helpers;
 
 using Serilog;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Helpers; 
 using Services;
 using CustomExceptions;
 
@@ -22,7 +23,7 @@ public class AppSetup
 
     public static void LogServerStart()
     {
-        Log.Information("\nServer Running. Press CTRL C to Stop...");
+        Log.Information($"\nServer Running on Port: {AppConstants.ServerURL}. Press CTRL C to Stop...");
     }
 
     public static void LogServerStop()

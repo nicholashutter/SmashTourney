@@ -7,16 +7,26 @@ class SignalRService
 {
 
     private connection: HubConnection | null = null;
-    constructor(private username: string)
+    constructor()
     {
 
     }
-    public createUserRoomConnection()
+    public createPlayerConnection()
     {
         this.connection = new HubConnectionBuilder()
-            .withUrl(HUB_URL)
+            .withUrl(HUB_URL,
+                {
+                    withCredentials: true,
+                }
+            )
             .withAutomaticReconnect()
             .build();
+
+        this.connection.on("Player Joined", () =>
+        {
+            console.log("Server called here");
+        });
+        this.connection.start().catch(error => console.log(error));
     }
 }
 export default SignalRService;

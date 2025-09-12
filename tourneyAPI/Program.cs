@@ -36,6 +36,18 @@ builder.Services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
 .AddEntityFrameworkStores<ApplicationDbContext>();
 
+//cors policy for browser from different origin during development
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(
+        policy =>
+        {
+            policy.WithOrigins(AppConstants.ClientUrl)
+            .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+        });
+});
 
 /* TODO implement IEmailSender 
 builder.Services.Configure<IdentityOptions>(options =>
@@ -64,9 +76,11 @@ var app = builder.Build();
 
 //PROD
 //app.UseHttpsRedirection(); 
-
+app.UseCors();
+app.MapHub<ConnectionHub>(AppConstants.HubURL);
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
 
 //add route handlers
 
@@ -76,7 +90,7 @@ UserRouter.Map(app);
 PlayerRouter.Map(app);
 GameRouter.Map(app);
 
-app.MapHub<ConnectionHub>(AppConstants.HubURL);
+
 
 Console.CancelKeyPress += (sender, eventArgs) =>
 {

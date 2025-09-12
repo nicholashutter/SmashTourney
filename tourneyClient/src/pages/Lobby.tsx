@@ -4,16 +4,14 @@ import BasicInput from '@/components/BasicInput';
 import SubmitButton from '@/components/SubmitButton';
 import HeadingTwo from "@/components/HeadingTwo";
 import { Player } from ".././models/entities/Player";
-import { CharacterName } from '@/models/Enums/CharacterName';
-import { Archetype } from '@/models/Enums/Archetype';
-import { FallSpeed } from '@/models/Enums/FallSpeed';
-import { TierPlacement } from '@/models/Enums/TierPlacement';
-import { WeightClass } from '@/models/Enums/WeightClass';
 import { RequestService } from '@/services/RequestService';
+import Mario from "../models/entities/Characters/Mario";
+import PersistentConnection from "../services/PersistentConnection"
 
 
 const Lobby = () =>
 {
+    const lobbyConnection = new PersistentConnection();
     const sessionCode = "P1@C3H0!D3R";
 
     const players =
@@ -25,14 +23,7 @@ const Lobby = () =>
             displayName: "nicholas",
             currentScore: 0,
             currentRound: 0,
-            currentCharacter:
-            {
-                characterName: CharacterName.PYRA_AND_MYTHRA,
-                archetype: Archetype.GRAPPLER,
-                fallSpeed: FallSpeed.FAST_FALLERS,
-                tierPlacement: TierPlacement.C,
-                weightClass: WeightClass.SUPER_HEAVYWEIGHT
-            },
+            currentCharacter: Mario,
             currentGameId: sessionCode
 
 
@@ -44,14 +35,7 @@ const Lobby = () =>
             displayName: "easton",
             currentScore: 0,
             currentRound: 0,
-            currentCharacter:
-            {
-                characterName: CharacterName.MEGA_MAN,
-                archetype: Archetype.GRAPPLER,
-                fallSpeed: FallSpeed.FAST_FALLERS,
-                tierPlacement: TierPlacement.C,
-                weightClass: WeightClass.SUPER_HEAVYWEIGHT
-            },
+            currentCharacter: Mario,
             currentGameId: sessionCode
         },
         playerThree:
@@ -61,14 +45,7 @@ const Lobby = () =>
             displayName: "koby",
             currentScore: 0,
             currentRound: 0,
-            currentCharacter:
-            {
-                characterName: CharacterName.MARIO,
-                archetype: Archetype.GRAPPLER,
-                fallSpeed: FallSpeed.FAST_FALLERS,
-                tierPlacement: TierPlacement.C,
-                weightClass: WeightClass.SUPER_HEAVYWEIGHT
-            },
+            currentCharacter: Mario,
             currentGameId: sessionCode
 
         }
@@ -79,6 +56,8 @@ const Lobby = () =>
         [
             players.playerOne, players.playerTwo, players.playerThree
         ]
+
+    Players.forEach(player => { lobbyConnection.createPlayerConnection() })
 
     console.log(sessionCode);
 
