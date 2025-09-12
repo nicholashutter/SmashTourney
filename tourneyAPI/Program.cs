@@ -8,12 +8,17 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//set urls for server
+builder.WebHost.UseUrls(AppConstants.ServerURL);
+
 //static init function for logger
 AppSetup.SetupLogging();
 
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(ApplicationDbContext.SetupProd()));
+
+builder.Services.AddSignalR();
 
 //scoped services will be destroyed after the function scope that uses them closes 
 builder.Services.AddScoped<IPlayerManager, PlayerManager>();
@@ -71,6 +76,7 @@ UserRouter.Map(app);
 PlayerRouter.Map(app);
 GameRouter.Map(app);
 
+app.MapHub<ConnectionHub>(AppConstants.HubURL);
 
 Console.CancelKeyPress += (sender, eventArgs) =>
 {
