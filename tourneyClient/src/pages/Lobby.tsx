@@ -50,14 +50,15 @@ const Lobby = () =>
 
         }
     }
-    //this list really needs to be read from api call
-    //some implementation of observer pattern is needed 
+    //this list will be fetched from the rest api
+    // once the players are added on the other screen, and the connections are created after the initial fetch
+    // the front end should listen for new connections by connecting the signalR hub to the internal gameservice
     const Players: Player[] =
         [
             players.playerOne, players.playerTwo, players.playerThree
         ]
 
-    Players.forEach(player => { lobbyConnection.createPlayerConnection() })
+    Players.forEach(player => { lobbyConnection.createPlayerConnection() }) 
 
     console.log(sessionCode);
 
