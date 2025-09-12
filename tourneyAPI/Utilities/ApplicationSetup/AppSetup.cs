@@ -20,6 +20,16 @@ public class AppSetup
             .CreateLogger();
     }
 
+    public static void LogServerStart()
+    {
+        Log.Information("\nServer Running. Press CTRL C to Stop...");
+    }
+
+    public static void LogServerStop()
+    {
+        Log.Information("\nShutting Down...");
+    }
+
     public static async Task HandleUserSession(CookieSignedInContext context, string username)
     {
         if (username is not null)
@@ -44,6 +54,7 @@ public class AppSetup
             }
         }
     }
+
 
 
 }

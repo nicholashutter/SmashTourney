@@ -80,12 +80,14 @@ app.MapHub<ConnectionHub>(AppConstants.HubURL);
 
 Console.CancelKeyPress += (sender, eventArgs) =>
 {
-    Console.WriteLine("\nShutting down...");
+    AppSetup.LogServerStop();
     eventArgs.Cancel = true;
     app.Lifetime.StopApplication();
 };
 
+AppSetup.LogServerStart();
 app.Run();
+
 
 public partial class Program { }
 
