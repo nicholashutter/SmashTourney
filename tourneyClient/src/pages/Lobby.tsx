@@ -15,51 +15,13 @@ const Lobby = () =>
     const lobbyConnection = new PersistentConnection();
     const sessionCode = "P1@C3H0!D3R";
 
-    const players =
-    {
-        playerOne:
-        {
-            id: "randomString1",
-            userId: "randomString1",
-            displayName: "nicholas",
-            currentScore: 0,
-            currentRound: 0,
-            currentCharacter: Mario,
-            currentGameId: sessionCode
 
-
-        },
-        playerTwo:
-        {
-            id: "randomString2",
-            userId: "randomString2",
-            displayName: "easton",
-            currentScore: 0,
-            currentRound: 0,
-            currentCharacter: Mario,
-            currentGameId: sessionCode
-        },
-        playerThree:
-        {
-            id: "randomString3",
-            userId: "randomString3",
-            displayName: "koby",
-            currentScore: 0,
-            currentRound: 0,
-            currentCharacter: Mario,
-            currentGameId: sessionCode
-
-        }
-    }
-    //this list will be fetched from the rest api
-    // once the players are added on the other screen, and the connections are created after the initial fetch
-    // the front end should listen for new connections by connecting the signalR hub to the internal gameservice
     const Players: Player[] =
         [
-            players.playerOne, players.playerTwo, players.playerThree
+
         ]
 
-    Players.forEach(player => { lobbyConnection.createPlayerConnection() }) 
+    Players.forEach(player => { lobbyConnection.createPlayerConnection() })
 
     console.log(sessionCode);
 
@@ -80,6 +42,8 @@ const Lobby = () =>
                             {
                                 body:
                                 {
+                                    //TODO make sure only the first player to join
+                                    //can see the all players in button
                                     //accurate request body
                                 }
                             }

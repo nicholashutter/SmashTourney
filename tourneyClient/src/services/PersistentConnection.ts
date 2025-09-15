@@ -22,11 +22,35 @@ class SignalRService
             .withAutomaticReconnect()
             .build();
 
-        this.connection.on("Player Joined", () =>
+        this.connection.on("Successfully Joined", () =>
         {
             console.log("Server called here");
+
         });
         this.connection.start().catch(error => console.log(error));
     }
+    public async notifyOthers(gameId: string)
+    {
+        try
+        {
+            await this.connection?.invoke("NotifyOthers", gameId);
+        }
+        catch (err)
+        {
+            console.error(err);
+        }
+    }
+    public async updateOthers(playerName: string)
+    {
+        try
+        {
+            await this.connection?.invoke("UpdatePlayers", playerName);
+        }
+        catch (err)
+        {
+            console.error(err);
+        }
+    }
+
 }
 export default SignalRService;

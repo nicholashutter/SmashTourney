@@ -2,6 +2,7 @@ import React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
+import PersistentConnection from "../services/PersistentConnection"
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/BasicHeading";
 import SubmitButton from "@/components/SubmitButton";
@@ -22,9 +23,20 @@ import
 
 const JoinTourney = () =>
 {
+
+  //from react router for navigation without reloading
   const navigate = useNavigate();
+
+  //player should enter
   const [sessionCode, setSessionCode] = useState("");
+  //player should enter
   const [playerName, setPlayerName] = useState("");
+
+  //player will choose through dropdown components
+  const [currentCharacter, setCurrentCharacter] = useState("");
+
+  //create instance of signalR to send lobby updates to other users
+  const lobbyConnection = new PersistentConnection();
 
   const handleSessionCode = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
@@ -56,17 +68,25 @@ const JoinTourney = () =>
 
             </DropdownMenuContent>
           </DropdownMenu>
-          <SubmitButton buttonLabel="Join Room" onSubmit={() =>
+          <SubmitButton buttonLabel="Join Room" onSubmit={async () =>
           {
             RequestService(
               "addPlayers",
               {
                 body:
                 {
-
+                  id: "",
+                  userId: "",
+                  displayName: playerName,
+                  currentScore: 0,
+                  currentRound: 0,
+                  currentCharacter: currentCharacter,
+                  currentGameId: sessionCode
                 }
               }
             )
+            await lobbyConnection.notifyOthers(sessionCode);
+            await lobbyConnection.updateOthers(playerName);
             window.alert("submission success");
 
             navigate("/lobby");
