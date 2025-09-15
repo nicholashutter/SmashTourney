@@ -111,6 +111,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         Assert.Equal(gameId, foundGame.Id);
     }
 
+
     private async Task<List<Player>> SetupDummyUsersAndPlayers(int playerCount)
     {
 
@@ -160,6 +161,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
 
 
+
     [Fact]
     public async Task UpdateUserScoreUpdatesScoreCorrectly()
     {
@@ -172,7 +174,23 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         _gameService.AddPlayersToGame(players, gameId);
 
-        //TODO convert to endMatch testing method;
+    }
+
+    [Fact]
+    public async Task GetPlayersInGameReturnsPlayers()
+    {
+        var gameId = await _gameService.CreateGame();
+
+        var foundGame = await _gameService.GetGameByIdAsync(gameId);
+
+        var players = await SetupDummyUsersAndPlayers(10);
+
+        _gameService.AddPlayersToGame(players, gameId);
+
+        List<Player> playersInGame = await _gameService.GetPlayersInGame(gameId);
+
+        Assert.Equal(players, playersInGame);
+
     }
 
     [Fact]

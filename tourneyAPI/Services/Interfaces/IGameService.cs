@@ -16,6 +16,8 @@ public interface IGameService
     // API route /GetGameById (debug)
     Task<Game?> GetGameByIdAsync(Guid gameId);
 
+    Task<List<Player>> GetPlayersInGame(Guid gameId); 
+
     // API route /GetAllGames (debug)
     Task<List<Game>?> GetAllGamesAsync();
 

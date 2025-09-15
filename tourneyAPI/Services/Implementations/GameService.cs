@@ -195,6 +195,21 @@ public class GameService : IGameService
 
     }
 
+    public async Task<List<Player>> GetPlayersInGame(Guid gameId)
+    {
+        Log.Information($"Get Game By Id {gameId}");
+
+        Game? foundGame = await GetGameByIdAsync(gameId);
+
+        List<Player> returnList = new List<Player>();
+
+        if (foundGame is not null)
+        {
+            returnList = foundGame.currentPlayers;
+        }
+        return returnList;
+    }
+
     //Api route /CreateUserSession
     //will only let authenticated users further inside the application if the gameID presented is valid
     public bool CreateUserSession(ApplicationUser addUser)
@@ -261,7 +276,7 @@ public class GameService : IGameService
             Log.Error($"{e}");
             return false;
         }
-        return true; 
+        return true;
     }
 
     //api route /AllPlayersIn
@@ -291,6 +306,7 @@ public class GameService : IGameService
                 {
                     if (user.Id.Equals(player.UserId))
                     {
+                        player.CurrentGameID = gameId;
                         foundGame.currentPlayers.Add(player);
                     }
                 }

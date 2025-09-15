@@ -7,6 +7,7 @@ import { Player } from ".././models/entities/Player";
 import { RequestService } from '@/services/RequestService';
 import Mario from "../models/entities/Characters/Mario";
 import PersistentConnection from "../services/PersistentConnection"
+import { useEffect, useState } from 'react';
 
 
 const Lobby = () =>
