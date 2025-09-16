@@ -1,4 +1,7 @@
+using System.Net;
 using ApiTests;
+using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,39 +11,51 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
 
-    private readonly IHubContext<ConnectionHub> _hubContext;
+    private const string IN_MEMORY_HUB_URL = "wss://localhost/hubs/GameServiceHub";
 
-    public RealTimeTest()
+    public RealTimeTest(CustomWebApplicationFactory<Program> factory)
     {
-        _factory = new CustomWebApplicationFactory<Program>();
+        _factory = factory;
 
-        using var scope = _factory.Services.CreateScope();
-
-        _hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<ConnectionHub>>();
     }
+
+    private HubConnection CreateClient()
+    {
+        var client = _factory.CreateClient();
+        var server = _factory.Server;
+        return new HubConnectionBuilder()
+        .WithUrl(IN_MEMORY_HUB_URL, options =>
+        {
+            options.HttpMessageHandlerFactory = _ => server.CreateHandler();
+        }).Build();
+    }
+
+    [Fact]
+    public async Task HubRouteShouldBeReachable()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.GetAsync("wss://localhost/hubs/GameServiceHub");
+        Assert.False(response.StatusCode == HttpStatusCode.NotFound, "Hub route is not registered");
+    }
+
 
     [Fact]
     public async Task SuccessMessageOnPlayerConnection()
     {
+        var _connection = CreateClient();
+
+        await _connection.StartAsync();
+
         var received = false;
 
-        var client = new HubConnectionBuilder()
-            .WithUrl("http://localhost/hub", options =>
-            {
-                options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
-            })
-            .WithAutomaticReconnect()
-            .Build();
-
-        client.On("Successfully Joined", () =>
+        _connection.On("Successfully Joined", () =>
         {
             received = true;
         });
-        await client.StartAsync();
 
         await Task.Delay(500);
 
-        Assert.True(received);
+        Assert.True(received, "Client did not receive 'Successfully Joined' message.");
     }
 
     [Fact]
@@ -48,22 +63,10 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
     {
 
         var receivedPayload = string.Empty;
+        var testGameId = Guid.NewGuid().ToString();
 
-        var client1 = new HubConnectionBuilder()
-            .WithUrl("http://localhost/hub", options =>
-            {
-                options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
-            })
-            .WithAutomaticReconnect()
-            .Build();
-
-        var client2 = new HubConnectionBuilder()
-            .WithUrl("http://localhost/hub", options =>
-            {
-                options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
-            })
-            .WithAutomaticReconnect()
-            .Build();
+        var client1 = CreateClient();
+        var client2 = CreateClient();
 
         client1.On<string>("ReceiveMessage", payload =>
         {
@@ -73,55 +76,31 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
         await client1.StartAsync();
         await client2.StartAsync();
 
-
-        var testGameId = Guid.NewGuid().ToString();
         await client2.InvokeAsync("UpdatePlayers", testGameId);
-
 
         await Task.Delay(500);
 
-
-        Assert.False(string.IsNullOrEmpty(receivedPayload));
+        Assert.Equal(testGameId, receivedPayload);
     }
 
     [Fact]
-    public async Task NofityOthersOnPlayerConnection()
-    {
+public async Task NotifyOthersOnPlayerConnection()
+{
+    var receivedMessage = string.Empty;
+    var playerName = "Nicholas";
 
-        var receivedMessage = string.Empty;
+    var client1 = CreateClient();
 
-        var client1 = new HubConnectionBuilder()
-            .WithUrl("http://localhost/hub", options =>
-            {
-                options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
-            })
-            .WithAutomaticReconnect()
-            .Build();
+    var client2 = CreateClient();
 
-        var client2 = new HubConnectionBuilder()
-            .WithUrl("http://localhost/hub", options =>
-            {
-                options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
-            })
-            .WithAutomaticReconnect()
-            .Build();
+    await client1.StartAsync();
+    await client2.StartAsync();
 
-        client1.On<string>("ReceiveMessage", message =>
-        {
-            receivedMessage = message;
-        });
+    await client2.InvokeAsync("NotifyOthers", playerName);
 
-        await client1.StartAsync();
-        await client2.StartAsync();
+    await Task.Delay(500);
 
+    Assert.Equal($"{playerName} Joined!", receivedMessage);
+}
 
-        var playerName = "Nicholas";
-        await client2.InvokeAsync("NotifyOthers", playerName);
-
-
-        await Task.Delay(500);
-
-
-        Assert.Equal($"{playerName} Joined!", receivedMessage);
-    }
 }

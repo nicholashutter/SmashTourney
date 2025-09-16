@@ -13,7 +13,7 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
     public UserServiceTest()
     {
-        _factory = _factory = new CustomWebApplicationFactory<Program>();
+        _factory = new CustomWebApplicationFactory<Program>();
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -145,5 +145,5 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         Assert.Null(deletedUser);
     }
 
-    
+
 }
