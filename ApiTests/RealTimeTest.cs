@@ -42,65 +42,80 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
     [Fact]
     public async Task SuccessMessageOnPlayerConnection()
     {
+
+        const string EXPECTED_RESULT = "Success";
+
+        TaskCompletionSource<string> taskCompletionSource = new TaskCompletionSource<string>();
+
+
         var _connection = CreateClient();
-
-        await _connection.StartAsync();
-
-        var received = false;
 
         _connection.On("Successfully Joined", () =>
         {
-            received = true;
+            taskCompletionSource.TrySetResult(EXPECTED_RESULT);
         });
 
-        await Task.Delay(500);
+        await _connection.StartAsync();
 
-        Assert.True(received, "Client did not receive 'Successfully Joined' message.");
+        string result = await taskCompletionSource.Task;
+
+        Assert.Equal(EXPECTED_RESULT, result);
     }
 
     [Fact]
     public async Task UpdateOthersOnPlayerConnection()
     {
 
-        var receivedPayload = string.Empty;
+        const string EXPECTED_RESULT = "230232d3-832f-410a-b51e-61611c039b56";
+        const string RECIEVED_UPDATE = "RECIEVED_UPDATE";
+
+        TaskCompletionSource<string> taskCompletionSource = new TaskCompletionSource<string>();
+
         var testGameId = Guid.NewGuid().ToString();
 
         var client1 = CreateClient();
         var client2 = CreateClient();
 
-        client1.On<string>("ReceiveMessage", payload =>
+        client1.On<string>(RECIEVED_UPDATE, (recievedUpdateResponse) =>
         {
-            receivedPayload = payload;
+            taskCompletionSource.TrySetResult(recievedUpdateResponse);
         });
 
         await client1.StartAsync();
         await client2.StartAsync();
 
-        await client2.InvokeAsync("UpdatePlayers", testGameId);
+        await client2.InvokeAsync("UpdatePlayers", EXPECTED_RESULT);
 
-        await Task.Delay(500);
+        string recieved = await taskCompletionSource.Task;
 
-        Assert.Equal(testGameId, receivedPayload);
+        Assert.Equal(EXPECTED_RESULT, recieved);
     }
 
     [Fact]
-public async Task NotifyOthersOnPlayerConnection()
-{
-    var receivedMessage = string.Empty;
-    var playerName = "Nicholas";
+    public async Task NotifyOthersOnPlayerConnection()
+    {
+        const string playerName = "Nicholas";
+        const string EXPECTED_MESSAGE = $"{playerName} Joined!";
+        const string RECIEVED_UPDATE = "PlayerJoinedNotification";
 
-    var client1 = CreateClient();
+        var taskCompletionSource = new TaskCompletionSource<string>();
 
-    var client2 = CreateClient();
+        var client1 = CreateClient();
+        var client2 = CreateClient();
 
-    await client1.StartAsync();
-    await client2.StartAsync();
+        client1.On<string>(RECIEVED_UPDATE, (recievedUpdateResponse) =>
+        {
+            taskCompletionSource.TrySetResult(recievedUpdateResponse);
+        });
 
-    await client2.InvokeAsync("NotifyOthers", playerName);
+        await client1.StartAsync();
+        await client2.StartAsync();
 
-    await Task.Delay(500);
+        await client2.InvokeAsync("NotifyOthers", playerName);
 
-    Assert.Equal($"{playerName} Joined!", receivedMessage);
-}
+        var receivedMessage = await taskCompletionSource.Task;
+
+        Assert.Equal(EXPECTED_MESSAGE, receivedMessage);
+    }
 
 }
