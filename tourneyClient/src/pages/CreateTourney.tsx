@@ -5,6 +5,7 @@ import BasicInput from "@/components/BasicInput";
 import SubmitButton from "@/components/SubmitButton";
 import { RequestService } from "@/services/RequestService";
 import { useNavigate } from 'react-router';
+import { useGameId } from "@/components/GameIdContext";
 
 
 
@@ -12,37 +13,48 @@ import { useNavigate } from 'react-router';
 
 const CreateTourney = () =>
 {
-  
-  const navigate = useNavigate(); 
 
+  //dynamic import react router useNavigate
+  const navigate = useNavigate();
+
+  //setup store for gameId after creation
+  const { setId } = useGameId();
+
+  //variables for users selections
   const [numPlayers, setNumPlayers] = useState("");
   const [gameType, setGameType] = useState(false);
 
+  //handle max player selection
   const handleMaxPlayers = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
     setNumPlayers(e.target.value);
   }
 
-  const handleSelectGameType = () =>
+  //handle select game selection
+  const handleSelectGameType = async () =>
   {
     setGameType(!gameType);
   }
 
-  const handleSubmit = () =>
+  //handle submit selection
+  const HandleSubmit = async () =>
   {
-    window.alert("submission success"); 
 
-    RequestService(
-      "createGame", 
-      {
-        body:
-        {
 
-        }
-      }
-    )
+    //call request service and provide no body object since our api does not need a body for createGame
+    const gameId: string = await RequestService("createGame");
 
-    navigate("/lobby"); 
+    if (typeof gameId != "string")
+    {
+      console.error("Invalid API response");
+    }
+
+    //use set function created with at top level of component 
+    setId(gameId);
+
+    window.alert("submission success");
+    //force navigation without user intervention upon request completion and alert dismissal
+    navigate("/lobby");
   }
 
   return (
@@ -50,15 +62,15 @@ const CreateTourney = () =>
       <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
         <title>Create Tourney</title>
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
-        <BasicHeading headingText="Create Tourney" headingColors="white" />
-        
-        <label className="text-md" htmlFor="ruleset">Ruleset:</label>
-        <select className="text-sm p-4 m-4" id="ruleset" name="ruleset" onChange={handleSelectGameType}>
-          <option className="text-black">Single Elimination</option>
-          <option className="text-black">Double Elimination</option>
-        </select>
-        <BasicInput labelText="Max Players:" htmlFor="maxPlayers" name="maxPlayers" id="maxPlayers" value={numPlayers} onChange={handleMaxPlayers} />
-        <SubmitButton buttonLabel="Create Tourney" onSubmit={handleSubmit} />
+          <BasicHeading headingText="Create Tourney" headingColors="white" />
+
+          <label className="text-md" htmlFor="ruleset">Ruleset:</label>
+          <select className="text-sm p-4 m-4" id="ruleset" name="ruleset" onChange={handleSelectGameType}>
+            <option className="text-black">Single Elimination</option>
+            <option className="text-black">Double Elimination</option>
+          </select>
+          <BasicInput labelText="Max Players:" htmlFor="maxPlayers" name="maxPlayers" id="maxPlayers" value={numPlayers} onChange={handleMaxPlayers} />
+          <SubmitButton buttonLabel="Create Tourney" onSubmit={HandleSubmit} />
         </div>
       </div>
     </div>

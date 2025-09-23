@@ -15,8 +15,10 @@ import Vs from './pages/Vs.tsx';
 import InMatch from './pages/InMatch.tsx';
 import RoundScore from './pages/RoundScore.tsx';
 import StartGame from './pages/StartGame.tsx';
+import { GameIdDataProvider } from './components/GameIdContext.tsx';
 
 createRoot(document.getElementById('root')!).render(
+  <GameIdDataProvider>
   <BrowserRouter>
     <Routes>
       <Route path="*" element={<NotFound />} />
@@ -32,7 +34,7 @@ createRoot(document.getElementById('root')!).render(
       <Route path="/roundScore" element={<RoundScore />} />
       <Route path="/startGame" element={<StartGame />} />
       <Route path="/twoPlayers" element={<TwoPlayers />} />
-
     </Routes>
   </BrowserRouter>
+  </GameIdDataProvider>
 )
