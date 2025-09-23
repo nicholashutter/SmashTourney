@@ -6,13 +6,15 @@ import SubmitButton from "@/components/SubmitButton";
 import { RequestService } from "@/services/RequestService";
 import { useNavigate } from 'react-router';
 import { useGameId } from "@/components/GameIdContext";
-
+import HeadingTwo from "@/components/HeadingTwo";
 
 
 
 
 const CreateTourney = () =>
 {
+
+  const MAX_SUPPORTED_PLAYERS = 128;
 
   //dynamic import react router useNavigate
   const navigate = useNavigate();
@@ -21,7 +23,12 @@ const CreateTourney = () =>
   const { setId } = useGameId();
 
   //variables for users selections
+  //will set this with dropdown component with preset values
   const [numPlayers, setNumPlayers] = useState("");
+
+  //gameType true is double elimination
+  //gameType false is single elimination
+  //will set this with an enum like object
   const [gameType, setGameType] = useState(false);
 
   //handle max player selection
@@ -31,17 +38,41 @@ const CreateTourney = () =>
   }
 
   //handle select game selection
-  const handleSelectGameType = async () =>
+  const handleSelectGameType = async (e: React.ChangeEvent<HTMLSelectElement>) =>
   {
-    setGameType(!gameType);
+    //get value of event from select element
+    const selected = e.target.value;
+
+    //set gameType based on selection
+    switch (selected)
+    {
+      case "Single Elimination":
+        setGameType(false);
+        console.log("Single Elimination implementation under construction");
+        break;
+      case "Double Elimination":
+        setGameType(true);
+        break
+      default:
+        console.log("Invalid game type selection");
+        break;
+    }
   }
 
   //handle submit selection
-  const HandleSubmit = async () =>
+  const handleSubmit = async () =>
   {
 
+    //refactor this into validation function/object
+    const numberOfPlayers = parseInt(numPlayers);
+    if (numberOfPlayers > MAX_SUPPORTED_PLAYERS || numberOfPlayers < 0)
+    {
+      window.alert(`Total players must be greater than zero and less than ${MAX_SUPPORTED_PLAYERS}`);
+    }
 
-    //call request service and provide no body object since our api does not need a body for createGame
+    else
+    {
+      //call request service and provide no body object since our api does not need a body for createGame
     const gameId: string = await RequestService("createGame");
 
     if (typeof gameId != "string")
@@ -55,6 +86,8 @@ const CreateTourney = () =>
     window.alert("submission success");
     //force navigation without user intervention upon request completion and alert dismissal
     navigate("/lobby");
+    }
+    
   }
 
   return (
@@ -69,8 +102,9 @@ const CreateTourney = () =>
             <option className="text-black">Single Elimination</option>
             <option className="text-black">Double Elimination</option>
           </select>
-          <BasicInput labelText="Max Players:" htmlFor="maxPlayers" name="maxPlayers" id="maxPlayers" value={numPlayers} onChange={handleMaxPlayers} />
-          <SubmitButton buttonLabel="Create Tourney" onSubmit={HandleSubmit} />
+          <HeadingTwo headingText={`Enter Total Players (Up to ${MAX_SUPPORTED_PLAYERS})`} />
+          <BasicInput labelText="" htmlFor="maxPlayers" name="maxPlayers" id="maxPlayers" value={numPlayers} onChange={handleMaxPlayers} />
+          <SubmitButton buttonLabel="Create Tourney" onSubmit={handleSubmit} />
         </div>
       </div>
     </div>

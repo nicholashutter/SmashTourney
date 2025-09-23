@@ -11,7 +11,7 @@ const PlayerList = ({ players }: AppProps) =>
   return (
     <div className="flex flex-col gap-1">
       {players.map((player) => (
-        <Card className="max-w-sm overflow-hidden p-1 m-1" key={player.id}>
+        <Card className="max-w-sm overflow-hidden p-1 m-1" key={player.displayName}>
           <CardContent>
             <p className="text-sm truncate font-bold ">{player.displayName}</p>
             <p className="text-sm truncate">{player.currentCharacter.characterName}</p>
