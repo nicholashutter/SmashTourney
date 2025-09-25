@@ -7,34 +7,89 @@ export interface ApiEndpoint
 {
   method: HttpMethod;
   path: string;
+  params?: string[];
 }
 
 // define enum like object with all url paths and respective http methods
+// define enum-like object with all URL paths, HTTP methods, and route parameters
 const RequestBuilder = {
   getAllGames: { method: "GET", path: "/Games/getAllGames" },
   createGame: { method: "POST", path: "/Games/CreateGame" },
-  getGameById: { method: "GET", path: "/Games/GetGameById/{gameId}" },
-  endGame: { method: "GET", path: "/Games/EndGame/{gameId}" },
-  addPlayers: { method: "POST", path: "/Games/AddPlayers/{gameId}" },
+  getGameById: {
+    method: "GET",
+    path: "/Games/GetGameById/{gameId}",
+    params: ["gameId"]
+  },
+  endGame: {
+    method: "GET",
+    path: "/Games/EndGame/{gameId}",
+    params: ["gameId"]
+  },
+  addPlayers: {
+    method: "POST",
+    path: "/Games/AddPlayers/{gameId}",
+    params: ["gameId"]
+  },
+  getPlayersInGame: {
+    method: "POST",
+    path: "/Games/GetPlayersInGame/{gameId}",
+    params: ["gameId"]
+  },
   createUserSession: { method: "POST", path: "/Games/CreateUserSession" },
-  startGame: { method: "POST", path: "/Games/StartGame/{gameId}" },
-  loadGame: { method: "POST", path: "/Games/LoadGame/{gameId}" },
-  saveGame: { method: "POST", path: "/Games/SaveGame/{gameId}" },
-  startRound: { method: "POST", path: "/Games/StartRound/{gameId}" },
-  startMatch: { method: "POST", path: "/Games/StartMatch/{gameId}" },
+  startGame: {
+    method: "POST",
+    path: "/Games/StartGame/{gameId}",
+    params: ["gameId"]
+  },
+  loadGame: {
+    method: "POST",
+    path: "/Games/LoadGame/{gameId}",
+    params: ["gameId"]
+  },
+  saveGame: {
+    method: "POST",
+    path: "/Games/SaveGame/{gameId}",
+    params: ["gameId"]
+  },
+  startRound: {
+    method: "POST",
+    path: "/Games/StartRound/{gameId}",
+    params: ["gameId"]
+  },
+  startMatch: {
+    method: "POST",
+    path: "/Games/StartMatch/{gameId}",
+    params: ["gameId"]
+  },
   endMatch: { method: "POST", path: "/Games/EndMatch" },
 
   register: { method: "POST", path: "/Users/Register" },
   login: { method: "POST", path: "/Users/Login" },
-  profile: { method: "GET", path: "/Users/Profile/{userId}" },
+  profile: {
+    method: "GET",
+    path: "/Users/Profile/{userId}",
+    params: ["userId"]
+  },
   updateProfile: { method: "PUT", path: "/Users/UpdateProfile" },
   logout: { method: "POST", path: "/Users/logout" },
 
   getAllUsers: { method: "GET", path: "/users/GetAllUsers" },
-  getUserById: { method: "GET", path: "/users/GetById/{Id}" },
-  getUserByUserName: { method: "GET", path: "/users/GetByUserName/{UserName}" },
+  getUserById: {
+    method: "GET",
+    path: "/users/GetById/{Id}",
+    params: ["Id"]
+  },
+  getUserByUserName: {
+    method: "GET",
+    path: "/users/GetByUserName/{UserName}",
+    params: ["UserName"]
+  },
   updateUser: { method: "PUT", path: "/users/UpdateUser" },
-  deleteUser: { method: "DELETE", path: "/users/{Id}" }
+  deleteUser: {
+    method: "DELETE",
+    path: "/users/{Id}",
+    params: ["Id"]
+  }
 } as const satisfies Record<string, ApiEndpoint>;
 
 // 🔹 5. Generate Request object with full URLs
@@ -55,10 +110,18 @@ export const Request = Object.fromEntries(
 export const RequestService =
   <Key extends keyof typeof Request, Req, Res>(
     endpoint: Key,
-    options?: Omit<RequestInit, "body" | "method"> & { body?: Req }
+    options?: Omit<RequestInit, "body" | "method"> & {
+      body?: Req;
+      routeParams?: Record<string, string>;
+    }
   ): Promise<Res> =>
   {
-    const { url, method } = Request[endpoint];
+    const { path, method } = Request[endpoint];
+    const interpolatedPath = options?.routeParams
+      ? insertParams(path, options.routeParams)
+      : path;
+
+    const url = `${BASE_URL}${interpolatedPath}`;
 
     return fetch(url, {
       method,
@@ -74,3 +137,35 @@ export const RequestService =
       return res.json() as Promise<Res>;
     });
   };
+
+const insertParams = (
+  path: string,
+  params: Record<string, string>
+): string =>
+{
+  return path.replace(/{(\w+)}/g, (_, key) =>
+  {
+    if (!(key in params))
+    {
+      throw new Error(`Missing route param: ${key}`);
+    }
+    return encodeURIComponent(params[key]);
+  });
+};
+
+
+/* 
+              EXAMPLE USAGE 
+
+              await RequestService("createGame", {
+                body: { your http Request object },
+                routeParams: { optional route params as key-value pairs }
+              });
+
+              await RequestService("addPlayers", {
+              routeParams: { gameId: "abc123" },
+              body: { players: ["Nick", "Sam"] }
+              });
+
+
+*/ 

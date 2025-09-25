@@ -6,24 +6,53 @@ import HeadingTwo from "@/components/HeadingTwo";
 import { Player } from ".././models/entities/Player";
 import { RequestService } from '@/services/RequestService';
 import Mario from "../models/entities/Characters/Mario";
-import PersistentConnection from "../services/PersistentConnection"
-import { useEffect, useState } from 'react';
+import PersistentConnection from "../services/PersistentConnection";
+import { use, useEffect, useState } from 'react';
+import { useGameId } from '@/components/GameIdContext';
 
 
 const Lobby = () =>
 {
+    const [players, setPlayers] = useState<Player[]>([]);
+
+    //open connection to front end signalR hub wrapper
     const lobbyConnection = new PersistentConnection();
-    const sessionCode = "P1@C3H0!D3R";
+
+    //get the gameId from useContext wrapper
+    //should have either been loaded from joinTourney or createTourney pages
+    const { Id, setId } = useGameId();
+
+    useEffect(() =>
+    {
+        //sync wrapper for useEffect over async call to api
+        const asyncRequest = async () =>
+        {
+            const result: Player[] = await RequestService("getPlayersInGame",
+                {
+                    body:
+                    {
+                        gameId: Id,
+                    }
+                }
+            )
+            //setPlayers array to result from api
+            //this should load players already in game on page load
+            setPlayers(result);
+        };
+
+        asyncRequest();
 
 
-    const Players: Player[] =
-        [
+        //create connections for all players in game to signalR hub
+        lobbyConnection.createPlayerConnection();
+        lobbyConnection.setOnPlayersUpdated((updatedPlayers) =>
+        {
+            setPlayers(updatedPlayers);
+        });
+        lobbyConnection.setGameId(Id!);
+    }, []);
 
-        ]
 
-    Players.forEach(player => { lobbyConnection.createPlayerConnection() })
-
-    console.log(sessionCode);
 
     return (
         <div className="flex flex-col items-center justify-center h-dvh w-dvw">
@@ -31,24 +60,17 @@ const Lobby = () =>
                 <title>Not Found</title>
                 <div className='shrink flex flex-col text-2xl p-4 m-4 '>
                     <HeadingTwo headingText="Current Players in Game" />
-                    <PlayerList players={Players} />
-                    <BasicInput labelText="Session Code:" name="sessionCode" htmlFor="sessionCode" id="sessionCode" value={sessionCode} onChange={() => { }} />
+                    <PlayerList players={players} />
+                    <BasicInput labelText="Session Code:" name="sessionCode" htmlFor="sessionCode" id="sessionCode" value={Id!} onChange={() => { }} />
                     <HeadingTwo headingText="Waiting On Additional Players..." />
 
-                    <SubmitButton buttonLabel="All Players In" onSubmit={() =>
-                    {
-                        RequestService(
-                            "startGame",
-                            {
-                                body:
-                                {
-                                    //TODO make sure only the first player to join
-                                    //can see the all players in button
-                                    //accurate request body
-                                }
-                            }
-                        )
-                    }
+                    <SubmitButton buttonLabel="All Players In" onSubmit={
+                        async () =>
+                        {
+                            const result = await RequestService("startGame");
+
+                            console.log(result);
+                        }
                     } />
                     <BasicButton buttonLabel="Return Home" href="/" />
 

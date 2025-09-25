@@ -9,12 +9,42 @@ import { useGameId } from "@/components/GameIdContext";
 import HeadingTwo from "@/components/HeadingTwo";
 
 
+const MAX_SUPPORTED_PLAYERS = 128;
 
+const validateTotalPlayers = (userInput: number) =>
+{
+  const inputType = typeof (userInput);
+
+  if (inputType === "number")
+  {
+    if (userInput > 0)
+    {
+      if (userInput < MAX_SUPPORTED_PLAYERS)
+      {
+        return true;
+      }
+    }
+
+  }
+
+  return false;
+}
+
+const validateGameIdResponse = (gameId: string) =>
+{
+  const inputType = typeof (gameId);
+
+  if (inputType === "string")
+  {
+    return true;
+  }
+  return false;
+}
 
 const CreateTourney = () =>
 {
 
-  const MAX_SUPPORTED_PLAYERS = 128;
+
 
   //dynamic import react router useNavigate
   const navigate = useNavigate();
@@ -34,7 +64,16 @@ const CreateTourney = () =>
   //handle max player selection
   const handleMaxPlayers = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
-    setNumPlayers(e.target.value);
+    const numplayers = parseInt(e.target.value); 
+    if (!validateTotalPlayers(numplayers))
+    {
+      window.alert(`Total players must be a number greater than zero and less than ${MAX_SUPPORTED_PLAYERS}`);
+    }
+    else
+    {
+      setNumPlayers(e.target.value);
+    }
+    
   }
 
   //handle select game selection
@@ -62,32 +101,23 @@ const CreateTourney = () =>
   //handle submit selection
   const handleSubmit = async () =>
   {
-
-    //refactor this into validation function/object
-    const numberOfPlayers = parseInt(numPlayers);
-    if (numberOfPlayers > MAX_SUPPORTED_PLAYERS || numberOfPlayers < 0)
-    {
-      window.alert(`Total players must be greater than zero and less than ${MAX_SUPPORTED_PLAYERS}`);
-    }
-
-    else
-    {
       //call request service and provide no body object since our api does not need a body for createGame
-    const gameId: string = await RequestService("createGame");
+      const gameId: string = await RequestService("createGame");
 
-    if (typeof gameId != "string")
-    {
-      console.error("Invalid API response");
-    }
+      if (validateGameIdResponse(gameId))
+      {
+        //use set function created with at top level of component 
+        setId(gameId);
 
-    //use set function created with at top level of component 
-    setId(gameId);
+        window.alert("submission success");
+        //force navigation without user intervention upon request completion and alert dismissal
+        navigate("/lobby");
+      }
+      else
+      {
+        window.alert("Something went wrong");
+      }
 
-    window.alert("submission success");
-    //force navigation without user intervention upon request completion and alert dismissal
-    navigate("/lobby");
-    }
-    
   }
 
   return (

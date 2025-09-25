@@ -60,6 +60,24 @@ public static class GameRouter
             return Results.Ok(response);
         });
 
+        GameRoutes.MapPost("/GetPlayersInGame/{gameId}", async (HttpContext context, Guid gameId, IGameService gameService) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/Games/GetPlayersInGame' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            Game? game = await gameService.GetGameByIdAsync(gameId);
+
+            if (game is null)
+            {
+                return Results.NotFound();
+            }
+
+            var response = new {
+                 Game.currentPlayers = players 
+                 };
+
+            return Results.Ok(response);
+        });
+
 
         GameRoutes.MapGet("/EndGame/{gameId}", (HttpContext context, Guid gameId, IGameService gameService) =>
         {

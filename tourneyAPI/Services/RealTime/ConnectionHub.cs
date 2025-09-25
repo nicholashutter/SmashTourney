@@ -19,27 +19,18 @@ public class ConnectionHub : Hub
 
     }
 
-    public async Task UpdatePlayers(string gameId)
+    public async Task UpdatePlayers(gameId)
     {
 
         //current behavior is just to work out the kinks in testing environment
         //code commented out below is actual method intended behavior
-        const string UPDATE_CONFIRMATION_EVENT = "RECIEVED_UPDATE";
-        await Clients.All.SendAsync(UPDATE_CONFIRMATION_EVENT, gameId);
+        var players = await _gameService.GetPlayersInGame(Guid.Parse(gameId))
 
-        //await Clients.Others.SendAsync(JsonSerializer.Serialize(await _gameService.GetPlayersInGame(Guid.Parse(gameId))));
+        await Clients.Others.SendAsync("PlayersUpdated", players);
+
+
     }
 
-
-
-
-
-
-    public async Task NotifyOthers(string playerName)
-    {
-        const string UPDATE_CONFIRMATION_EVENT = "PlayerJoinedNotification";
-        await Clients.Others.SendAsync(UPDATE_CONFIRMATION_EVENT, $"{playerName} Joined!");
-    }
 
 
 }
