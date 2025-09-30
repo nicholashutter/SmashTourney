@@ -1,7 +1,7 @@
 
 
-export const SERVER_ERROR = (tag:string)=> 
+export const SERVER_ERROR = (tag: string) => 
 {
-    `A server error occurred. Please try again later. [${tag}]`;
+    return `A server error occurred. Please try again later. [${tag}]`;
 }
 

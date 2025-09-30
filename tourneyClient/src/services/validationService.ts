@@ -33,7 +33,7 @@ export const validationService = () =>
 
 
         const redirectPattern = /(https?:\/\/|\/\/)[^\s]+/i;
-        if (redirectPattern.test(input) && !input.startsWith("https://"))
+        if (redirectPattern.test(input))
         {
             issues.push("Potential open redirect detected.");
         }
