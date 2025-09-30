@@ -9,6 +9,9 @@ import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
 
+
+//will need to create api endpoint using a predefined guest object
+//that does not require authentication to access
 const GuestSignUp: React.FC = () =>
 {
   const navigate = useNavigate();

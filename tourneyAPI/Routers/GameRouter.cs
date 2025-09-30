@@ -71,9 +71,10 @@ public static class GameRouter
                 return Results.NotFound();
             }
 
-            var response = new {
-                 Game.currentPlayers = players 
-                 };
+            var response = new
+            {
+                game.currentPlayers
+            };
 
             return Results.Ok(response);
         });

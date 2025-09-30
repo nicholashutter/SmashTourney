@@ -1,8 +1,16 @@
 import BasicHeading from "@/components/BasicHeading";
 import { useParams } from "react-router";
 
-//get PlAYER_ONE and PLAYER_TWO  from useParams from react router
-//
+/*
+
+this needs to call /Games/StartMatch using request service
+
+await the response then display the playernames in the title and heading spots below
+
+
+*/
+
+
 const Vs = () =>
 {
     const params = useParams();

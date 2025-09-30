@@ -85,7 +85,6 @@ const JoinTourney = () =>
                 }
               }
             )
-            await lobbyConnection.notifyOthers(sessionCode);
             await lobbyConnection.updateOthers(playerName);
             window.alert("submission success");
 

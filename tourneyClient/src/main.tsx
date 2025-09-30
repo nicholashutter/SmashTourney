@@ -27,7 +27,11 @@ createRoot(document.getElementById('root')!).render(
       <Route path="/joinTourney" element={<JoinTourney />} />
       <Route path="/signUp" element={<SignUp />} />
       <Route path="/tourneyMenu" element={<TourneyMenu />} />
-      <Route path="/guestSignUp" element={<GuestSignIn />} />
+      {
+        //this page is finished but the api doesn't support the feature yet so for now we will route to notfound
+        //<Route path="/guestSignUp" element={<GuestSignIn />} />
+      }
+      
       <Route path="/lobby" element={<Lobby />} />
       <Route path="/vs/p/:playerOne/p/:playerTwo" element={<Vs />} />
       <Route path="/inMatch" element={<InMatch />} />

@@ -31,16 +31,29 @@ const HomePage: React.FC = () =>
     setPassword(e.target.value);
   }
 
-  const onSubmit = () =>
+  const onSubmit = async () =>
   {
-    RequestService(
-      "login",
-      {
-        body: user
-      }
-    )
-    window.alert("submission success");
-    navigate("/tourneyMenu");
+    try
+    {
+      await RequestService(
+        "login",
+        {
+          body: user
+        }
+      )
+
+      window.alert("submission success");
+      navigate("/tourneyMenu");
+    }
+    catch (err)
+    {
+      window.alert("Unable to login. Please try again");
+      console.error(`Login Failed: ${err}`);
+    }
+
+
+
+
   }
 
 
