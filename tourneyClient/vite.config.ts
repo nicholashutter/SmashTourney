@@ -1,8 +1,9 @@
-import path from "path"; 
+import path from "path";
 import { defineConfig } from 'vite';
 import { configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import eslint from "vite-plugin-eslint";
 
 
 
@@ -11,8 +12,9 @@ export default defineConfig({
     [
       react(),
       tailwindcss(),
+      eslint()
     ],
-    resolve: {
+  resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },

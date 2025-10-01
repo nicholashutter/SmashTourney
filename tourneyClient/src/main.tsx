@@ -28,7 +28,7 @@ createRoot(document.getElementById('root')!).render(
       <Route path="/signUp" element={<SignUp />} />
       <Route path="/tourneyMenu" element={<TourneyMenu />} />
       {
-        //this page is finished but the api doesn't support the feature yet so for now we will route to notfound
+        //commenting out guestSignUp because page is finished but api endpoints not written yet
         //<Route path="/guestSignUp" element={<GuestSignIn />} />
       }
       

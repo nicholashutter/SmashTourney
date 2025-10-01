@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "motion": "^12.23.12"
+    "motion": "^12.23.12",
+    "vite-plugin-eslint2": "^5.0.4"
   }
 }

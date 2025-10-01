@@ -1,6 +1,6 @@
 
 import BasicButton from "@/components/BasicButton";
-import BasicHeading from "@/components/BasicHeading";
+import BasicHeading from "@/components/HeadingOne";
 
 
 

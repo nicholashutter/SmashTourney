@@ -21,9 +21,6 @@ public class ConnectionHub : Hub
 
     public async Task UpdatePlayers(string gameId)
     {
-
-        //current behavior is just to work out the kinks in testing environment
-        //code commented out below is actual method intended behavior
         var players = await _gameService.GetPlayersInGame(Guid.Parse(gameId));
 
         await Clients.Others.SendAsync("PlayersUpdated", players);

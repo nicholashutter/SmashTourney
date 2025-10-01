@@ -1,22 +1,23 @@
 import React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import PersistentConnection from "../services/PersistentConnection"
 import BasicInput from "@/components/BasicInput";
-import BasicHeading from "@/components/BasicHeading";
+import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
-import { CharacterName } from "@/models/Enums/CharacterName";
 import
 {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { validateInput } from "@/services/ValidationService";
+import { INVALID_CHARACTERS } from "@/constants/StatusMessages";
+import { Character } from "@/models/entities/Character.ts";
+
 
 
 
@@ -28,24 +29,74 @@ const JoinTourney = () =>
   const navigate = useNavigate();
 
   //player should enter
-  const [sessionCode, setSessionCode] = useState("");
+  const [gameId, setGameId] = useState("");
   //player should enter
-  const [playerName, setPlayerName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+
+  //array will be loaded with characters using dynamic import.meta.glob provided by vite
+  const [characters, setCharacters] = useState<Character[]>([]);
 
   //player will choose through dropdown components
-  const [currentCharacter, setCurrentCharacter] = useState("");
+  const [currentCharacter, setCurrentCharacter] = useState({} as Character);
 
   //create instance of signalR to send lobby updates to other users
   const lobbyConnection = new PersistentConnection();
 
-  const handleSessionCode = (e: React.ChangeEvent<HTMLInputElement>) =>
+
+
+  useEffect(() =>
   {
-    setSessionCode(e.target.value);
+    //Get all matching character module paths and their import functions
+    //vite docs detail this behavior 
+    //characterModuleMap will be an object of import urls and callback functions
+    const characterModuleMap = import.meta.glob("../models/entities/Characters/*.ts");
+
+    //Define an async function to load all character modules
+    const fetchAllCharacters = async () =>
+    {
+      //Call each import function to dynamically load the module
+      const modulePromises = Object.values(characterModuleMap).map((dynamicImport) => dynamicImport());
+
+      //Wait for all modules to finish loading
+      const resolvedModules = await Promise.all(modulePromises);
+
+      //Extract the default export (the character object) from each module
+      const characterObjects = resolvedModules.map((module) => module.default);
+
+      //Save the array of character objects to state
+      setCharacters(characterObjects);
+    };
+
+    // Step 7: Run the async loader function
+    fetchAllCharacters();
+  });
+
+  const gameIdHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
+  {
+    const validateGameId = validateInput(gameId);
+    if (validateGameId)
+    {
+      setGameId(e.target.value);
+    }
+    else
+    {
+      window.alert(INVALID_CHARACTERS("GameId"));
+    }
+
   }
 
-  const handlePlayerNameChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const displayNameHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
-    setPlayerName(e.target.value);
+    const validateDisplayName = validateInput(displayName);
+    if (validateDisplayName)
+    {
+      setDisplayName(e.target.value);
+    }
+    else
+    {
+      window.alert(INVALID_CHARACTERS("Display Name"));
+    }
+
   }
 
   return (
@@ -55,17 +106,26 @@ const JoinTourney = () =>
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
           <BasicHeading headingText="Join Room" headingColors="white" />
           <BasicInput labelText="Session Code:" htmlFor="sessionCode"
-            id="sessionCode" name="sessionCode" value={sessionCode} onChange={handleSessionCode} />
+            id="sessionCode" name="sessionCode" value={gameId} onChange={gameIdHandler} />
           <BasicInput labelText="Enter Player Name:" htmlFor="playerName"
-            id="playerName" name="playerName" value={playerName} onChange={handlePlayerNameChange} />
+            id="playerName" name="playerName" value={displayName} onChange={displayNameHandler} />
           <DropdownMenu>
             <DropdownMenuTrigger>Choose Your Fighter</DropdownMenuTrigger>
             <DropdownMenuContent>
-              {
-                //need to do a map function here something like in the playerList component
-              }
-              <DropdownMenuItem>Mario</DropdownMenuItem>
+              {characters.map((Character, index) => (
+                <DropdownMenuItem key={index}>
+                  {Character.characterName}
+                  {/*
+                  <br />
+                  {Character.archetype}<br />
+                  {Character.fallSpeed}<br />
+                  {Character.tierPlacement}<br />
+                  {Character.weightClass}
+                  
+                  */ }
 
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
           <SubmitButton buttonLabel="Join Room" onSubmit={async () =>
@@ -77,15 +137,15 @@ const JoinTourney = () =>
                 {
                   id: "",
                   userId: "",
-                  displayName: playerName,
+                  displayName: displayName,
                   currentScore: 0,
                   currentRound: 0,
                   currentCharacter: currentCharacter,
-                  currentGameId: sessionCode
+                  currentGameId: gameId
                 }
               }
             )
-            await lobbyConnection.updateOthers(playerName);
+            await lobbyConnection.updateOthers(displayName);
             window.alert("submission success");
 
             navigate("/lobby");

@@ -10,7 +10,6 @@ export interface ApiEndpoint
   params?: string[];
 }
 
-// define enum like object with all url paths and respective http methods
 // define enum-like object with all URL paths, HTTP methods, and route parameters
 const RequestBuilder = {
   getAllGames: { method: "GET", path: "/Games/getAllGames" },
@@ -92,7 +91,7 @@ const RequestBuilder = {
   }
 } as const satisfies Record<string, ApiEndpoint>;
 
-// 🔹 5. Generate Request object with full URLs
+// Generate Request object with full URLs
 export const Request = Object.fromEntries(
   Object.entries(RequestBuilder).map(([key, { method, path }]) => [
     key,

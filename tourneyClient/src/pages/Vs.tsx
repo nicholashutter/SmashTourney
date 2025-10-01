@@ -1,4 +1,4 @@
-import BasicHeading from "@/components/BasicHeading";
+import BasicHeading from "@/components/HeadingOne";
 import { useParams } from "react-router";
 
 /*

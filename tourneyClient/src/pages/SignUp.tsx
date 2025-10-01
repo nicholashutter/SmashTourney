@@ -1,9 +1,9 @@
 import BasicInput from "@/components/BasicInput";
-import BasicHeading from "@/components/BasicHeading";
+import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
 import { useState } from "react";
 import { RequestService } from "@/services/RequestService";
-import { SERVER_ERROR } from "@/constants/statusMessages";
+import { SERVER_ERROR } from "@/constants/StatusMessages";
 import { ApplicationUser } from "../models/entities/ApplicationUser";
 import { validateInput } from "@/services/validationService";
 
@@ -61,7 +61,7 @@ const SignUp = () =>
     }
     else
     {
-      window.alert(SERVER_ERROR("Invalid Characters")); 
+      window.alert(SERVER_ERROR("Invalid Characters"));
     }
 
 

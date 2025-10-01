@@ -3,66 +3,69 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { ApplicationUser } from '../models/entities/ApplicationUser';
-import { validateInput } from "@/services/validationService";
-import { SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/statusMessages";
+import { validateInput } from "@/services/ValidationService";
+import { SERVER_ERROR, SUBMIT_SUCCESS, INVALID_CHARACTERS } from "@/constants/StatusMessages";
 import HeadingTwo from "@/components/HeadingTwo";
 import BasicInput from "@/components/BasicInput";
-import BasicHeading from "@/components/BasicHeading";
+import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
 
 
 const HomePage = () =>
 {
+  //dynamic import react router useNavigate
   const navigate = useNavigate();
+
+  //user input values
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
 
+  //setup user object RequestService expects
   const user: ApplicationUser =
   {
     UserName: userName,
     Password: password
   }
 
-  const handleUserNameChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const userNameHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
     setUserName(e.target.value);
   }
 
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const passwordHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
     setPassword(e.target.value);
   }
 
   const onSubmit = async () =>
   {
-    const validateUserName = validateInput(userName); 
+    const validateUserName = validateInput(userName);
     const validatePassword = validateInput(password);
 
     if (validateUserName && validatePassword)
     {
       try
+      {
+        await RequestService(
+          "login",
+          {
+            body: user
+          }
+        )
+
+        window.alert(SUBMIT_SUCCESS("Login"));
+        navigate("/tourneyMenu");
+      }
+      catch (err)
+      {
+        window.alert(SERVER_ERROR("Login"));
+        console.error(err);
+      }
+    }
+    else
     {
-      await RequestService(
-        "login",
-        {
-          body: user
-        }
-      )
-
-      window.alert(SUBMIT_SUCCESS("Login"));
-      navigate("/tourneyMenu");
+      window.alert(INVALID_CHARACTERS("Login"));
     }
-    catch (err)
-    {
-      window.alert(SERVER_ERROR("Login"));
-      console.error(err);
-    }
-    }
-    
-
-
-
-
   }
 
 
@@ -73,8 +76,8 @@ const HomePage = () =>
         <title>Smash Tourney</title>
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
           <BasicHeading headingText="Welcome!" headingColors="white" />
-          <BasicInput labelText="Username:" htmlFor="username" name="username" id="username" value={userName} onChange={handleUserNameChange} />
-          <BasicInput labelText="Password:" htmlFor="password" name="password" id="password" value={password} onChange={handlePasswordChange} />
+          <BasicInput labelText="Username:" htmlFor="username" name="username" id="username" value={userName} onChange={userNameHandler} />
+          <BasicInput labelText="Password:" htmlFor="password" name="password" id="password" value={password} onChange={passwordHandler} />
 
           <SubmitButton buttonLabel="Sign In" onSubmit={onSubmit} />
           <HeadingTwo headingText="Or" />

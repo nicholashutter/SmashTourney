@@ -1,9 +1,10 @@
 import { useState } from "react";
 
-import BasicHeading from "@/components/BasicHeading";
+import BasicHeading from "@/components/HeadingOne";
 import BasicInput from "@/components/BasicInput";
 import SubmitButton from "@/components/SubmitButton";
 import { RequestService } from "@/services/RequestService";
+import { validateInput } from "@/services/ValidationService";
 import { useNavigate } from 'react-router';
 import { useGameId } from "@/components/GameIdContext";
 import HeadingTwo from "@/components/HeadingTwo";
@@ -21,12 +22,17 @@ const validateTotalPlayers = (userInput: number) =>
     {
       if (userInput < MAX_SUPPORTED_PLAYERS)
       {
-        return true;
+        const validateNumPlayers = validateInput(userInput.toString());
+
+        if (validateNumPlayers)
+        {
+          return true;
+        }
+
       }
     }
 
   }
-  //this also needs to call the global validatorService as well and return false if that returns an error
   return false;
 }
 
@@ -36,18 +42,20 @@ const validateGameIdResponse = (gameId: string) =>
 
   if (inputType === "string")
   {
-    return true;
+    const validateGameId = validateInput(gameId);
+
+    if (validateGameId)
+    {
+      return true;
+    }
+
   }
 
-  //this also needs to call the global validatorService as well and return false if that returns an error
   return false;
 }
 
 const CreateTourney = () =>
 {
-
-
-
   //dynamic import react router useNavigate
   const navigate = useNavigate();
 
@@ -66,7 +74,7 @@ const CreateTourney = () =>
   //handle max player selection
   const handleMaxPlayers = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
-    const numplayers = parseInt(e.target.value); 
+    const numplayers = parseInt(e.target.value);
     if (!validateTotalPlayers(numplayers))
     {
       window.alert(`Total players must be a number greater than zero and less than ${MAX_SUPPORTED_PLAYERS}`);
@@ -75,7 +83,7 @@ const CreateTourney = () =>
     {
       setNumPlayers(e.target.value);
     }
-    
+
   }
 
   //handle select game selection
@@ -103,22 +111,22 @@ const CreateTourney = () =>
   //handle submit selection
   const handleSubmit = async () =>
   {
-      //call request service and provide no body object since our api does not need a body for createGame
-      const gameId: string = await RequestService("createGame");
+    //call request service and provide no body object since our api does not need a body for createGame
+    const gameId: string = await RequestService("createGame");
 
-      if (validateGameIdResponse(gameId))
-      {
-        //use set function created with at top level of component 
-        setId(gameId);
+    if (validateGameIdResponse(gameId))
+    {
+      //use set function created with at top level of component 
+      setId(gameId);
 
-        window.alert("submission success");
-        //force navigation without user intervention upon request completion and alert dismissal
-        navigate("/lobby");
-      }
-      else
-      {
-        window.alert("Something went wrong");
-      }
+      window.alert("submission success");
+      //force navigation without user intervention upon request completion and alert dismissal
+      navigate("/lobby");
+    }
+    else
+    {
+      window.alert("Something went wrong");
+    }
 
   }
 

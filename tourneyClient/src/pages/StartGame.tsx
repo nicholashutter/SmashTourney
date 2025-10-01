@@ -1,4 +1,4 @@
-import BasicHeading from "@/components/BasicHeading";
+import BasicHeading from "@/components/HeadingOne";
 
 /*
 
@@ -6,7 +6,7 @@ this page needs to get the gameId from useContext
 by this point in the application flow, there must be a gameId
 
 then requestService to startGame endpoint with gameId as the payload
-*/ 
+*/
 
 
 
