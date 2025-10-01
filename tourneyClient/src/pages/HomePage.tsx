@@ -3,13 +3,15 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { ApplicationUser } from '../models/entities/ApplicationUser';
+import { validateInput } from "@/services/validationService";
+import { SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/statusMessages";
 import HeadingTwo from "@/components/HeadingTwo";
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/BasicHeading";
 import SubmitButton from "@/components/SubmitButton";
 
 
-const HomePage: React.FC = () =>
+const HomePage = () =>
 {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
@@ -33,7 +35,12 @@ const HomePage: React.FC = () =>
 
   const onSubmit = async () =>
   {
-    try
+    const validateUserName = validateInput(userName); 
+    const validatePassword = validateInput(password);
+
+    if (validateUserName && validatePassword)
+    {
+      try
     {
       await RequestService(
         "login",
@@ -42,14 +49,16 @@ const HomePage: React.FC = () =>
         }
       )
 
-      window.alert("submission success");
+      window.alert(SUBMIT_SUCCESS("Login"));
       navigate("/tourneyMenu");
     }
     catch (err)
     {
-      window.alert("Unable to login. Please try again");
-      console.error(`Login Failed: ${err}`);
+      window.alert(SERVER_ERROR("Login"));
+      console.error(err);
     }
+    }
+    
 
 
 

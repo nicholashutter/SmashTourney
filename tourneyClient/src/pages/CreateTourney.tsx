@@ -26,7 +26,7 @@ const validateTotalPlayers = (userInput: number) =>
     }
 
   }
-
+  //this also needs to call the global validatorService as well and return false if that returns an error
   return false;
 }
 
@@ -38,6 +38,8 @@ const validateGameIdResponse = (gameId: string) =>
   {
     return true;
   }
+
+  //this also needs to call the global validatorService as well and return false if that returns an error
   return false;
 }
 

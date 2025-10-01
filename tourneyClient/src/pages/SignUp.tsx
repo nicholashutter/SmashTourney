@@ -3,8 +3,9 @@ import BasicHeading from "@/components/BasicHeading";
 import SubmitButton from "@/components/SubmitButton";
 import { useState } from "react";
 import { RequestService } from "@/services/RequestService";
-import {SERVER_ERROR} from "@/constants/errors";
-import {ApplicationUser} from "../models/entities/ApplicationUser";
+import { SERVER_ERROR } from "@/constants/statusMessages";
+import { ApplicationUser } from "../models/entities/ApplicationUser";
+import { validateInput } from "@/services/validationService";
 
 
 
@@ -16,7 +17,7 @@ const SignUp = () =>
   const [applicationUser, setApplicationUser] = useState({
     UserName: "",
     Password: ""
-  } as ApplicationUser); 
+  } as ApplicationUser);
 
 
   const handleUserNameChange = (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -32,30 +33,38 @@ const SignUp = () =>
     setPassword(e.target.value);
   };
 
-  const handleSubmit = (e: React.MouseEvent<HTMLAnchorElement>) =>
+  const handleSubmit = async (e: React.MouseEvent<HTMLAnchorElement>) =>
   {
     e.preventDefault();
 
-    setApplicationUser({UserName: userName, Password: password
-    }); 
-    
-    try
-    {
-     const asyncWrapper = async () =>
-     {
-       await RequestService("register",
-        {
-          body: {}
-        }
-      );
-     }
+    const validateUserName = validateInput(userName);
+    const validatePassword = validateInput(password);
 
-      asyncWrapper();
-    }
-    catch (err)
+    if (validateUserName && validatePassword)
     {
-      console.error(SERVER_ERROR("SignUp")); 
+      setApplicationUser({
+        UserName: userName, Password: password
+      });
+
+      try
+      {
+        await RequestService("register",
+          {
+            body: applicationUser
+          }
+        );
+      }
+      catch (err)
+      {
+        console.error(err);
+      }
     }
+    else
+    {
+      window.alert(SERVER_ERROR("Invalid Characters")); 
+    }
+
+
   };
 
   return (

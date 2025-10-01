@@ -4,45 +4,50 @@ type ValidationResult = {
     issues: string[];
 };
 
-export const validationService = () =>
-{
-    const validateInput = (input: string): ValidationResult =>
+ export const validateInput = (input: string): ValidationResult =>
     {
         const issues: string[] = [];
+
+        const INVALID_MSG = "Invalid Characters in Submission.";
+
+        const INVALID_CHARACTERS = (msg: string) =>
+        {
+            return INVALID_MSG + `${msg}`;
+        }
 
 
         const htmlPattern = /<[^>]*>/g;
         if (htmlPattern.test(input))
         {
-            issues.push("Potential HTML injection detected.");
+            issues.push(INVALID_CHARACTERS("HTML"));
         }
 
 
         const sqlPattern = /\b(SELECT|INSERT|DELETE|UPDATE|DROP|UNION|--|;)\b/i;
         if (sqlPattern.test(input))
         {
-            issues.push("Potential SQL injection detected.");
+            issues.push(INVALID_CHARACTERS("SQL"));
         }
 
 
         const jsPattern = /\b(script|onerror|onload|eval|alert|document\.cookie)\b/i;
         if (jsPattern.test(input))
         {
-            issues.push("Potential JavaScript injection detected.");
+            issues.push(INVALID_CHARACTERS("JS"));
         }
 
 
         const redirectPattern = /(https?:\/\/|\/\/)[^\s]+/i;
         if (redirectPattern.test(input))
         {
-            issues.push("Potential open redirect detected.");
+            issues.push(INVALID_CHARACTERS("URL"));
         }
 
 
         const escapePattern = /[\\'"]/;
         if (escapePattern.test(input))
         {
-            issues.push("Potential escape character misuse detected.");
+            issues.push(INVALID_CHARACTERS("ESC"));
         }
 
 
@@ -51,9 +56,6 @@ export const validationService = () =>
             issues,
         };
     };
-
-    return { validateInput };
-};
 
 
 /**
