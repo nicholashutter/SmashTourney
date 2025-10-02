@@ -80,12 +80,15 @@ const HomePage = () =>
           <BasicInput labelText="Password:" htmlFor="password" name="password" id="password" value={password} onChange={passwordHandler} />
 
           <SubmitButton buttonLabel="Sign In" onSubmit={onSubmit} />
-          <HeadingTwo headingText="Or" />
+          {
+            /* <HeadingTwo headingText="Or" />
           <SubmitButton buttonLabel="Continue As Guest" onSubmit={() =>
           {
             navigate("/guestSignUp");
           }
-          } />
+          } />*/
+          }
+
         </div>
       </div>
     </div>

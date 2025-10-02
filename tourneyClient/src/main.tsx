@@ -4,7 +4,7 @@ import './index.css';
 import HomePage from './pages/HomePage.tsx';
 import { BrowserRouter, Routes, Route } from "react-router";
 import NotFound from './pages/NotFound.tsx';
-import GuestSignIn from './pages/GuestSignUp.tsx';
+//import GuestSignIn from './pages/GuestSignUp.tsx';
 import CreateTourney from './pages/CreateTourney.tsx';
 import JoinTourney from './pages/JoinTourney.tsx';
 import SignUp from './pages/SignUp.tsx';

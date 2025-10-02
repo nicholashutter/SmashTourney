@@ -12,7 +12,7 @@ export default defineConfig({
     [
       react(),
       tailwindcss(),
-      eslint()
+      eslint({failOnWarning: false})
     ],
   resolve: {
     alias: {

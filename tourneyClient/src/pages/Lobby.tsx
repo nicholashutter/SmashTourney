@@ -5,9 +5,8 @@ import SubmitButton from '@/components/SubmitButton';
 import HeadingTwo from "@/components/HeadingTwo";
 import { Player } from ".././models/entities/Player";
 import { RequestService } from '@/services/RequestService';
-import Mario from "../models/entities/Characters/Mario";
 import PersistentConnection from "../services/PersistentConnection";
-import { use, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGameId } from '@/components/GameIdContext';
 
 
@@ -20,7 +19,7 @@ const Lobby = () =>
 
     //get the gameId from useContext wrapper
     //should have either been loaded from joinTourney or createTourney pages
-    const { Id, setId } = useGameId();
+    const {Id} = useGameId();
 
     useEffect(() =>
     {

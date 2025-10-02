@@ -5,7 +5,7 @@ import { useState } from "react";
 import { RequestService } from "@/services/RequestService";
 import { SERVER_ERROR } from "@/constants/StatusMessages";
 import { ApplicationUser } from "../models/entities/ApplicationUser";
-import { validateInput } from "@/services/validationService";
+import { validateInput } from "@/services/ValidationService";
 
 
 
@@ -14,10 +14,7 @@ const SignUp = () =>
   const [userName, setUserName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [applicationUser, setApplicationUser] = useState({
-    UserName: "",
-    Password: ""
-  } as ApplicationUser);
+  const [applicationUser, setApplicationUser] = useState({} as ApplicationUser);
 
 
   const handleUserNameChange = (e: React.ChangeEvent<HTMLInputElement>) =>

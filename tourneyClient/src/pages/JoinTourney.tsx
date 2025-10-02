@@ -110,10 +110,12 @@ const JoinTourney = () =>
           <BasicInput labelText="Enter Player Name:" htmlFor="playerName"
             id="playerName" name="playerName" value={displayName} onChange={displayNameHandler} />
           <DropdownMenu>
-            <DropdownMenuTrigger>Choose Your Fighter</DropdownMenuTrigger>
+            <DropdownMenuTrigger className="shrink p-2 m-2 bg-white hover:ring-2 hover:ring-green-400 text-black  font-bold rounded shadow-md 
+      transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">{currentCharacter.characterName || "Choose Your Fighter"}</DropdownMenuTrigger>
             <DropdownMenuContent>
               {characters.map((Character, index) => (
-                <DropdownMenuItem key={index}>
+                <DropdownMenuItem key={index}
+                  onSelect={() => setCurrentCharacter(Character)}>
                   {Character.characterName}
                   {/*
                   <br />
@@ -130,13 +132,16 @@ const JoinTourney = () =>
           </DropdownMenu>
           <SubmitButton buttonLabel="Join Room" onSubmit={async () =>
           {
-            RequestService(
+            await RequestService(
               "addPlayers",
               {
                 body:
                 {
+                  //front end will actually need to generate the playerId
                   id: "",
                   userId: "",
+                  //front end will actually need to fetch the userId associated with that player using the claimsPrinciple associated with the cookie
+                  //this will end up being handled on the request submission
                   displayName: displayName,
                   currentScore: 0,
                   currentRound: 0,
