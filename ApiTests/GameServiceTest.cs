@@ -9,6 +9,8 @@ using Services;
 using ApiTests;
 using Helpers;
 
+//TODO fix addplayerstogame references to addplayertogame 
+
 public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
 
@@ -95,7 +97,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         var players = await SetupDummyUsersAndPlayers(10);
 
-        var exception = Record.Exception(() => _gameService.AddPlayersToGame(players, gameId));
+        var exception = Record.Exception(() => _gameService.AddPlayerToGame(players, gameId));
 
     }
 
@@ -172,7 +174,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         var players = await SetupDummyUsersAndPlayers(10);
 
 
-        _gameService.AddPlayersToGame(players, gameId);
+        _gameService.AddPlayerToGame(players, gameId);
 
     }
 
@@ -185,7 +187,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         var players = await SetupDummyUsersAndPlayers(10);
 
-        _gameService.AddPlayersToGame(players, gameId);
+        _gameService.AddPlayerToGame(players, gameId);
 
         List<Player> playersInGame = await _gameService.GetPlayersInGame(gameId);
 
@@ -202,7 +204,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         var players = await SetupDummyUsersAndPlayers(10);
 
-        _gameService.AddPlayersToGame(players, gameId);
+        _gameService.AddPlayerToGame(players, gameId);
 
         _gameService.StartRound(gameId);
 
@@ -224,7 +226,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         var players = await SetupDummyUsersAndPlayers(10);
 
-        _gameService.AddPlayersToGame(players, gameId);
+        _gameService.AddPlayerToGame(players, gameId);
 
         _gameService.StartRound(gameId);
 
@@ -246,7 +248,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         var players = await SetupDummyUsersAndPlayers(10);
 
-        _gameService.AddPlayersToGame(players, gameId);
+        _gameService.AddPlayerToGame(players, gameId);
 
         var exception = Record.Exception(() => _gameService.StartRound(gameId));
     }
@@ -258,7 +260,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         var players = await SetupDummyUsersAndPlayers(10);
 
-        _gameService.AddPlayersToGame(players, gameId);
+        _gameService.AddPlayerToGame(players, gameId);
 
         _gameService.StartRound(gameId);
 
@@ -276,7 +278,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
             var players = await SetupDummyUsersAndPlayers(10);
 
-            _gameService.AddPlayersToGame(players, gameId);
+            _gameService.AddPlayerToGame(players, gameId);
 
             _gameService.StartRound(gameId);
 
@@ -292,7 +294,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
             var gameId = await _gameService.CreateGame();
 
             var players = await SetupDummyUsersAndPlayers(10);
-            _gameService.AddPlayersToGame(players, gameId);
+            _gameService.AddPlayerToGame(players, gameId);
 
             _gameService.StartRound(gameId);
 
@@ -314,7 +316,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
             var players = await SetupDummyUsersAndPlayers(NUM_PLAYERS_NO_BYES);
 
-            _gameService.AddPlayersToGame(players, gameId);
+            _gameService.AddPlayerToGame(players, gameId);
 
             await _gameService.StartGameAsync(gameId);
 
@@ -355,7 +357,7 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
             var players = await SetupDummyUsersAndPlayers(NUM_PLAYERS_TWO_BYES);
 
-            _gameService.AddPlayersToGame(players, gameId);
+            _gameService.AddPlayerToGame(players, gameId);
 
             await _gameService.StartGameAsync(gameId);
 

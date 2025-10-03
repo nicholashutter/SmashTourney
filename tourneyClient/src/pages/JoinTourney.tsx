@@ -18,14 +18,15 @@ import
 import { validateInput } from "@/services/ValidationService";
 import { INVALID_CHARACTERS, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { Character } from "@/models/entities/Character.ts";
+import { Player } from "@/models/entities/Player";
 
 /*
 
-Integrate with api so that we can tie request cookie for authenticated user
-to users's claimsPrinciple and user's session in api
+  Integrate with api so that we can tie request cookie for authenticated user
+  to users's claimsPrinciple and user's session in api
 
-Then when userId is recieved, random playerId should be generated
-(stringified guid)
+  Then when userId is recieved, random playerId should be generated
+  (stringified guid)
 
 */
 
@@ -59,23 +60,23 @@ const JoinTourney = () =>
     //characterModuleMap will be an object of import urls and callback functions
     const characterModuleMap = import.meta.glob("../models/entities/Characters/*.ts");
 
-    //Define an async function to load all character modules
+    //define an async function to load all character modules
     const fetchAllCharacters = async () =>
     {
-      //Call each import function to dynamically load the module
+      //call each import function to dynamically load the module
       const modulePromises = Object.values(characterModuleMap).map((dynamicImport) => dynamicImport());
 
-      //Wait for all modules to finish loading
+      //wait for all modules to finish loading
       const resolvedModules = await Promise.all(modulePromises);
 
-      //Extract the default export (the character object) from each module
+      //extract the default export (the character object) from each module
       const characterObjects = resolvedModules.map((module) => module.default);
 
-      //Save the array of character objects to state
+      //save the array of character objects to state
       setCharacters(characterObjects);
     };
 
-    // Step 7: Run the async loader function
+    //Run the async loader function
     fetchAllCharacters();
   });
 
@@ -111,22 +112,17 @@ const JoinTourney = () =>
 
   const submitHandler = async () =>
   {
+
+    //TODO set player values here 
+    const player: Player = {} as Player;
     await RequestService(
       "addPlayers",
       {
         body:
         {
-          //front end will actually need to generate the playerId
-          id: "",
-          userId: "",
-          //front end will actually need to fetch the userId associated with that player using the claimsPrinciple associated with the cookie
-          //this will end up being handled on the request submission
-          displayName: displayName,
-          currentScore: 0,
-          currentRound: 0,
-          currentCharacter: currentCharacter,
-          currentGameId: Id
+          player
         }
+        // also need to send in the gameId here with this request according to new api
       }
     )
     await lobbyConnection.updateOthers(displayName);

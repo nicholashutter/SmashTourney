@@ -16,7 +16,7 @@ public interface IGameService
     // API route /GetGameById (debug)
     Task<Game?> GetGameByIdAsync(Guid gameId);
 
-    Task<List<Player>> GetPlayersInGame(Guid gameId); 
+    Task<List<Player>> GetPlayersInGame(Guid gameId);
 
     // API route /GetAllGames (debug)
     Task<List<Game>?> GetAllGamesAsync();
@@ -27,7 +27,7 @@ public interface IGameService
     bool EndUserSession(ClaimsPrincipal user);
 
     // API route /AllPlayersIn
-    bool AddPlayersToGame(List<Player> players, Guid gameId);
+    bool AddPlayerToGame(Player players, Guid gameId, string userId);
 
     // API route StartGame
     Task<bool> StartGameAsync(Guid existingGameId);

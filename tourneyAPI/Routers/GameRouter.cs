@@ -8,6 +8,7 @@ using System;
 using Serilog;
 using Microsoft.AspNetCore.Mvc;
 using Validators;
+using System.Security.Claims;
 
 public static class GameRouter
 {
@@ -94,13 +95,24 @@ public static class GameRouter
             return Results.Ok();
         });
 
-        GameRoutes.MapPost("/AddPlayers/{gameId}", (HttpContext context, IGameService gameService, Guid gameId, List<Player> players) =>
+
+
+        GameRoutes.MapPost("/AddPlayer/{gameId}", (HttpContext context, IGameService gameService, Guid gameId, Player player) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/AllPlayersIn' \n Time:{Timestamp}", DateTime.UtcNow);
 
-            PlayersValidator.Validate(players, "AddPlayersRoute");
+            //this should get the userId from the auth token
+            var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            bool success = gameService.AddPlayersToGame(players, gameId);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            //will need to look to see if playerValidator is still correctly implemented after changes
+            // PlayerValidator.Validate(player, "AddPlayerRoute");
+
+            bool success = gameService.AddPlayerToGame(player, gameId, userId);
 
             if (!success)
             {

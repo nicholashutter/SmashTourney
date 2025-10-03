@@ -280,10 +280,10 @@ public class GameService : IGameService
     }
 
     //api route /AllPlayersIn
-    //List<Players> comes from the front end
-    public bool AddPlayersToGame(List<Player> players, Guid gameId)
+    //Player comes from the front end
+    public bool AddPlayerToGame(Player player, Guid gameId, string userId)
     {
-        Log.Information("Loading Users and Creating Their Corresponding Players");
+        Log.Information("Adding Player to Game with userId ${userId}");
 
         try
         {
@@ -291,26 +291,11 @@ public class GameService : IGameService
 
             if (foundGame is null)
             {
-                throw new GameNotFoundException("AddPlayersToGameAsync");
+                throw new GameNotFoundException("AddPlayerToGameAsync");
             }
 
-            /* 
-            Each ApplicationUser with a session where Player.UserId 
-            equals User.UserId add player to game using gameId 
-            provided by front end
-            */
-
-            foreach (ApplicationUser user in _userSessions)
-            {
-                foreach (Player player in players)
-                {
-                    if (user.Id.Equals(player.UserId))
-                    {
-                        player.CurrentGameID = gameId;
-                        foundGame.currentPlayers.Add(player);
-                    }
-                }
-            }
+            player.CurrentGameID = gameId;
+            foundGame.currentPlayers.Add(player);
             Log.Information($"Players Created From Users");
             return true;
         }
