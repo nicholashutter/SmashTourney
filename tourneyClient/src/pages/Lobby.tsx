@@ -8,6 +8,8 @@ import { RequestService } from '@/services/RequestService';
 import PersistentConnection from "../services/PersistentConnection";
 import { useEffect, useState } from 'react';
 import { useGameId } from '@/components/GameIdContext';
+import { SERVER_ERROR, SUBMIT_SUCCESS } from '@/constants/AppConstants';
+import { useNavigate } from 'react-router';
 
 
 const Lobby = () =>
@@ -19,7 +21,9 @@ const Lobby = () =>
 
     //get the gameId from useContext wrapper
     //should have either been loaded from joinTourney or createTourney pages
-    const {Id} = useGameId();
+    const { Id } = useGameId();
+
+    const navigate = useNavigate(); 
 
     useEffect(() =>
     {
@@ -51,7 +55,23 @@ const Lobby = () =>
         lobbyConnection.setGameId(Id!);
     }, []);
 
+    const handleSubmit = async () =>
+    {
+        try
+        {
+            await RequestService("startGame");
+            window.alert(SUBMIT_SUCCESS("Join Game")); 
+            navigate("/startGame"); 
+        }
+        catch (err)
+        {
+            window.alert(SERVER_ERROR("Start Game"));
+            console.log(err);
+        }
 
+
+
+    };
 
     return (
         <div className="flex flex-col items-center justify-center h-dvh w-dvw">
@@ -64,12 +84,7 @@ const Lobby = () =>
                     <HeadingTwo headingText="Waiting On Additional Players..." />
 
                     <SubmitButton buttonLabel="All Players In" onSubmit={
-                        async () =>
-                        {
-                            const result = await RequestService("startGame");
-
-                            console.log(result);
-                        }
+                        handleSubmit
                     } />
                     <BasicButton buttonLabel="Return Home" href="/" />
 

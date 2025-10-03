@@ -4,11 +4,12 @@ import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { ApplicationUser } from '../models/entities/ApplicationUser';
 import { validateInput } from "@/services/ValidationService";
-import { SERVER_ERROR, SUBMIT_SUCCESS, INVALID_CHARACTERS } from "@/constants/StatusMessages";
+import { SERVER_ERROR, SUBMIT_SUCCESS, INVALID_CHARACTERS } from "@/constants/AppConstants";
 import HeadingTwo from "@/components/HeadingTwo";
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
+import BasicButton from "@/components/BasicButton";
 
 
 const HomePage = () =>
@@ -80,8 +81,10 @@ const HomePage = () =>
           <BasicInput labelText="Password:" htmlFor="password" name="password" id="password" value={password} onChange={passwordHandler} />
 
           <SubmitButton buttonLabel="Sign In" onSubmit={onSubmit} />
+          <HeadingTwo headingText="Or" />
+          <BasicButton buttonLabel="Sign Up" href="/signUp"/>
           {
-            /* <HeadingTwo headingText="Or" />
+            /* 
           <SubmitButton buttonLabel="Continue As Guest" onSubmit={() =>
           {
             navigate("/guestSignUp");

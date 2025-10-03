@@ -2,6 +2,7 @@ import React from "react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
+import { useGameId } from "@/components/GameIdContext";
 import PersistentConnection from "../services/PersistentConnection"
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
@@ -15,7 +16,7 @@ import
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { validateInput } from "@/services/ValidationService";
-import { INVALID_CHARACTERS } from "@/constants/StatusMessages";
+import { INVALID_CHARACTERS, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { Character } from "@/models/entities/Character.ts";
 
 
@@ -28,8 +29,9 @@ const JoinTourney = () =>
   //from react router for navigation without reloading
   const navigate = useNavigate();
 
-  //player should enter
   const [gameId, setGameId] = useState("");
+
+  const { setId, Id } = useGameId();
   //player should enter
   const [displayName, setDisplayName] = useState("");
 
@@ -73,10 +75,12 @@ const JoinTourney = () =>
 
   const gameIdHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
+    setGameId(e.target.value);
     const validateGameId = validateInput(gameId);
     if (validateGameId)
     {
-      setGameId(e.target.value);
+      //custom useContext for gameId
+      setId(gameId);
     }
     else
     {
@@ -87,16 +91,42 @@ const JoinTourney = () =>
 
   const displayNameHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
-    const validateDisplayName = validateInput(displayName);
+    const validateDisplayName = validateInput(e.target.value);
     if (validateDisplayName)
     {
-      setDisplayName(e.target.value);
+      setDisplayName(displayName);
     }
     else
     {
       window.alert(INVALID_CHARACTERS("Display Name"));
     }
 
+  }
+
+  const submitHandler = async () =>
+  {
+    await RequestService(
+      "addPlayers",
+      {
+        body:
+        {
+          //front end will actually need to generate the playerId
+          id: "",
+          userId: "",
+          //front end will actually need to fetch the userId associated with that player using the claimsPrinciple associated with the cookie
+          //this will end up being handled on the request submission
+          displayName: displayName,
+          currentScore: 0,
+          currentRound: 0,
+          currentCharacter: currentCharacter,
+          currentGameId: Id
+        }
+      }
+    )
+    await lobbyConnection.updateOthers(displayName);
+    window.alert(SUBMIT_SUCCESS("Join Tourney"));
+
+    navigate("/lobby");
   }
 
   return (
@@ -106,9 +136,9 @@ const JoinTourney = () =>
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
           <BasicHeading headingText="Join Room" headingColors="white" />
           <BasicInput labelText="Session Code:" htmlFor="sessionCode"
-            id="sessionCode" name="sessionCode" value={gameId} onChange={gameIdHandler} />
+            id="gameId" name="gameId" value={gameId} onChange={gameIdHandler} />
           <BasicInput labelText="Enter Player Name:" htmlFor="playerName"
-            id="playerName" name="playerName" value={displayName} onChange={displayNameHandler} />
+            id="displayName" name="displayName" value={displayName} onChange={displayNameHandler} />
           <DropdownMenu>
             <DropdownMenuTrigger className="shrink p-2 m-2 bg-white hover:ring-2 hover:ring-green-400 text-black  font-bold rounded shadow-md 
       transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">{currentCharacter.characterName || "Choose Your Fighter"}</DropdownMenuTrigger>
@@ -117,7 +147,7 @@ const JoinTourney = () =>
                 <DropdownMenuItem key={index}
                   onSelect={() => setCurrentCharacter(Character)}>
                   {Character.characterName}
-                  {/*
+                  {/* 
                   <br />
                   {Character.archetype}<br />
                   {Character.fallSpeed}<br />
@@ -130,31 +160,7 @@ const JoinTourney = () =>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <SubmitButton buttonLabel="Join Room" onSubmit={async () =>
-          {
-            await RequestService(
-              "addPlayers",
-              {
-                body:
-                {
-                  //front end will actually need to generate the playerId
-                  id: "",
-                  userId: "",
-                  //front end will actually need to fetch the userId associated with that player using the claimsPrinciple associated with the cookie
-                  //this will end up being handled on the request submission
-                  displayName: displayName,
-                  currentScore: 0,
-                  currentRound: 0,
-                  currentCharacter: currentCharacter,
-                  currentGameId: gameId
-                }
-              }
-            )
-            await lobbyConnection.updateOthers(displayName);
-            window.alert("submission success");
-
-            navigate("/lobby");
-          }} />
+          <SubmitButton buttonLabel="Join Room" onSubmit={submitHandler} />
           <BasicButton buttonLabel="Return to Main Menu" href="/" />
 
         </div>

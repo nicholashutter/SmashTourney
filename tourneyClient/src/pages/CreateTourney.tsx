@@ -4,55 +4,12 @@ import BasicHeading from "@/components/HeadingOne";
 import BasicInput from "@/components/BasicInput";
 import SubmitButton from "@/components/SubmitButton";
 import { RequestService } from "@/services/RequestService";
-import { validateInput } from "@/services/ValidationService";
+import { validateInput, validateGameIdResponse, validateTotalPlayers } from "@/services/ValidationService";
+import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS, SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { useNavigate } from 'react-router';
 import { useGameId } from "@/components/GameIdContext";
 import HeadingTwo from "@/components/HeadingTwo";
 
-
-const MAX_SUPPORTED_PLAYERS = 128;
-
-const validateTotalPlayers = (userInput: number) =>
-{
-  const inputType = typeof (userInput);
-
-  if (inputType === "number")
-  {
-    if (userInput > 0)
-    {
-      if (userInput < MAX_SUPPORTED_PLAYERS)
-      {
-        const validateNumPlayers = validateInput(userInput.toString());
-
-        if (validateNumPlayers)
-        {
-          return true;
-        }
-
-      }
-    }
-
-  }
-  return false;
-}
-
-const validateGameIdResponse = (gameId: string) =>
-{
-  const inputType = typeof (gameId);
-
-  if (inputType === "string")
-  {
-    const validateGameId = validateInput(gameId);
-
-    if (validateGameId)
-    {
-      return true;
-    }
-
-  }
-
-  return false;
-}
 
 const CreateTourney = () =>
 {
@@ -75,13 +32,14 @@ const CreateTourney = () =>
   const handleMaxPlayers = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
     const numplayers = parseInt(e.target.value);
-    if (!validateTotalPlayers(numplayers))
+    if (validateTotalPlayers(numplayers))
     {
-      window.alert(`Total players must be a number greater than zero and less than ${MAX_SUPPORTED_PLAYERS}`);
+      setNumPlayers(e.target.value);
+
     }
     else
     {
-      setNumPlayers(e.target.value);
+      window.alert(INVALID_CHARACTERS("Number of Players"));
     }
 
   }
@@ -116,16 +74,16 @@ const CreateTourney = () =>
 
     if (validateGameIdResponse(gameId))
     {
-      //use set function created with at top level of component 
+      //use setId useContext function  
       setId(gameId);
 
-      window.alert("submission success");
+      window.alert(SUBMIT_SUCCESS("Create Tourney"));
       //force navigation without user intervention upon request completion and alert dismissal
       navigate("/lobby");
     }
     else
     {
-      window.alert("Something went wrong");
+      window.alert(SERVER_ERROR("Create Tourney"));
     }
 
   }

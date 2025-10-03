@@ -3,9 +3,10 @@ import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
 import { useState } from "react";
 import { RequestService } from "@/services/RequestService";
-import { SERVER_ERROR } from "@/constants/StatusMessages";
+import { SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { ApplicationUser } from "../models/entities/ApplicationUser";
 import { validateInput } from "@/services/ValidationService";
+import { useNavigate } from 'react-router';
 
 
 
@@ -15,7 +16,7 @@ const SignUp = () =>
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [applicationUser, setApplicationUser] = useState({} as ApplicationUser);
-
+  const navigate = useNavigate();
 
   const handleUserNameChange = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
@@ -50,6 +51,10 @@ const SignUp = () =>
             body: applicationUser
           }
         );
+
+        window.alert(SUBMIT_SUCCESS("Sign Up"));
+
+        navigate("/");
       }
       catch (err)
       {

@@ -15,3 +15,5 @@ export const INVALID_CHARACTERS = (tag: string) =>
 {
     return `Invalid Characters in Submission: ${tag}`;
 }
+
+export const MAX_SUPPORTED_PLAYERS = 128;

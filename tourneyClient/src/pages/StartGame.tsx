@@ -2,15 +2,13 @@ import BasicHeading from "@/components/HeadingOne";
 
 /*
 
-this page needs to get the gameId from useContext
-by this point in the application flow, there must be a gameId
+this will just be a loading screen for the game to initially setup
+should just run long enough for the bracket to draw
 
-then requestService to startGame endpoint with gameId as the payload
+once we have next response from api then redirect to show bracket
+
+
 */
-
-
-
-
 
 
 const StartGame = () =>

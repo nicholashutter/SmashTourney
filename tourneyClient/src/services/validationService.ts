@@ -1,4 +1,4 @@
-import { INVALID_CHARACTERS } from "@/constants/StatusMessages";
+import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS } from "@/constants/AppConstants";
 type ValidationResult = {
     isValid: boolean;
     issues: string[];
@@ -51,6 +51,49 @@ export const validateInput = (input: string): ValidationResult =>
         issues,
     };
 };
+
+export const validateGameIdResponse = (gameId: string) =>
+{
+    const inputType = typeof (gameId);
+
+    if (inputType === "string")
+    {
+        const validateGameId = validateInput(gameId);
+
+        if (validateGameId)
+        {
+            return true;
+        }
+
+    }
+
+    return false;
+}
+
+export const validateTotalPlayers = (userInput: number) =>
+{
+    const inputType = typeof (userInput);
+
+    if (inputType === "number")
+    {
+        if (userInput > 0)
+        {
+            if (userInput < MAX_SUPPORTED_PLAYERS)
+            {
+                const validateNumPlayers = validateInput(userInput.toString());
+
+                if (validateNumPlayers)
+                {
+                    return true;
+                }
+
+            }
+        }
+
+    }
+    return false;
+}
+
 
 
 /**
