@@ -5,9 +5,7 @@ import BasicHeading from "@/components/HeadingOne";
 this will just be a loading screen for the game to initially setup
 should just run long enough for the bracket to draw
 
-once we have next response from api then redirect to show bracket
-
-
+should be shown by ShowBracket only once per game during game start
 */
 
 

@@ -7,9 +7,10 @@ import { RequestService } from "@/services/RequestService";
 import { validateInput, validateGameIdResponse, validateTotalPlayers } from "@/services/ValidationService";
 import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS, SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { useNavigate } from 'react-router';
-import { useGameId } from "@/components/GameIdContext";
+import { useGameData } from "@/components/GameIdContext";
 import HeadingTwo from "@/components/HeadingTwo";
 
+/*Ready for E2E testing */
 
 const CreateTourney = () =>
 {
@@ -17,7 +18,7 @@ const CreateTourney = () =>
   const navigate = useNavigate();
 
   //setup store for gameId after creation
-  const { setId } = useGameId();
+  const { setId } = useGameData();
 
   //variables for users selections
   //will set this with dropdown component with preset values

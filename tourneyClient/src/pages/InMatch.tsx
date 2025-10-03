@@ -1,7 +1,18 @@
 import BasicHeading from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
+import Vs from "@/components/Vs";
+import StartGame from "@/components/StartGame";
 
+/*
+    possibly using useGameData
+    if inMatch being shown first time
+        show StartGame
+    else
+        show Vs briefly
+        then show this component for remainder of match
+
+*/
 const InMatch = () =>
 {
     const PLAYER_ONE = "nicholas";

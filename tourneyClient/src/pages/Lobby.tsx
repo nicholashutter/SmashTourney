@@ -7,10 +7,17 @@ import { Player } from ".././models/entities/Player";
 import { RequestService } from '@/services/RequestService';
 import PersistentConnection from "../services/PersistentConnection";
 import { useEffect, useState } from 'react';
-import { useGameId } from '@/components/GameIdContext';
+import { useGameData } from '@/components/GameIdContext';
 import { SERVER_ERROR, SUBMIT_SUCCESS } from '@/constants/AppConstants';
 import { useNavigate } from 'react-router';
 
+/* 
+
+    Determine who is the first player to join lobby with given gameId
+    That player should be the only one who sees "all players in" button
+    This is probably handled with a lock object
+    
+ */
 
 const Lobby = () =>
 {
@@ -21,9 +28,9 @@ const Lobby = () =>
 
     //get the gameId from useContext wrapper
     //should have either been loaded from joinTourney or createTourney pages
-    const { Id } = useGameId();
+    const { Id } = useGameData();
 
-    const navigate = useNavigate(); 
+    const navigate = useNavigate();
 
     useEffect(() =>
     {
@@ -60,8 +67,8 @@ const Lobby = () =>
         try
         {
             await RequestService("startGame");
-            window.alert(SUBMIT_SUCCESS("Join Game")); 
-            navigate("/startGame"); 
+            window.alert(SUBMIT_SUCCESS("Join Game"));
+            navigate("/inMatch");
         }
         catch (err)
         {

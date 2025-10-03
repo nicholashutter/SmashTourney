@@ -4,8 +4,14 @@ import HeadingTwo from "@/components/HeadingTwo";
 const ShowBracket = () =>
 {
 
-    //this value should be calculated somewhere in the game object and sent back?
-    const GAMES_LEFT = 5;
+    /*
+        [playersInGame, setPlayersInGame] = useState([]:Player)
+        get the gameId from useGameData()
+        const response = await requestSVC( GetPlayersInGame() ); 
+        validateResponse
+        if (validateResponse)
+            setPlayers(response)
+    */
     return (
 
         <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}
@@ -13,9 +19,11 @@ const ShowBracket = () =>
                 <title>Current Score</title>
                 <div className='shrink flex flex-col text-2xl p-4 m-4 '>
                     {
-                        //show bracket components here once data comes from api about bracket structure
-                        //parentBracket component here and the child brackets will be dynamically rendered
-                        //based on drawService
+                        /*
+                            <ParentBracket />
+                            the children of parentBracket should dynamically be picked based on
+                            size of players []
+                        */
                     }
                 </div>
             </div>

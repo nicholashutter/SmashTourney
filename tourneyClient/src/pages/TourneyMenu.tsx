@@ -2,7 +2,7 @@
 import BasicButton from "@/components/BasicButton";
 import BasicHeading from "@/components/HeadingOne";
 
-
+/* Ready for E2E testing */
 
 const TourneyMenu = () =>
 {
@@ -20,7 +20,13 @@ const TourneyMenu = () =>
           <BasicHeading headingText="Where Do We Start?" headingColors="white" />
           <BasicButton buttonLabel="Host Tourney" href="/createTourney" />
           <BasicButton buttonLabel="Join Tourney" href="/joinTourney" />
-          <BasicButton buttonLabel="User Profile" href="/aboutMe" />
+          {
+            /* 
+                this was an originally intended feature but is being cut for MVP
+                <BasicButton buttonLabel="User Profile" href="/aboutMe" />
+            */
+          }
+
 
         </div>
       </div>

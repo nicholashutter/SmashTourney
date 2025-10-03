@@ -2,6 +2,7 @@
 import BasicButton from "@/components/BasicButton";
 import BasicHeading from "@/components/HeadingOne";
 
+/*Ready for E2E testing */
 
 const NotFound = () =>
 {

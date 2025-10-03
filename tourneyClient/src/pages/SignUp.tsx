@@ -8,7 +8,7 @@ import { ApplicationUser } from "../models/entities/ApplicationUser";
 import { validateInput } from "@/services/ValidationService";
 import { useNavigate } from 'react-router';
 
-
+/*Ready for E2E testing */
 
 const SignUp = () =>
 {

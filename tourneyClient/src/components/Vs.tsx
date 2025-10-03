@@ -4,9 +4,12 @@ import { useParams } from "react-router";
 
 /*
 
-await the response. The response will contain the next two players then display the playernames in the title and heading spots below
+    this will be a loading screen component displayed briefly before 
+    inMatch component
 
-
+    Should be shown every time the api sends two new players
+    For a new round
+    
 */
 
 

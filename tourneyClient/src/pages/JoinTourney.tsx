@@ -2,7 +2,7 @@ import React from "react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
-import { useGameId } from "@/components/GameIdContext";
+import { useGameData } from "@/components/GameIdContext";
 import PersistentConnection from "../services/PersistentConnection"
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
@@ -19,9 +19,15 @@ import { validateInput } from "@/services/ValidationService";
 import { INVALID_CHARACTERS, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { Character } from "@/models/entities/Character.ts";
 
+/*
 
+Integrate with api so that we can tie request cookie for authenticated user
+to users's claimsPrinciple and user's session in api
 
+Then when userId is recieved, random playerId should be generated
+(stringified guid)
 
+*/
 
 const JoinTourney = () =>
 {
@@ -31,7 +37,7 @@ const JoinTourney = () =>
 
   const [gameId, setGameId] = useState("");
 
-  const { setId, Id } = useGameId();
+  const { setId, Id } = useGameData();
   //player should enter
   const [displayName, setDisplayName] = useState("");
 

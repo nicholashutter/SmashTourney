@@ -11,6 +11,7 @@ import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
 
+/*Ready for E2E testing */
 
 const HomePage = () =>
 {
