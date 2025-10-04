@@ -10,6 +10,7 @@ import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
+import { useGameData } from "@/components/GameIdContext";
 
 /*Ready for E2E testing */
 

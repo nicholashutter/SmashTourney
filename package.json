@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "motion": "^12.23.12",
+    "uuid": "^13.0.0",
     "vite-plugin-eslint2": "^5.0.4"
   }
 }

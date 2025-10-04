@@ -11,6 +11,7 @@ using Services;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
+using System.Net.Http.Json;
 
 public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
@@ -39,30 +40,62 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         db.Database.EnsureCreated();
     }
 
-    private Dictionary<Player, ApplicationUser> CreateDummyPlayersAndUsers(Guid gameId, int numberOfPlayers)
+    public class RegisterRequest
     {
-        var playerList = new Dictionary<Player, ApplicationUser>();
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+
+
+    private async Task<List<(HttpClient client, Player player)>> CreateDummyEntitiesWithAuthentication(Guid gameId, int numberOfPlayers)
+    {
+        var result = new List<(HttpClient client, Player player)>();
 
         for (int i = 0; i < numberOfPlayers; i++)
         {
-            var UserId = Guid.NewGuid();
-            playerList.Add(new Player
+            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
             {
-                UserId = UserId.ToString(),
-                DisplayName = $"Player{i}",
+                HandleCookies = true
+            });
+
+            var email = $"test{i}_{Guid.NewGuid()}@example.com";
+            var password = "SecureP@ssw0rd123!";
+            var userName = $"Player{i}";
+
+            var registerRequest = new RegisterRequest
+            {
+                Email = email,
+                Password = password
+            };
+
+            var registerResponse = await client.PostAsJsonAsync("/register?useCookies=true", registerRequest);
+            registerResponse.EnsureSuccessStatusCode();
+
+            var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", registerRequest);
+            loginResponse.EnsureSuccessStatusCode();
+
+            using var scope = _factory.Services.CreateAsyncScope();
+            var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
+
+
+            var player = new Player
+            {
+                UserId = "",
+                DisplayName = userName,
                 CurrentCharacter = new Mario(),
                 CurrentGameID = gameId
-            },
-            new ApplicationUser
-            {
-                Id = UserId.ToString(),
-                UserName = $"Player{i}",
-                Email = $"" + i + "@example.com"
-            });
+            };
+
+            result.Add((client, player));
         }
 
-        return playerList;
+        return result;
     }
+
+
+
+
 
     [Fact]
     public async Task CreateGameReturnsSuccess()
@@ -190,12 +223,16 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
 
 
 
+
     [Fact]
     public async Task AddPlayersReturnsSuccess()
     {
-        using var client = _factory.CreateClient();
+        using var scope = _factory.Services.CreateScope();
+
+        var client = _factory.CreateClient();
         var initialResponse = await client.PostAsync("/Games/CreateGame", null);
         initialResponse.EnsureSuccessStatusCode();
+
         var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
         var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse, new JsonSerializerOptions
         {
@@ -207,42 +244,27 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
 
         const int NUM_PLAYERS = 10;
 
-        Dictionary<Player, ApplicationUser> playersAndUsers = CreateDummyPlayersAndUsers(gameId, NUM_PLAYERS);
+        var playerSessions = await CreateDummyEntitiesWithAuthentication(gameId, NUM_PLAYERS);
 
-        var playersList = playersAndUsers.Keys.ToList();
-
-        var usersList = playersAndUsers.Values.ToList();
-
-
-        foreach (var user in usersList)
-
+        foreach (var (playerClient, player) in playerSessions)
         {
-            var userJson = JsonSerializer.Serialize(user);
-            var usersContent = new StringContent(userJson, System.Text.Encoding.UTF8, "application/json");
-            var userResponse = await client.PostAsync("/Games/CreateUserSession", usersContent);
+            var playerJson = JsonSerializer.Serialize(player);
+            var playerContent = new StringContent(playerJson, System.Text.Encoding.UTF8, "application/json");
 
-            userResponse.EnsureSuccessStatusCode();
+            var playerResponse = await playerClient.PostAsync($"/Games/AddPlayer/{gameId}", playerContent);
+            playerResponse.EnsureSuccessStatusCode();
         }
-
-        var playersJson = JsonSerializer.Serialize(playersList);
-
-        var playersContent = new StringContent(playersJson, System.Text.Encoding.UTF8, "application/json");
-
-        var addResponse = await client.PostAsync($"/Games/AddPlayers/{gameId}", playersContent);
-
-        addResponse.EnsureSuccessStatusCode();
-
     }
+
+
 
     [Fact]
     public async Task StartGameStartsGameSuccessfully()
     {
-        using var client = _factory.CreateClient();
+        using var scope = _factory.Services.CreateScope();
 
-        const int NUM_PLAYERS = 10;
-
+        var client = _factory.CreateClient();
         var initialResponse = await client.PostAsync("/Games/CreateGame", null);
-
         initialResponse.EnsureSuccessStatusCode();
 
         var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
@@ -254,86 +276,60 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         Assert.NotNull(responseData);
         var gameId = responseData.gameId;
 
-        var playersAndUsers = CreateDummyPlayersAndUsers(gameId, NUM_PLAYERS);
+        const int NUM_PLAYERS = 10;
 
-        var playersList = playersAndUsers.Keys.ToList();
+        var playerSessions = await CreateDummyEntitiesWithAuthentication(gameId, NUM_PLAYERS);
 
-        var usersList = playersAndUsers.Values.ToList();
-
-        var playersJson = JsonSerializer.Serialize(playersList);
-
-        var playersContent = new StringContent(playersJson, System.Text.Encoding.UTF8, "application/json");
-
-
-
-        foreach (var user in usersList)
+        foreach (var (playerClient, player) in playerSessions)
         {
-            var usesrJson = JsonSerializer.Serialize(user);
+            var playerJson = JsonSerializer.Serialize(player);
+            var playerContent = new StringContent(playerJson, System.Text.Encoding.UTF8, "application/json");
 
-            var usersContent = new StringContent(usesrJson, System.Text.Encoding.UTF8, "application/json");
-            var secondResponse = await client.PostAsync("/Games/CreateUserSession", usersContent);
-
-            secondResponse.EnsureSuccessStatusCode();
+            var playerResponse = await playerClient.PostAsync($"/Games/AddPlayer/{gameId}", playerContent);
+            playerResponse.EnsureSuccessStatusCode();
         }
 
-        var thirdResponse = await client.PostAsync($"/Games/AddPlayers/{gameId}", playersContent);
-
-        thirdResponse.EnsureSuccessStatusCode();
-
-        var fourthResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
-
-        fourthResponse.EnsureSuccessStatusCode();
+        var startGameResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
+        startGameResponse.EnsureSuccessStatusCode();
     }
+
+
+
 
     [Fact]
     public async Task EndGameEndsGameSuccessfully()
     {
-        using var client = _factory.CreateClient();
+        using var scope = _factory.Services.CreateScope();
+
+        var client = _factory.CreateClient();
         var initialResponse = await client.PostAsync("/Games/CreateGame", null);
         initialResponse.EnsureSuccessStatusCode();
+
         var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
         var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
+
         Assert.NotNull(responseData);
         var gameId = responseData.gameId;
 
         const int NUM_PLAYERS = 10;
 
-        var playersAndUsers = CreateDummyPlayersAndUsers(gameId, NUM_PLAYERS);
+        var playerSessions = await CreateDummyEntitiesWithAuthentication(gameId, NUM_PLAYERS);
 
-        var playersList = playersAndUsers.Keys.ToList();
-        var usersList = playersAndUsers.Values.ToList();
-
-
-        var playersJson = JsonSerializer.Serialize(playersList);
-
-        var playersContent = new StringContent(playersJson, System.Text.Encoding.UTF8, "application/json");
-
-        foreach (var user in usersList)
+        foreach (var (playerClient, player) in playerSessions)
         {
-            var usesrJson = JsonSerializer.Serialize(user);
+            var playerJson = JsonSerializer.Serialize(player);
+            var playerContent = new StringContent(playerJson, System.Text.Encoding.UTF8, "application/json");
 
-            var usersContent = new StringContent(usesrJson, System.Text.Encoding.UTF8, "application/json");
-            var innerResponse = await client.PostAsync("/Games/CreateUserSession", usersContent);
-            innerResponse.EnsureSuccessStatusCode();
+            var playerResponse = await playerClient.PostAsync($"/Games/AddPlayer/{gameId}", playerContent);
+            playerResponse.EnsureSuccessStatusCode();
         }
 
-
-
-        var secondResponse = await client.PostAsync($"/Games/AddPlayers/{gameId}", playersContent);
-
-        secondResponse.EnsureSuccessStatusCode();
-
         var finalResponse = await client.GetAsync($"/Games/EndGame/{gameId}");
-
         finalResponse.EnsureSuccessStatusCode();
     }
-
-
-
-
 
 
 

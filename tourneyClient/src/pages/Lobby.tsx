@@ -26,22 +26,32 @@ const Lobby = () =>
     //open connection to front end signalR hub wrapper
     const lobbyConnection = new PersistentConnection();
 
+    //get playerId variable and setter function from useContext wrapper
     //get the gameId from useContext wrapper
     //should have either been loaded from joinTourney or createTourney pages
-    const { Id } = useGameData();
+    const { gameId: gameId, playerId: playerId, setPlayerId: setPlayerId } = useGameData();
+
+
+    //explicitly typing as boolean because this type of conditional check confuses me 
+    const firstInLobby: boolean = players.length > 0 && players[0].Id === playerId;
 
     const navigate = useNavigate();
 
     useEffect(() =>
     {
         //sync wrapper for useEffect over async call to api
-        const asyncRequest = async () =>
+
+        //variable shadowing here which should satisfy typescript string|null type error
+        const asyncRequest = async (gameId: string) =>
         {
             const result: Player[] = await RequestService("getPlayersInGame",
                 {
                     body:
                     {
-                        gameId: Id,
+                    },
+                    routeParams:
+                    {
+                        gameId
                     }
                 }
             )
@@ -50,16 +60,28 @@ const Lobby = () =>
             setPlayers(result);
         };
 
-        asyncRequest();
-
-
-        //create connections for all players in game to signalR hub
-        lobbyConnection.createPlayerConnection();
-        lobbyConnection.setOnPlayersUpdated((updatedPlayers) =>
+        try
         {
-            setPlayers(updatedPlayers);
-        });
-        lobbyConnection.setGameId(Id!);
+            if (gameId)
+            {
+                asyncRequest(gameId);
+            }
+
+
+            //create connections for all players in game to signalR hub
+            lobbyConnection.createPlayerConnection();
+            lobbyConnection.setOnPlayersUpdated((updatedPlayers) =>
+            {
+                setPlayers(updatedPlayers);
+            });
+            lobbyConnection.setGameId(gameId!);
+        }
+        catch (err)
+        {
+            console.log(err);
+        }
+
+
     }, []);
 
     const handleSubmit = async () =>
@@ -87,12 +109,13 @@ const Lobby = () =>
                 <div className='shrink flex flex-col text-2xl p-4 m-4 '>
                     <HeadingTwo headingText="Current Players in Game" />
                     <PlayerList players={players} />
-                    <BasicInput labelText="Session Code:" name="sessionCode" htmlFor="sessionCode" id="sessionCode" value={Id!} onChange={() => { }} />
+                    <BasicInput labelText="Session Code:" name="sessionCode" htmlFor="sessionCode" id="sessionCode" value={gameId!} onChange={() => { }} />
                     <HeadingTwo headingText="Waiting On Additional Players..." />
-
-                    <SubmitButton buttonLabel="All Players In" onSubmit={
-                        handleSubmit
-                    } />
+                    {firstInLobby &&
+                        <SubmitButton buttonLabel="All Players In" onSubmit={
+                            handleSubmit
+                        } />
+                    }
                     <BasicButton buttonLabel="Return Home" href="/" />
 
                 </div>

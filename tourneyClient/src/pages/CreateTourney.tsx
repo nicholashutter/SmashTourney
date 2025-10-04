@@ -8,7 +8,9 @@ import { validateInput, validateGameIdResponse, validateTotalPlayers } from "@/s
 import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS, SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { useNavigate } from 'react-router';
 import { useGameData } from "@/components/GameIdContext";
+import { v4 as uuidv4 } from "uuid";
 import HeadingTwo from "@/components/HeadingTwo";
+import { Player } from "@/models/entities/Player";
 
 /*Ready for E2E testing */
 
@@ -18,7 +20,7 @@ const CreateTourney = () =>
   const navigate = useNavigate();
 
   //setup store for gameId after creation
-  const { setId } = useGameData();
+  const { setGameId: setId } = useGameData();
 
   //variables for users selections
   //will set this with dropdown component with preset values
@@ -80,7 +82,8 @@ const CreateTourney = () =>
 
       window.alert(SUBMIT_SUCCESS("Create Tourney"));
       //force navigation without user intervention upon request completion and alert dismissal
-      navigate("/lobby");
+
+      navigate("/joinTourney");
     }
     else
     {

@@ -3,6 +3,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { useGameData } from "@/components/GameIdContext";
+import { validateInput } from "@/services/ValidationService";
+import { INVALID_CHARACTERS, SUBMIT_SUCCESS } from "@/constants/AppConstants";
+import { Character } from "@/models/entities/Character.ts";
+import { Player } from "@/models/entities/Player";
+import { v4 as uuidv4 } from "uuid";
 import PersistentConnection from "../services/PersistentConnection"
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
@@ -15,20 +20,9 @@ import
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { validateInput } from "@/services/ValidationService";
-import { INVALID_CHARACTERS, SUBMIT_SUCCESS } from "@/constants/AppConstants";
-import { Character } from "@/models/entities/Character.ts";
-import { Player } from "@/models/entities/Player";
 
-/*
 
-  Integrate with api so that we can tie request cookie for authenticated user
-  to users's claimsPrinciple and user's session in api
-
-  Then when userId is recieved, random playerId should be generated
-  (stringified guid)
-
-*/
+/* Ready for E2E testing */
 
 const JoinTourney = () =>
 {
@@ -36,9 +30,7 @@ const JoinTourney = () =>
   //from react router for navigation without reloading
   const navigate = useNavigate();
 
-  const [gameId, setGameId] = useState("");
-
-  const { setId, Id } = useGameData();
+  const { setGameId: setGameId, gameId: gameId, setPlayerId: setPlayerId, playerId: playerId } = useGameData();
   //player should enter
   const [displayName, setDisplayName] = useState("");
 
@@ -82,12 +74,11 @@ const JoinTourney = () =>
 
   const gameIdHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
   {
-    setGameId(e.target.value);
-    const validateGameId = validateInput(gameId);
+    const validateGameId = validateInput(e.target.value);
     if (validateGameId)
     {
       //custom useContext for gameId
-      setId(gameId);
+      setGameId(e.target.value);
     }
     else
     {
@@ -112,23 +103,46 @@ const JoinTourney = () =>
 
   const submitHandler = async () =>
   {
+    if (gameId)
+    {
+      //check if the playerId is undefined or null if it is then set it here
 
-    //TODO set player values here 
-    const player: Player = {} as Player;
-    await RequestService(
-      "addPlayers",
+      if (!playerId)
       {
-        body:
-        {
-          player
-        }
-        // also need to send in the gameId here with this request according to new api
+        setPlayerId(uuidv4());
       }
-    )
-    await lobbyConnection.updateOthers(displayName);
-    window.alert(SUBMIT_SUCCESS("Join Tourney"));
+      const player: Player =
+        {
+          Id: playerId,
+          displayName: displayName,
+          currentScore: 0,
+          currentRound: 0,
+          currentCharacter: currentCharacter,
+          currentGameId: gameId
+        } as Player;
+      await RequestService(
+        "addPlayers",
+        {
+          body:
+          {
+            player
+          },
+          routeParams:
+          {
+            gameId
+          }
+        }
+      );
+      await lobbyConnection.updateOthers(displayName);
+      window.alert(SUBMIT_SUCCESS("Join Tourney"));
 
-    navigate("/lobby");
+      navigate("/lobby");
+    }
+    else
+    {
+      window.alert(INVALID_CHARACTERS("GameId"));
+    }
+
   }
 
   return (
@@ -138,7 +152,7 @@ const JoinTourney = () =>
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
           <BasicHeading headingText="Join Room" headingColors="white" />
           <BasicInput labelText="Session Code:" htmlFor="sessionCode"
-            id="gameId" name="gameId" value={gameId} onChange={gameIdHandler} />
+            id="gameId" name="gameId" value={gameId!} onChange={gameIdHandler} />
           <BasicInput labelText="Enter Player Name:" htmlFor="playerName"
             id="displayName" name="displayName" value={displayName} onChange={displayNameHandler} />
           <DropdownMenu>

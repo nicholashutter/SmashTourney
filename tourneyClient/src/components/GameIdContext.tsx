@@ -5,8 +5,10 @@ import React, { createContext, useState, useContext, ReactNode } from "react";
 //  Id and callback function for useState
 type GameData =
     {
-        Id: string | null;
-        setId: (id: string) => void;
+        gameId: string | null;
+        playerId: string | null;
+        setGameId: (id: string) => void;
+        setPlayerId: (id: string) => void;
     }
 
 //create the context so that gameData can be accessed globally
@@ -16,10 +18,20 @@ const GameDataContext = createContext<GameData | undefined>(undefined);
 //define and export the provider component for the gameDataContext object
 export const GameDataProvider = ({ children }: { children: ReactNode }) => 
 {
-    const [Id, setId] = useState<string | null>(null);
+    const [gameId, setGameId] = useState<string | null>(null);
+    const [playerId, setPlayerId] = useState<string | null>(null);
 
     return (
-        <GameDataContext.Provider value={{ Id, setId }}>
+        <GameDataContext.Provider value=
+            {
+                {
+                    gameId: gameId,
+                    playerId: playerId,
+                    setGameId: setGameId,
+                    setPlayerId: setPlayerId,
+                }
+            }
+        >
             {children}
         </GameDataContext.Provider>
     );
