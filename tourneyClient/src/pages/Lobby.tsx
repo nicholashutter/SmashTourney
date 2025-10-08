@@ -11,13 +11,7 @@ import { useGameData } from '@/components/GameIdContext';
 import { SERVER_ERROR, SUBMIT_SUCCESS } from '@/constants/AppConstants';
 import { useNavigate } from 'react-router';
 
-/* 
 
-    Determine who is the first player to join lobby with given gameId
-    That player should be the only one who sees "all players in" button
-    This is probably handled with a lock object
-    
- */
 
 const Lobby = () =>
 {
@@ -26,8 +20,7 @@ const Lobby = () =>
     //open connection to front end signalR hub wrapper
     const lobbyConnection = new PersistentConnection();
 
-    //get playerId variable and setter function from useContext wrapper
-    //get the gameId from useContext wrapper
+    //get playerId, gameId and setter functions from useContext wrapper
     //should have either been loaded from joinTourney or createTourney pages
     const { gameId: gameId, playerId: playerId, setPlayerId: setPlayerId } = useGameData();
 

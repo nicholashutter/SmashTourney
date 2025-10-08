@@ -9,7 +9,6 @@ import JoinTourney from './pages/JoinTourney.tsx';
 import SignUp from './pages/SignUp.tsx';
 import TourneyMenu from './pages/TourneyMenu.tsx';
 import Lobby from './pages/Lobby.tsx';
-import TwoPlayers from './pages/Brackets/TwoPlayers.tsx';
 import InMatch from './pages/InMatch.tsx';
 import ShowBracket from './pages/ShowBracket.tsx';
 import { GameDataProvider } from './components/GameIdContext.tsx';
@@ -31,7 +30,6 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/lobby" element={<Lobby />} />
         <Route path="/inMatch" element={<InMatch />} />
         <Route path="/showBracket" element={<ShowBracket />} />
-        <Route path="/twoPlayers" element={<TwoPlayers />} />
       </Routes>
     </BrowserRouter>
   </GameDataProvider>
