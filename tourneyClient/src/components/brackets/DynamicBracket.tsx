@@ -1,122 +1,155 @@
-import React from "react";
+import React, { JSX, use } from "react";
 import { motion } from "framer-motion";
 import drawService from "../../services/DrawService";
+import { useWindowSize } from "@/hooks/useWindowSize";
 
 type Props = {
-  numPlayers: number;
+    numPlayers: number;
 };
 
-const DynamicBracket: React.FC<Props> = ({ numPlayers }) => {
-  const startX = 40;
-  const startY = 40;
-  const cWidth = 60;
-  const cHeight = 40;
-  const roundSpacingX = 100;
-  const verticalSpacing = 20;
+const DrawWinnersBracket: React.FC<Props> = ({ numPlayers }) =>
+{
 
-  type CShape = {
-    x: number;
-    y: number;
-    id: string;
-  };
+    const {width, height} = useWindowSize();
+    //define initial layout grid
 
-  // Initial C shapes
-  let currentLayer: CShape[] = Array.from({ length: numPlayers }, (_, i) => ({
-    x: startX,
-    y: startY + i * (cHeight + verticalSpacing),
-    id: `C0-${i}`,
-  }));
+    const viewBox = `0 0 ${width} ${height}`;
 
-  const allLines: JSX.Element[] = [];
+    // Starting horizontal position for the first column of match nodes
+    const initialXOffset = width * .05;
 
-  let round = 0;
-  while (currentLayer.length > 1) {
-    const nextLayer: CShape[] = [];
+    // Starting vertical position for the first match node
+    const initialYOffset = height * .05;
 
-    for (let i = 0; i < currentLayer.length - 1; i += 2) {
-      const top = currentLayer[i];
-      const bottom = currentLayer[i + 1];
+    // Horizontal length of the connector line between rounds
+    const matchConnectorWidth = width * .05;
 
-      const midY = (top.y + bottom.y) / 2;
-      const nextX = top.x + roundSpacingX;
+    // Vertical height allocated per match node
+    const matchBoxHeight = height * .04;
 
-      allLines.push(
-        <React.Fragment key={`C-${round}-${i}`}>
-        
-          <motion.line
-            x1={top.x}
-            y1={top.y}
-            x2={nextX}
-            y2={top.y}
-            stroke="#ffffff"
-            strokeWidth="2"
-            variants={drawService}
-            custom={round * 100 + i * 5}
-          />
-        
-          <motion.line
-            x1={bottom.x}
-            y1={bottom.y}
-            x2={nextX}
-            y2={bottom.y}
-            stroke="#ffffff"
-            strokeWidth="2"
-            variants={drawService}
-            custom={round * 100 + i * 5 + 1}
-          />
-    
-          <motion.line
-            x1={nextX}
-            y1={top.y}
-            x2={nextX}
-            y2={bottom.y}
-            stroke="#ffffff"
-            strokeWidth="2"
-            variants={drawService}
-            custom={round * 100 + i * 5 + 2}
-          />
-    
-          <motion.line
-            x1={nextX}
-            y1={midY}
-            x2={nextX + cWidth}
-            y2={midY}
-            stroke="#ffffff"
-            strokeWidth="2"
-            variants={drawService}
-            custom={round * 100 + i * 5 + 3}
-          />
-        </React.Fragment>
-      );
+    // Horizontal spacing between each round of matches
+    const matchHorizontalGap = width * .08;
 
-      nextLayer.push({
-        x: nextX + cWidth,
-        y: midY,
-        id: `C${round + 1}-${i / 2}`,
-      });
+    // Vertical spacing between match nodes within the same round
+    const matchVerticalGap = height * .02;
+
+    //matchnode is the visual representation of each match
+    type MatchNode = {
+        x: number;
+        y: number;
+        id: string;
+    };
+
+    //define initial node based on numPlayers prop
+    let currentMatch: MatchNode[] = Array.from({ length: numPlayers }, (_, i) => ({
+        x: initialXOffset,
+        y: initialYOffset + i * (matchBoxHeight + matchVerticalGap),
+        id: `C0-${i}`,
+    }));
+
+    //container for the bracket as recursively rendered
+    const finalBracket: JSX.Element[] = [];
+
+    // Round counter to track progression through bracket layers
+    let roundIndex = 0;
+
+    // Recursive bracket construction: pair match nodes until one remains
+    while (currentMatch.length > 1)
+    {
+        const nextMatch: MatchNode[] = []; // Stores match nodes for the next round
+
+        for (let i = 0; i < currentMatch.length - 1; i += 2)
+        {
+            const playerOne = currentMatch[i];
+            const playerTwo = currentMatch[i + 1];
+
+            // Vertical midpoint between paired nodes
+            const verticalMidpoint = (playerOne.y + playerTwo.y) / 2;
+
+            // Horizontal position for next round's connector
+            const nextX = playerOne.x + matchHorizontalGap;
+
+            // Bracket connector lines are pushed here
+            finalBracket.push(
+                <React.Fragment key={`C-${roundIndex}-${i}`}>
+
+                    <motion.line
+                        x1={playerOne.x}
+                        y1={playerOne.y}
+                        x2={nextX}
+                        y2={playerOne.y}
+                        stroke="#ffffff"
+                        strokeWidth="2"
+                        variants={drawService}
+                        custom={roundIndex * 100 + i * 5}
+                    />
+
+                    <motion.line
+                        x1={playerTwo.x}
+                        y1={playerTwo.y}
+                        x2={nextX}
+                        y2={playerTwo.y}
+                        stroke="#ffffff"
+                        strokeWidth="2"
+                        variants={drawService}
+                        custom={roundIndex * 100 + i * 5 + 1}
+                    />
+
+                    <motion.line
+                        x1={nextX}
+                        y1={playerOne.y}
+                        x2={nextX}
+                        y2={playerTwo.y}
+                        stroke="#ffffff"
+                        strokeWidth="2"
+                        variants={drawService}
+                        custom={roundIndex * 100 + i * 5 + 2}
+                    />
+
+                    <motion.line
+                        x1={nextX}
+                        y1={verticalMidpoint}
+                        x2={nextX + matchConnectorWidth}
+                        y2={verticalMidpoint}
+                        stroke="#ffffff"
+                        strokeWidth="2"
+                        variants={drawService}
+                        custom={roundIndex * 100 + i * 5 + 3}
+                    />
+                </React.Fragment>
+            );
+
+            nextMatch.push({
+                x: nextX + matchConnectorWidth,
+                y: verticalMidpoint,
+                id: `C${roundIndex + 1}-${i / 2}`,
+            });
+        }
+
+        // Handle unpaired match node (odd number of players in current round)
+        // TILT should not be possible
+        if (currentMatch.length % 2 === 1)
+        {
+            const unpairedMatchNode = currentMatch[currentMatch.length - 1];
+            nextMatch.push({
+                x: unpairedMatchNode.x + matchHorizontalGap + matchConnectorWidth,
+                y: unpairedMatchNode.y,
+                id: `C${roundIndex + 1}-orphan`,
+            });
+        }
+
+        currentMatch = nextMatch;
+        roundIndex++;
     }
 
-
-    if (currentLayer.length % 2 === 1) {
-      const orphan = currentLayer[currentLayer.length - 1];
-      nextLayer.push({
-        x: orphan.x + roundSpacingX + cWidth,
-        y: orphan.y,
-        id: `C${round + 1}-orphan`,
-      });
-    }
-
-    currentLayer = nextLayer;
-    round++;
-  }
-
-  const loserBracketRounds = 2 * (round - 1);
-console.log("Loser bracket rounds:", loserBracketRounds);
-  return (
-    <motion.svg width="1200" height="1000" viewBox="0 0 1200 1000">
-      {allLines}
-    </motion.svg>
-  );
+    //calculate number of rounds for losers bracket
+    const loserBracketRounds = 2 * (roundIndex - 1);
+    console.log("Loser bracket rounds:", loserBracketRounds);
+    return (
+        <motion.svg width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMidYMid meet">
+            {finalBracket}
+        </motion.svg>
+    );
 };
 
-export default DynamicBracket
+export default DrawWinnersBracket
