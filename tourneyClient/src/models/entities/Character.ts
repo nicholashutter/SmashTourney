@@ -1,9 +1,9 @@
-import { Archetype } from "../Enums/Archetype";
-import { CharacterId } from "../Enums/CharacterId";
-import { CharacterName } from "../Enums/CharacterName";
-import { FallSpeed } from "../Enums/FallSpeed";
-import { TierPlacement } from "../Enums/TierPlacement";
-import { WeightClass } from "../Enums/WeightClass";
+import { Archetype } from "@/models/Enums/Archetype";
+import { CharacterId } from "@/models/Enums/CharacterId";
+import { CharacterName } from "@/models/Enums/CharacterName";
+import { FallSpeed } from "@/models/Enums/FallSpeed";
+import { TierPlacement } from "@/models/Enums/TierPlacement";
+import { WeightClass } from "@/models/Enums/WeightClass";
 
 
 

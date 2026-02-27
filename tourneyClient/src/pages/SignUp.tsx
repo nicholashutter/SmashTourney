@@ -4,8 +4,8 @@ import SubmitButton from "@/components/SubmitButton";
 import { useState } from "react";
 import { RequestService } from "@/services/RequestService";
 import { SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
-import { ApplicationUser } from "../models/entities/ApplicationUser";
-import { validateInput } from "@/services/ValidationService";
+import { ApplicationUser } from "@/models/entities/ApplicationUser";
+import { validateInput } from "@/services/validationService";
 import { useNavigate } from 'react-router';
 
 /*Ready for E2E testing */

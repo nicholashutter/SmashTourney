@@ -3,12 +3,12 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { useGameData } from "@/components/GameIdContext";
-import { validateInput } from "@/services/ValidationService";
+import { validateInput } from "@/services/validationService";
 import { INVALID_CHARACTERS, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { Character } from "@/models/entities/Character.ts";
 import { Player } from "@/models/entities/Player";
 import { v4 as uuidv4 } from "uuid";
-import PersistentConnection from "../services/PersistentConnection"
+import PersistentConnection from "@/services/PersistentConnection"
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";

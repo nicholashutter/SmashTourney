@@ -4,7 +4,7 @@ import BasicHeading from "@/components/HeadingOne";
 import BasicInput from "@/components/BasicInput";
 import SubmitButton from "@/components/SubmitButton";
 import { RequestService } from "@/services/RequestService";
-import { validateInput, validateGameIdResponse, validateTotalPlayers } from "@/services/ValidationService";
+import { validateInput, validateGameIdResponse, validateTotalPlayers } from "@/services/validationService";
 import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS, SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { useNavigate } from 'react-router';
 import { useGameData } from "@/components/GameIdContext";

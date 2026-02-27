@@ -1,6 +1,6 @@
 import React, { JSX, use } from "react";
 import { motion } from "framer-motion";
-import drawService from "../../services/DrawService";
+import drawService from "@/services/drawService";
 import { useWindowSize } from "@/hooks/useWindowSize";
 
 type Props = {
@@ -10,7 +10,7 @@ type Props = {
 const DrawWinnersBracket: React.FC<Props> = ({ numPlayers }) =>
 {
 
-    const {width, height} = useWindowSize();
+    const { width, height } = useWindowSize();
     //define initial layout grid
 
     const viewBox = `0 0 ${width} ${height}`;

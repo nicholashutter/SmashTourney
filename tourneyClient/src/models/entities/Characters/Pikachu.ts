@@ -1,5 +1,5 @@
 import { CharacterId } from "@/models/Enums/CharacterId";
-import { Character } from "../Character"
+import { Character } from "@/models/entities/Character"
 import { CharacterName } from "@/models/Enums/CharacterName";
 import { Archetype } from "@/models/Enums/Archetype";
 import { FallSpeed } from "@/models/Enums/FallSpeed";

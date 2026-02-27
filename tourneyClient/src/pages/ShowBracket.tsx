@@ -1,5 +1,5 @@
 
-import { Player } from "../models/entities/Player";
+import { Player } from "@/models/entities/Player";
 import { useGameData } from "@/components/GameIdContext";
 import { useState, useEffect } from "react";
 import { RequestService } from "@/services/RequestService";
