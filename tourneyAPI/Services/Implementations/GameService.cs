@@ -3,14 +3,13 @@ namespace Services;
 /* GameService implements game operation logic */
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Entities;
 using Helpers;
 using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using Microsoft.Extensions.Configuration.UserSecrets;
-using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 
 public class GameService : IGameService
@@ -41,15 +40,12 @@ public class GameService : IGameService
     //api route /NewGame 
     public async Task<Guid> CreateGame()
     {
-
         Log.Information("CreateGame");
 
-        Game game = new Game
-        {
-            Id = Guid.NewGuid()
-        };
+        var game = new Game { Id = Guid.NewGuid() };
         await InsertGameAsync(game);
         _games.Add(game);
+
         Log.Information($"New Game with gameId {game.Id} created");
         return game.Id;
     }
@@ -58,10 +54,8 @@ public class GameService : IGameService
     private async Task InsertGameAsync(Game currentGame)
     {
         Log.Information("Insert Game");
-
         using var scope = _serviceProvider.CreateScope();
         var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
         _db.Games.Add(currentGame);
         await _db.SaveChangesAsync();
     }
@@ -71,22 +65,14 @@ public class GameService : IGameService
     public async Task UpdateGameAsync(Guid gameId)
     {
         Log.Information("Update Game Async");
-
         using var scope = _serviceProvider.CreateScope();
         var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        var foundGame = _games.Find(g => g.Id == gameId);
-        if (foundGame is null)
-        {
-            throw new GameNotFoundException("UpdateGameAsync");
-        }
+        var foundGame = _games.Find(g => g.Id == gameId)
+                         ?? throw new GameNotFoundException("UpdateGameAsync");
 
-        var dbGame = await _db.Games.FindAsync(gameId);
-        if (dbGame is null)
-        {
-            throw new GameNotFoundException($"Game with ID {gameId} does not exist.");
-        }
-
+        var dbGame = await _db.Games.FindAsync(gameId)
+                     ?? throw new GameNotFoundException($"Game with ID {gameId} does not exist.");
 
         _db.Entry(dbGame).CurrentValues.SetValues(foundGame);
         await _db.SaveChangesAsync();
@@ -96,184 +82,78 @@ public class GameService : IGameService
     public async Task<bool> LoadGameAsync(Guid gameId)
     {
         Log.Information($"Load Game {gameId}");
+        using var scope = _serviceProvider.CreateScope();
+        var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        using (var scope = _serviceProvider.CreateScope())
+        var foundGame = await _db.Games.FindAsync(gameId);
+        if (foundGame is null)
         {
-            var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            try
-            {
-                var foundGame = await _db.Games.FindAsync(gameId);
-
-                if (foundGame is null)
-                {
-                    throw new GameNotFoundException("LoadGameAsync");
-                }
-                else
-                {
-                    _games.Add(foundGame);
-                }
-                return true;
-            }
-            catch (GameNotFoundException e)
-            {
-                Log.Warning($"FoundGame is null. Unable to load game \n {e}");
-                return false;
-            }
+            Log.Warning("FoundGame is null. Unable to load game");
+            return false;
         }
+
+        _games.Add(foundGame);
+        return true;
     }
 
     //api route /GetAllGames
     public async Task<List<Game>?> GetAllGamesAsync()
     {
-        Log.Information($"Get All Games");
+        Log.Information("Get All Games");
+        using var scope = _serviceProvider.CreateScope();
+        var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        using (var scope = _serviceProvider.CreateScope())
+        if (_games.Count > 0) return _games;
+        var games = await _db.Games.ToListAsync();
+        if (games.Count == 0)
         {
-            var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            var Games = new List<Game>();
-
-            try
-            {
-
-                if (_games.Count > 0)
-                {
-                    return _games;
-                }
-                else
-                {
-                    Games = await _db.Games.ToListAsync();
-                    if (Games.Count == 0)
-                    {
-                        throw new EmptyGamesCollectionException("GetAllGamesAsync");
-                    }
-                }
-
-                return Games;
-            }
-            catch (EmptyGamesCollectionException e)
-            {
-                Log.Warning($"All Games Returns Zero, Did You Just Reset The DB? \n {e}");
-                return null;
-            }
+            Log.Warning("All Games Returns Zero, Did You Just Reset The DB?");
+            return null;
         }
+        return games;
     }
 
     //api route /GetGameById
     public async Task<Game?> GetGameByIdAsync(Guid gameId)
     {
         Log.Information($"Get Game By Id {gameId}");
+        var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
+        if (foundGame != null) return foundGame;
 
-        using (var scope = _serviceProvider.CreateScope())
-        {
-            var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            var foundGame = new Game();
-            try
-            {
-                //check memory first
-                foundGame = _games.Find(g => gameId == g.Id);
-                //check db if not found in memory
-                if (foundGame is null)
-                {
-                    foundGame = await _db.Games.FindAsync(gameId);
-                }
-                //if not found in memory or db throw exception
-                if (foundGame is null)
-                {
-                    throw new GameNotFoundException("GetGameByIdAsync");
-                }
-                return foundGame;
-            }
-            catch (GameNotFoundException e)
-            {
-                Log.Information($"Game not found or otherwise null\n {e}");
-                return null;
-            }
-        }
-
-
+        using var scope = _serviceProvider.CreateScope();
+        var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        return await _db.Games.FindAsync(gameId);
     }
 
-    public async Task<List<Player>> GetPlayersInGame(Guid gameId)
-    {
-        Log.Information($"Get Game By Id {gameId}");
-
-        Game? foundGame = await GetGameByIdAsync(gameId);
-
-        List<Player> returnList = new List<Player>();
-
-        if (foundGame is not null)
-        {
-            returnList = foundGame.currentPlayers;
-        }
-        return returnList;
-    }
+    public async Task<List<Player>> GetPlayersInGame(Guid gameId) =>
+        (await GetGameByIdAsync(gameId))?.currentPlayers ?? new List<Player>();
 
     //Api route /CreateUserSession
     //will only let authenticated users further inside the application if the gameID presented is valid
     public bool CreateUserSession(ApplicationUser addUser)
     {
-        Log.Information($"Adding User {addUser.UserName} to user sessions.");
-
-        try
+        if (addUser == null)
         {
-            if (addUser is null)
-            {
-                Log.Error($"Unable to add User to game: addUser is null");
-
-                throw new InvalidArgumentException("CreateUserSession ");
-            }
-            else
-            {
-                _userSessions.Add(addUser);
-                Log.Information($"User {addUser.UserName} added to user sessions.");
-                return true;
-            }
-        }
-        catch (GameNotFoundException e)
-        {
-            Log.Error($"{e}");
+            Log.Error("Unable to add User to game: addUser is null");
             return false;
         }
-        catch (InvalidArgumentException e)
-        {
-            Log.Error($"{e}");
-            return false;
-        }
-
+        _userSessions.Add(addUser);
+        Log.Information($"User {addUser.UserName} added to user sessions.");
+        return true;
     }
 
     public bool EndUserSession(ClaimsPrincipal user)
     {
         Log.Information($"Ending User Session for {user.Identity.Name}");
-
-        try
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
         {
-            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (userId is null)
-            {
-                Log.Error($"Unable to end User Session: userId could not be parsed from ClaimsPrincipal");
-                throw new InvalidArgumentException("EndUserSession");
-            }
-
-            var foundUser = _userSessions.Find(u => u.Id == userId);
-
-            if (foundUser is null)
-            {
-                Log.Warning($"Unable to end User Session: User not found in user sessions");
-                throw new UserNotFoundException("EndUserSession");
-            }
-        }
-        catch (UserNotFoundException e)
-        {
-            Log.Error($"{e}");
+            Log.Error("Unable to end User Session: userId could not be parsed from ClaimsPrincipal");
             return false;
         }
-        catch (InvalidArgumentException e)
+        if (_userSessions.All(u => u.Id != userId))
         {
-            Log.Error($"{e}");
+            Log.Warning("Unable to end User Session: User not found in user sessions");
             return false;
         }
         return true;
@@ -283,137 +163,63 @@ public class GameService : IGameService
     //Player comes from the front end
     public bool AddPlayerToGame(Player player, Guid gameId, string userId)
     {
-        Log.Information("Adding Player to Game with userId ${userId}");
-
-        try
+        var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
+        if (foundGame == null)
         {
-            var foundGame = _games.Find(g => g.Id == gameId);
-
-            if (foundGame is null)
-            {
-                throw new GameNotFoundException("AddPlayerToGameAsync");
-            }
-
-            player.CurrentGameID = gameId;
-            foundGame.currentPlayers.Add(player);
-            Log.Information($"Players Created From Users");
-            return true;
-        }
-        catch (GameNotFoundException e)
-        {
-            Log.Information($"Failed to Create Players from Users \n {e}");
+            Log.Information($"Failed to Create Players from Users game {gameId} not found");
             return false;
         }
+        player.CurrentGameID = gameId;
+        foundGame.currentPlayers.Add(player);
+        Log.Information("Players Created From Users");
+        return true;
     }
 
 
     //api route StartGame
     public async Task<bool> StartGameAsync(Guid existingGameId)
-
     {
-
         Log.Information($"End Game {existingGameId}");
-
         try
         {
-            var foundGame = await GetGameByIdAsync(existingGameId);
+            var foundGame = await GetGameByIdAsync(existingGameId)
+                            ?? (_games.FirstOrDefault(g => g.Id == existingGameId)
+                                ?? throw new GameNotFoundException("StartGameAsync"));
 
-            if (foundGame is null)
-            {
-                bool LoadGameFromDb = await LoadGameAsync(existingGameId);
-                if (!LoadGameFromDb)
-                {
-                    foundGame = _games.Find(g => g.Id == existingGameId);
-                    if (foundGame is null)
-                    {
-                        throw new GameNotFoundException("StartGameAsync");
-                    }
-                }
-            }
-            if (!GenerateBracket(existingGameId))
-            {
-                throw new InvalidFunctionResponseException("StartGameAsync");
-            }
+            GenerateBracket(existingGameId);
             return true;
         }
-        catch (InvalidFunctionResponseException e)
+        catch (Exception e) when (e is GameNotFoundException || e is InvalidFunctionResponseException)
         {
-            Log.Error($"{e}");
-            return false;
-        }
-        catch (GameNotFoundException e)
-        {
-            Log.Error($"{e}");
+            Log.Error(e.ToString());
             return false;
         }
     }
 
     //called by StartGame
-    private bool GenerateBracket(Guid gameId)
+    private void GenerateBracket(Guid gameId)
     {
         Log.Information($"Generate Bracket {gameId}");
-
-        try
-        {
-            var foundGame = _games.Find(g => g.Id == gameId);
-
-            if (foundGame is null)
-            {
-                throw new GameNotFoundException("GenerateBracketAsync");
-            }
-
-            CalculateByes(foundGame);
-
-            InsertByes(foundGame);
-
-            ShuffleBracket(foundGame);
-        }
-        catch (GameNotFoundException e)
-        {
-            Log.Error($"{e}");
-            return false;
-        }
-        return true;
+        var foundGame = _games.FirstOrDefault(g => g.Id == gameId)
+                        ?? throw new GameNotFoundException("GenerateBracketAsync");
+        CalculateByes(foundGame);
+        InsertByes(foundGame);
+        ShuffleBracket(foundGame);
     }
 
     //calculate how many null objects to insert into foundGame based on currentPlayers
     private void CalculateByes(Game foundGame)
     {
-        if (foundGame.currentPlayers.Count < 2)
+        var count = foundGame.currentPlayers.Count;
+        if (count < 2 || count >= 256)
+            throw new BracketGenrationException($"Bracket size invalid: {count}");
+        foreach (var threshold in new[] { 4, 8, 16, 32, 64, 128, 256 })
         {
-            throw new BracketGenrationException($"Bracket size invalid: {foundGame.currentPlayers.Count}");
-        }
-        else if (foundGame.currentPlayers.Count < 4)
-        {
-            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 4);
-        }
-        else if (foundGame.currentPlayers.Count < 8)
-        {
-            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 8);
-        }
-        else if (foundGame.currentPlayers.Count < 16)
-        {
-            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 16);
-        }
-        else if (foundGame.currentPlayers.Count < 32)
-        {
-            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 32);
-        }
-        else if (foundGame.currentPlayers.Count < 64)
-        {
-            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 64);
-        }
-        else if (foundGame.currentPlayers.Count < 128)
-        {
-            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 128);
-        }
-        else if (foundGame.currentPlayers.Count < 256)
-        {
-            foundGame.byes = Math.Abs(foundGame.currentPlayers.Count - 256);
-        }
-        else
-        {
-            throw new BracketGenrationException($"Bracket size invalid: {foundGame.currentPlayers.Count}");
+            if (count < threshold)
+            {
+                foundGame.byes = threshold - count;
+                break;
+            }
         }
     }
 
@@ -453,130 +259,73 @@ public class GameService : IGameService
     public bool EndGame(Guid endGameId)
     {
         Log.Information($"End Game {endGameId}");
-
-        foreach (Game g in _games)
-        {
-            if (endGameId == g.Id)
-            {
-                _games.Remove(g);
-                Log.Information($"Game with gameId {g.Id} removed");
-                return true;
-            }
-        }
-        return false;
+        var game = _games.FirstOrDefault(g => g.Id == endGameId);
+        if (game == null) return false;
+        _games.Remove(game);
+        Log.Information($"Game with gameId {game.Id} removed");
+        return true;
     }
 
     //get the game from gameId
     //foreach put each player in hasNotPlayed
     private void LoadPlayersForRound(Guid gameId)
     {
-        var foundGame = _games.Find(g => g.Id == gameId);
-        if (foundGame is null)
-        {
-            throw new GameNotFoundException("LoadPlayersForRound");
-        }
-        foreach (Player player in foundGame.currentPlayers)
-        {
-            _hasNotPlayed.Push(player);
-        }
+        var foundGame = _games.FirstOrDefault(g => g.Id == gameId)
+                        ?? throw new GameNotFoundException("LoadPlayersForRound");
+        _hasNotPlayed = new Stack<Player>(foundGame.currentPlayers);
     }
     //api route //StartRound
-    public void StartRound(Guid gameId)
-    {
-        LoadPlayersForRound(gameId);
-    }
+    public void StartRound(Guid gameId) => LoadPlayersForRound(gameId);
 
 
 
     //api route /EndRound
     public bool EndRound(Guid gameId)
     {
-
         Log.Information($"EndRoundAsync {gameId}");
-
-        try
-        {
-            var foundGame = _games.Find(g => g.Id == gameId);
-            if (foundGame is null)
-            {
-                throw new GameNotFoundException("EndRoundAsync");
-            }
-            //increment player round and game round together to stay in sync
-            foreach (Player player in foundGame.currentPlayers)
-            {
-                player.CurrentRound++;
-            }
-
-            foundGame.currentRound++;
-            return true;
-
-        }
-        catch (GameNotFoundException e)
-        {
-            Log.Error($"{e}");
-            return false;
-        }
+        var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
+        if (foundGame == null) return false;
+        foreach (Player player in foundGame.currentPlayers)
+            player.CurrentRound++;
+        foundGame.currentRound++;
+        return true;
     }
 
 
     private List<Player> PreMatchSetup(Game foundGame)
     {
-
-        var currentPlayers = new List<Player>();
-        if (_hasNotPlayed.Count > 0)
-        {
-            var currentPlayerOne = _hasNotPlayed.Pop();
-            var currentPlayerTwo = _hasNotPlayed.Pop();
-
-            if (currentPlayerOne.CurrentRound != foundGame.currentRound)
-            {
-                throw new RoundMismatchException("StartMatch");
-            }
-            else if (currentPlayerTwo.CurrentRound != foundGame.currentRound)
-            {
-                throw new RoundMismatchException("StartMatch");
-            }
-
-            currentPlayers = new List<Player> { currentPlayerOne, currentPlayerTwo };
-
-            foundGame.currentMatch++;
-        }
-        else
+        if (_hasNotPlayed.Count == 0)
         {
             EndRound(foundGame.Id);
+            return new List<Player>();
         }
 
-        return currentPlayers;
+        var currentPlayerOne = _hasNotPlayed.Pop();
+        var currentPlayerTwo = _hasNotPlayed.Pop();
+
+        if (currentPlayerOne.CurrentRound != foundGame.currentRound ||
+            currentPlayerTwo.CurrentRound != foundGame.currentRound)
+        {
+            throw new RoundMismatchException("StartMatch");
+        }
+
+        foundGame.currentMatch++;
+        return new List<Player> { currentPlayerOne, currentPlayerTwo };
     }
     //api route StartMatch
     //list of players should be unpacked by route and returned in HTTP response
     public List<Player>? StartMatch(Guid gameId)
     {
         Log.Information($"StartMatch {gameId}");
-
+        var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
+        if (foundGame == null) return null;
         try
         {
-
-            var foundGame = _games.Find(g => g.Id == gameId);
-
-            if (foundGame is null)
-            {
-                throw new GameNotFoundException("StartMatch");
-            }
-
-            var currentPlayers = PreMatchSetup(foundGame);
-
-            return currentPlayers;
-
-        }
-        catch (GameNotFoundException e)
-        {
-            Log.Error($"{e}");
-            return null;
+            return PreMatchSetup(foundGame);
         }
         catch (RoundMismatchException e)
         {
-            Log.Error($"{e}");
+            Log.Error(e.ToString());
             return null;
         }
     }
@@ -584,89 +333,32 @@ public class GameService : IGameService
     //api route EndMatch
     public async Task<bool> EndMatchAsync(Guid gameId, Player matchWinner)
     {
-
         Log.Information($"End Match Async {gameId}");
-
-        try
-        {
-
-
-            var foundGame = _games.Find(g => g.Id == gameId);
-            if (foundGame is null)
-            {
-                throw new GameNotFoundException("EndRoundAsync");
-            }
-
-
-            var finalVoteSuccess = VoteHandler(gameId, matchWinner);
-
-            if (!finalVoteSuccess)
-            {
-                throw new InvalidFunctionResponseException("EndMatchAsync");
-            }
-
-
-            var success = await PostMatchShutdown(foundGame.Id);
-
-            if (!success)
-            {
-                throw new InvalidFunctionResponseException("EndMatchAsync");
-            }
-        }
-        catch (GameNotFoundException e)
-        {
-            Log.Error($"{e}");
-            return false;
-        }
-
+        var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
+        if (foundGame == null) return false;
+        if (!VoteHandler(gameId, matchWinner)) return false;
+        if (!await PostMatchShutdown(foundGame.Id)) return false;
         return true;
     }
 
     //Handle votes for match winner
-    private bool VoteHandler(Guid gameId, Player MatchWinner)
-
+    private bool VoteHandler(Guid gameId, Player matchWinner)
     {
-
         Log.Information($"VoteHandlerAsync {gameId}");
-
         try
         {
-            //get game context and current players 
-            var foundGame = _games.Find(g => g.Id == gameId);
-
-            Player foundPlayer = new Player { UserId = MatchWinner.UserId };
-
-            if (foundGame is null)
-            {
-                throw new GameNotFoundException("VoteHandlerAsync");
-            }
-
-            foundPlayer = foundGame.currentPlayers.Find(p => p.Id == MatchWinner.Id);
-
-            if (foundPlayer is null)
-            {
-                throw new PlayerNotFoundException("VoteHandlerAsync");
-            }
-
-            MatchWinner = foundGame.currentPlayers.Find(p => p.Id == MatchWinner.Id);
-            if (foundPlayer is null)
-            {
-                throw new PlayerNotFoundException("VoteHandlerAsync");
-            }
-
-            CastVote(foundGame, MatchWinner);
+            var foundGame = _games.FirstOrDefault(g => g.Id == gameId)
+                            ?? throw new GameNotFoundException("VoteHandlerAsync");
+            var foundPlayer = foundGame.currentPlayers.FirstOrDefault(p => p.Id == matchWinner.Id)
+                              ?? throw new PlayerNotFoundException("VoteHandlerAsync");
+            CastVote(foundGame, foundPlayer);
+            return true;
         }
-        catch (GameNotFoundException e)
+        catch (Exception e) when (e is GameNotFoundException || e is PlayerNotFoundException)
         {
-            Log.Error($"{e}");
+            Log.Error(e.ToString());
             return false;
         }
-        catch (PlayerNotFoundException e)
-        {
-            Log.Error($"{e}");
-            return false;
-        }
-        return true;
     }
 
 
@@ -689,20 +381,7 @@ public class GameService : IGameService
         }
     }
 
-    //Calculate highest score in game
-    private Game CalculateHighestScore(Game currentGame)
-    {
-        Player highestScore = new Player { UserId = "" };
-        foreach (Player player in currentGame.currentPlayers)
-        {
-            //bubble sort to determine who has highest score
-            if (player.CurrentScore > highestScore.CurrentScore)
-            {
-                highestScore = player;
-            }
-        }
-        return currentGame;
-    }
+    
 
     //called by SaveGameAsync or EndGameAsync
     private async Task<bool> PostMatchShutdown(Guid gameId)
@@ -722,40 +401,32 @@ public class GameService : IGameService
                     throw new GameNotFoundException("PostMatchShutdown");
                 }
 
-                foundGame = CalculateHighestScore(foundGame);
+                
 
                 foreach (Player player in foundGame.currentPlayers)
                 {
                     var currentUser = await userRepository.GetUserByIdAsync(player.UserId);
 
-                    var userType = IsRealUser(currentUser, player.UserId);
-
-                    if (userType == UserType.RealUser)
+                    switch (IsRealUser(currentUser, player.UserId))
                     {
-                        //set new timestamps for relevant timestamp fields
-                        //increment and decrement totals wins / losses / games played
-                        if (foundGame.currentRound == player.CurrentRound)
-                        {
-                            UpdateUser(currentUser, player);
-                            await userRepository.UpdateUserAsync(currentUser);
-                        }
-                        else
-                        {
-                            Log.Warning("Warning: UpdateUserScore called, but some users aren't on the same round as their game");
-                        }
-
-                    }
-                    else if (userType == UserType.ByeUser)
-                    {
-                        Log.Information($"Bye User processed. No score update needed.");
-                    }
-                    else if (userType == UserType.NullUser)
-                    {
-                        throw new UserNotFoundException("PostMatchShutdown");
-                    }
-                    else
-                    {
-                        throw new InvalidObjectStateException("PostMatchShutdown");
+                        case UserType.RealUser:
+                            if (foundGame.currentRound == player.CurrentRound)
+                            {
+                                UpdateUser(currentUser, player);
+                                await userRepository.UpdateUserAsync(currentUser);
+                            }
+                            else
+                            {
+                                Log.Warning("Warning: UpdateUserScore called, but some users aren't on the same round as their game");
+                            }
+                            break;
+                        case UserType.ByeUser:
+                            Log.Information("Bye User processed. No score update needed.");
+                            break;
+                        case UserType.NullUser:
+                            throw new UserNotFoundException("PostMatchShutdown");
+                        default:
+                            throw new InvalidObjectStateException("PostMatchShutdown");
                     }
 
 
@@ -787,54 +458,27 @@ public class GameService : IGameService
 
         NullUser
     }
-    private UserType IsRealUser(ApplicationUser currentUser, string userId)
-    {
-        if (userId.Equals(AppConstants.ByeUserId))
-        {
-            return UserType.ByeUser;
-        }
-        else if (currentUser is not null)
-        {
-            return UserType.RealUser;
-        }
-        else
-        {
-            return UserType.NullUser;
-        }
-    }
+private UserType IsRealUser(ApplicationUser currentUser, string userId) =>
+        userId == AppConstants.ByeUserId ? UserType.ByeUser :
+        currentUser != null ? UserType.RealUser :
+        UserType.NullUser;
 
     //Update User Values Post Match 
     private ApplicationUser UpdateUser(ApplicationUser currentUser, Player player)
     {
-        var isRealUser = IsRealUser(currentUser, currentUser.Id);
-
-        try
+        switch (IsRealUser(currentUser, currentUser.Id))
         {
-            if (isRealUser == UserType.RealUser)
-            {
-                currentUser.AllTimeMatches = player.CurrentRound + currentUser.AllTimeMatches;
+            case UserType.RealUser:
+                currentUser.AllTimeMatches += player.CurrentRound;
                 var currentWins = Math.Abs(player.CurrentScore - player.CurrentRound);
-                currentUser.AllTimeWins = currentWins + currentUser.AllTimeWins;
-                var currentLosses = Math.Abs(player.CurrentRound - currentWins);
-            }
-            else if (isRealUser == UserType.ByeUser)
-            {
-                Log.Information($"Bye User processed. No score update needed.");
-                return currentUser;
-            }
-            else if (isRealUser == UserType.NullUser)
-            {
+                currentUser.AllTimeWins += currentWins;
+                break;
+            case UserType.ByeUser:
+                Log.Information("Bye User processed. No score update needed.");
+                break;
+            case UserType.NullUser:
                 throw new UserNotFoundException("UpdateUser");
-            }
         }
-        catch (UserNotFoundException e)
-        {
-            Log.Error($"{e}");
-            return currentUser;
-        }
-
-
-
         return currentUser;
     }
 
