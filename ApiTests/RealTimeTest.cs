@@ -10,24 +10,15 @@ using Services;
 public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
-
     private const string IN_MEMORY_HUB_URL = "wss://localhost/hubs/GameServiceHub";
-
-    public RealTimeTest(CustomWebApplicationFactory<Program> factory)
-    {
-        _factory = factory;
-
-    }
+    public RealTimeTest(CustomWebApplicationFactory<Program> factory) => _factory = factory;
 
     private HubConnection CreateClient()
     {
-        var client = _factory.CreateClient();
         var server = _factory.Server;
         return new HubConnectionBuilder()
-        .WithUrl(IN_MEMORY_HUB_URL, options =>
-        {
-            options.HttpMessageHandlerFactory = _ => server.CreateHandler();
-        }).Build();
+            .WithUrl(IN_MEMORY_HUB_URL, options => options.HttpMessageHandlerFactory = _ => server.CreateHandler())
+            .Build();
     }
 
     [Fact]

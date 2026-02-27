@@ -20,42 +20,31 @@ public class PlayerRepositoryTest : IClassFixture<CustomWebApplicationFactory<Pr
     public PlayerRepositoryTest()
     {
         _factory = new CustomWebApplicationFactory<Program>();
-
         using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        db.Database.EnsureCreated();
+        scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
     }
+
+    private async Task<IPlayerManager> GetManagerAsync()
+        => _factory.Services.CreateAsyncScope().ServiceProvider.GetRequiredService<IPlayerManager>();
 
     [Fact]
     public async Task CreateAsyncReturnsValidId()
     {
-        using (IServiceScope scope = _factory.Services.CreateAsyncScope())
-        {
-            IPlayerManager playerManager = scope.ServiceProvider.GetRequiredService<IPlayerManager>();
-            Player newPlayer = new Player { UserId = AppConstants.ByeUserId };
-            Guid? result = await playerManager.CreateAsync(newPlayer);
-            Assert.IsType<Guid>(result);
-        }
-
+        var manager = await GetManagerAsync();
+        var result = await manager.CreateAsync(new Player { UserId = AppConstants.ByeUserId });
+        Assert.IsType<Guid>(result);
     }
 
     [Fact]
     public async Task GetAllAsyncReturnsAllPlayers()
     {
-        using (IServiceScope scope = _factory.Services.CreateAsyncScope())
-        {
-            IPlayerManager playerManager = scope.ServiceProvider.GetRequiredService<IPlayerManager>();
+        var manager = await GetManagerAsync();
+        const int expected = 10;
+        await Task.WhenAll(Enumerable.Range(0, expected)
+            .Select(_ => manager.CreateAsync(new Player { UserId = AppConstants.ByeUserId })));
 
-            for (int i = 0; i < 10; i++)
-            {
-                Player newPlayer = new Player { UserId = AppConstants.ByeUserId };
-                await playerManager.CreateAsync(newPlayer);
-            }
-
-            List<Player>? result = await playerManager.GetAllPlayersAsync();
-            Assert.NotNull(result);
-            Assert.Equal(10, result.Count);
-        }
+        var result = await manager.GetAllPlayersAsync();
+        Assert.Equal(expected, result?.Count);
     }
 
 

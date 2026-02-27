@@ -14,135 +14,68 @@ public class UserServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     public UserServiceTest()
     {
         _factory = new CustomWebApplicationFactory<Program>();
-
         using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        db.Database.EnsureCreated();
+        scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
+    }
+
+    private async Task<IUserManager> GetManagerAsync()
+    {
+        var scope = _factory.Services.CreateScope();
+        return scope.ServiceProvider.GetRequiredService<IUserManager>();
+    }
+
+    private async Task<ApplicationUser> CreateRandomUserAsync(IUserManager manager)
+    {
+        var rand = Guid.NewGuid().ToString();
+        var user = new ApplicationUser { UserName = rand, Email = $"{rand}@mail.com" };
+        await manager.CreateUserAsync(user, "SecureP@ssw0rd123!");
+        return user;
     }
 
     [Fact]
     public async Task CreateUserSavesUserToDb()
     {
-
-        Guid rand = Guid.NewGuid();
-        using (IServiceScope scope = _factory.Services.CreateScope())
-        {
-            IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-
-            string Password = "SecureP@ssw0rd123!";
-
-            ApplicationUser user = new ApplicationUser
-            {
-                UserName = rand.ToString(),
-                Email = $"{rand}@mail.com"
-            };
-
-            var result = await userManager.CreateUserAsync(user, Password);
-
-            Assert.True(result.Succeeded,
-                $"User creation failed. Errors: {string.Join(", ", result.Errors.Select(e => e.Description))}");
-        }
+        var manager = await GetManagerAsync();
+        var user = await CreateRandomUserAsync(manager);
+        var found = await manager.GetUserByUserNameAsync(user.UserName);
+        Assert.NotNull(found);
     }
 
     [Fact]
     public async Task CreateUserReturnsValidUserId()
     {
-        string rand = Guid.NewGuid().ToString();
-
-        using IServiceScope scope = _factory.Services.CreateScope();
-        IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-
-        var Password = "SecureP@ssw0rd123!";
-
-        ApplicationUser user = new ApplicationUser
-        {
-            UserName = rand,
-            Email = $"{rand}@mail.com"
-        };
-
-        var result = await userManager.CreateUserAsync(user, Password);
-
-        ApplicationUser? foundUser = await userManager.GetUserByUserNameAsync(rand);
-
-        Assert.False(string.IsNullOrEmpty(foundUser?.Id));
+        var manager = await GetManagerAsync();
+        var user = await CreateRandomUserAsync(manager);
+        Assert.False(string.IsNullOrEmpty(user.Id));
     }
 
     [Fact]
     public async Task GetUserByIdGetsCorrectUser()
     {
-        string rand = Guid.NewGuid().ToString();
-
-        using IServiceScope scope = _factory.Services.CreateScope();
-        IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-        ApplicationDbContext dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        var Password = "SecureP@ssw0rd123!";
-
-        ApplicationUser user = new ApplicationUser
-        {
-            UserName = rand,
-            Email = $"{rand}@mail.com"
-        };
-
-        await userManager.CreateUserAsync(user, Password);
-
-        ApplicationUser? foundUser = await userManager.GetUserByIdAsync(user.Id);
-
-        Assert.Equivalent(user, foundUser);
+        var manager = await GetManagerAsync();
+        var user = await CreateRandomUserAsync(manager);
+        var found = await manager.GetUserByIdAsync(user.Id);
+        Assert.Equivalent(user, found);
     }
-
-
 
     [Fact]
     public async Task UpdateUserAsyncModifiesUserName()
     {
-        using IServiceScope scope = _factory.Services.CreateScope();
-        Guid rand = Guid.NewGuid();
-
-        IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-
-        var Password = "SecureP@ssw0rd123!";
-
-        ApplicationUser user = new ApplicationUser
-        {
-            UserName = rand.ToString(),
-            Email = $"{rand}@mail.com"
-        };
-
-        await userManager.CreateUserAsync(user, Password);
-
-        string newName = "edit@mail.com";
-        user.UserName = newName;
-
-        await userManager.UpdateUserAsync(user);
-        ApplicationUser? foundUser = await userManager.GetUserByIdAsync(user.Id);
-
-        Assert.Equal(newName, foundUser?.UserName);
+        var manager = await GetManagerAsync();
+        var user = await CreateRandomUserAsync(manager);
+        user.UserName = "edit@mail.com";
+        await manager.UpdateUserAsync(user);
+        var found = await manager.GetUserByIdAsync(user.Id);
+        Assert.Equal("edit@mail.com", found?.UserName);
     }
-
-
 
     [Fact]
     public async Task DeleteUserAsyncRemovesUserFromDatabase()
     {
-        using IServiceScope scope = _factory.Services.CreateScope();
-        string rand = Guid.NewGuid().ToString();
-
-        IUserManager userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-
-        var Password = "SecureP@ssw0rd123!";
-
-        ApplicationUser user = new ApplicationUser
-        {
-            UserName = rand,
-            Email = $"{rand}@mail.com"
-        };
-
-        await userManager.CreateUserAsync(user, Password);
-        await userManager.DeleteUserAsync(user.Id);
-
-        ApplicationUser? deletedUser = await userManager.GetUserByIdAsync(user.Id);
-        Assert.Null(deletedUser);
+        var manager = await GetManagerAsync();
+        var user = await CreateRandomUserAsync(manager);
+        await manager.DeleteUserAsync(user.Id);
+        Assert.Null(await manager.GetUserByIdAsync(user.Id));
     }
 
 

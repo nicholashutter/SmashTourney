@@ -312,9 +312,9 @@ C:/Development/Full Stack/Smash Tourney Project/V6/tourneyAPI/obj/Debug/net8.0/r
 /home/nicholas/Development/BusinessApps/SmashTourney/SmashTourney/tourneyAPI/obj/Debug/net8.0/staticwebassets/msbuild.buildTransitive.tourneyAPI.props
 /home/nicholas/Development/BusinessApps/SmashTourney/SmashTourney/tourneyAPI/obj/Debug/net8.0/staticwebassets.pack.json
 /home/nicholas/Development/BusinessApps/SmashTourney/SmashTourney/tourneyAPI/obj/Debug/net8.0/scopedcss/bundle/tourneyAPI.styles.css
+/home/nicholas/Development/BusinessApps/SmashTourney/SmashTourney/tourneyAPI/obj/Debug/net8.0/tourneyAPI.csproj.CopyComplete
 /home/nicholas/Development/BusinessApps/SmashTourney/SmashTourney/tourneyAPI/obj/Debug/net8.0/tourneyAPI.dll
 /home/nicholas/Development/BusinessApps/SmashTourney/SmashTourney/tourneyAPI/obj/Debug/net8.0/refint/tourneyAPI.dll
 /home/nicholas/Development/BusinessApps/SmashTourney/SmashTourney/tourneyAPI/obj/Debug/net8.0/tourneyAPI.pdb
 /home/nicholas/Development/BusinessApps/SmashTourney/SmashTourney/tourneyAPI/obj/Debug/net8.0/tourneyAPI.genruntimeconfig.cache
 /home/nicholas/Development/BusinessApps/SmashTourney/SmashTourney/tourneyAPI/obj/Debug/net8.0/ref/tourneyAPI.dll
-/home/nicholas/Development/BusinessApps/SmashTourney/SmashTourney/tourneyAPI/obj/Debug/net8.0/tourneyAPI.csproj.CopyComplete

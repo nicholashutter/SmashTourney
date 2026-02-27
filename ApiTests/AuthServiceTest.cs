@@ -14,63 +14,46 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
 
+        public AuthServiceTest()
+        {
+            _factory = new CustomWebApplicationFactory<Program>();
+            using var scope = _factory.Services.CreateScope();
+            scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
+        }
 
+        public class RegisterRequest { public string Email { get; set; } = string.Empty; 
+        public string Password { get; set; } = string.Empty; }
 
-    public AuthServiceTest()
-    {
-        _factory = new CustomWebApplicationFactory<Program>();
+        private HttpClient NewClient(bool handleCookies = false) =>
+            _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = handleCookies });
 
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        db.Database.EnsureCreated();
-    }
+        private RegisterRequest RandomCredentials() =>
+            new() { Email = $"test{Guid.NewGuid()}@email.com", Password = "SecureP@ssw0rd123!" };
 
-    public class RegisterRequest
-    {
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-    }
+        private async Task<HttpClient> RegisterAndLoginAsync(AuthServiceTest.RegisterRequest creds, bool useCookies)
+        {
+            var client = NewClient(handleCookies: useCookies);
+            await client.PostAsJsonAsync($"/register{(useCookies ? "?useCookies=true" : string.Empty)}", creds);
+            await client.PostAsJsonAsync($"/login{(useCookies ? "?useCookies=true" : string.Empty)}", creds);
+            return client;
+        }
 
     [Theory]
     [InlineData("/register")]
     public async Task registerNewUser(string url)
     {
-        var client = _factory.CreateClient();
-
-        var req = new RegisterRequest
-        {
-            Email = $"test{Guid.NewGuid()}@email.com",
-            Password = "SecureP@ssw0rd123!"
-        };
-
+        var client = NewClient();
+        var req = RandomCredentials();
         var response = await client.PostAsJsonAsync(url, req);
-
         response.EnsureSuccessStatusCode();
-
     }
 
     [Fact]
     public async Task loginNewUser()
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            HandleCookies = true
-        });
-
-        var req = new RegisterRequest
-        {
-            Email = $"test{Guid.NewGuid()}@email.com",
-            Password = "SecureP@ssw0rd123!"
-        };
-
-        string registerURL = "/register";
-        var response = await client.PostAsJsonAsync(registerURL, req);
-
-        string loginURL = "/login";
-        response = await client.PostAsJsonAsync(loginURL, req);
-
-        response.EnsureSuccessStatusCode();
-
+        var creds = RandomCredentials();
+        var client = await RegisterAndLoginAsync(creds, useCookies: true);
+        // just ensure login completed
     }
 
 
@@ -78,42 +61,8 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     [Fact]
     public async Task testSecureEndpointWithCookie()
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            HandleCookies = true
-        });
-        using var scope = _factory.Services.CreateAsyncScope();
-        var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-
-
-        var email = $"test{Guid.NewGuid()}@email.com";
-        var password = "SecureP@ssw0rd123!";
-        var userName = email;
-
-        var newUser = new ApplicationUser
-        {
-            UserName = userName,
-            Email = email,
-            RegistrationDate = DateTime.UtcNow,
-            LastLoginDate = DateTime.UtcNow,
-            AllTimeMatches = 0,
-            AllTimeWins = 0,
-            AllTimeLosses = 0
-        };
-
-        var result = await userManager.CreateUserAsync(newUser, password);
-
-        Assert.True(result.Succeeded);
-
-        var loginReq = new RegisterRequest
-        {
-            Email = email,
-            Password = password
-        };
-
-        var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", loginReq);
-        loginResponse.EnsureSuccessStatusCode();
-
+        var creds = RandomCredentials();
+        var client = await RegisterAndLoginAsync(creds, useCookies: true);
         var afterLoginResponse = await client.GetAsync("/");
         Assert.Equal(HttpStatusCode.OK, afterLoginResponse.StatusCode);
     }
@@ -122,67 +71,20 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     [Fact]
     public async Task testSecureEndpointNoCookie()
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            HandleCookies = true
-        });
-
-        var requestNoCookie = await client.GetAsync("/users/GetAllUsers");
-
-        Assert.Equal(HttpStatusCode.Unauthorized, requestNoCookie.StatusCode);
+        var client = NewClient(handleCookies: true);
+        var request = await client.GetAsync("/users/GetAllUsers");
+        Assert.Equal(HttpStatusCode.Unauthorized, request.StatusCode);
     }
 
 
     [Fact]
     public async Task testLogout()
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            HandleCookies = true
-        });
-
-        using var scope = _factory.Services.CreateAsyncScope();
-        var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-
-
-        var email = $"test{Guid.NewGuid()}@email.com";
-        var password = "SecureP@ssw0rd123!";
-        var userName = email;
-
-        var newUser = new ApplicationUser
-        {
-            UserName = userName,
-            Email = email,
-            RegistrationDate = DateTime.UtcNow,
-            LastLoginDate = DateTime.UtcNow,
-            AllTimeMatches = 0,
-            AllTimeWins = 0,
-            AllTimeLosses = 0
-        };
-
-        var result = await userManager.CreateUserAsync(newUser, password);
-
-        Assert.True(result.Succeeded);
-
-
-        var req = new RegisterRequest
-        {
-            Email = email,
-            Password = password
-        };
-
-        var registerResponse = await client.PostAsJsonAsync("/register", req);
-
-        var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", req);
-
-        loginResponse.EnsureSuccessStatusCode();
-
+        var creds = RandomCredentials();
+        var client = await RegisterAndLoginAsync(creds, useCookies: true);
         var afterLoginResponse = await client.GetAsync("/");
-
         afterLoginResponse.EnsureSuccessStatusCode();
-
         var logoutResponse = await client.PostAsync("/users/logout", null);
-
         logoutResponse.EnsureSuccessStatusCode();
     }
 

@@ -17,122 +17,63 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
 
-    class CreateGameRes
-    {
-        public Guid gameId { get; set; }
-    }
+        class CreateGameRes { public Guid gameId { get; set; } }
+        class GetByIdRes { public Game game { get; set; } }
+        class GetAllGamesRes { public List<Game> games { get; set; } }
 
-    class GetByIdRes
-    {
-        public Game game { get; set; }
-    }
-
-    class GetAllGamesRes
-    {
-        public List<Game> games { get; set; }
-    }
-
-    public GameRouterTest()
-    {
-        _factory = new CustomWebApplicationFactory<Program>();
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        db.Database.EnsureCreated();
-    }
-
-    public class RegisterRequest
-    {
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-    }
-
-
-
-    private async Task<List<(HttpClient client, Player player)>> CreateDummyEntitiesWithAuthentication(Guid gameId, int numberOfPlayers)
-    {
-        var result = new List<(HttpClient client, Player player)>();
-
-        for (int i = 0; i < numberOfPlayers; i++)
+        public GameRouterTest()
         {
-            var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-            {
-                HandleCookies = true
-            });
-
-            var email = $"test{i}_{Guid.NewGuid()}@example.com";
-            var password = "SecureP@ssw0rd123!";
-            var userName = $"Player{i}";
-
-            var registerRequest = new RegisterRequest
-            {
-                Email = email,
-                Password = password
-            };
-
-            var registerResponse = await client.PostAsJsonAsync("/register?useCookies=true", registerRequest);
-            registerResponse.EnsureSuccessStatusCode();
-
-            var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", registerRequest);
-            loginResponse.EnsureSuccessStatusCode();
-
-            using var scope = _factory.Services.CreateAsyncScope();
-            var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
-
-
-            var player = new Player
-            {
-                UserId = "",
-                DisplayName = userName,
-                CurrentCharacter = new Mario(),
-                CurrentGameID = gameId
-            };
-
-            result.Add((client, player));
+            _factory = new CustomWebApplicationFactory<Program>();
+            using var scope = _factory.Services.CreateScope();
+            scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
         }
 
-        return result;
-    }
+        public class RegisterRequest { public string Email { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; }
 
+        private HttpClient NewClient(bool handleCookies = false) =>
+            _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = handleCookies });
 
+        private async Task<Guid> CreateGameAsync(HttpClient client)
+        {
+            var resp = await client.PostAsync("/Games/CreateGame", null);
+            resp.EnsureSuccessStatusCode();
+            var data = await resp.Content.ReadFromJsonAsync<CreateGameRes>();
+            return data?.gameId ?? Guid.Empty;
+        }
 
+        private async Task<List<(HttpClient client, Player player)>> CreateDummyEntitiesWithAuthentication(Guid gameId, int numberOfPlayers)
+        {
+            var list = new List<(HttpClient, Player)>();
+            for (int i = 0; i < numberOfPlayers; i++)
+            {
+                var client = NewClient(handleCookies: true);
+                var email = $"test{i}_{Guid.NewGuid()}@example.com";
+                var password = "SecureP@ssw0rd123!";
+                var userName = $"Player{i}";
 
+                var registerRequest = new RegisterRequest { Email = email, Password = password };
+                (await client.PostAsJsonAsync("/register?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+                (await client.PostAsJsonAsync("/login?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+
+                list.Add((client, new Player { UserId = "", DisplayName = userName, CurrentCharacter = new Mario(), CurrentGameID = gameId }));
+            }
+            return list;
+        }
 
     [Fact]
     public async Task CreateGameReturnsSuccess()
     {
-        using var client = _factory.CreateClient();
-
-        var response = await client.PostAsync("/Games/CreateGame", null);
-
-        response.EnsureSuccessStatusCode();
-
-        var jsonResponse = await response.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse);
-
-        Assert.NotNull(responseData);
-
-        var gameId = responseData?.gameId;
-
-        Assert.NotNull(gameId);
-
+        var client = NewClient();
+        var gameId = await CreateGameAsync(client);
         Assert.NotEqual(Guid.Empty, gameId);
     }
 
     [Fact]
     public async Task CreateUserSessionTakesValidUserReturnsSuccess()
     {
-        using var client = _factory.CreateClient();
-        var user = new ApplicationUser
-        {
-            Id = Guid.NewGuid().ToString(),
-            UserName = "TestUser",
-            Email = "" + Guid.NewGuid() + "@example.com"
-        };
-
-        var userJson = JsonSerializer.Serialize(user);
-        var usersContent = new StringContent(userJson, System.Text.Encoding.UTF8, "application/json");
-        var response = await client.PostAsync("/Games/CreateUserSession", usersContent);
-
+        var client = NewClient();
+        var user = new ApplicationUser { Id = Guid.NewGuid().ToString(), UserName = "TestUser", Email = Guid.NewGuid() + "@example.com" };
+        var response = await client.PostAsJsonAsync("/Games/CreateUserSession", user);
         response.EnsureSuccessStatusCode();
     }
 
@@ -143,81 +84,34 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task GetAllGamesReturnsAllValidGames()
     {
-        using var client = _factory.CreateClient();
-
-        for (int i = 0; i < 10; i++)
-        {
-            var response = await client.PostAsync("/Games/CreateGame", null);
-
-            response.EnsureSuccessStatusCode();
-
-        }
-
+        var client = NewClient();
+        const int expected = 10;
+        for (int i = 0; i < expected; i++) await CreateGameAsync(client);
         var getResponse = await client.GetAsync("/Games/getAllGames");
-
         getResponse.EnsureSuccessStatusCode();
-
-
-        var jsonResponse = await getResponse.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<GetAllGamesRes>(jsonResponse);
-
-        var games = responseData?.games;
-
-        Assert.NotNull(games);
-        Assert.Equal(10, games.Count);
+        var responseData = await getResponse.Content.ReadFromJsonAsync<GetAllGamesRes>();
+        Assert.Equal(expected, responseData?.games?.Count);
     }
 
 
     [Fact]
     public async Task GetGameByIdReturnsValidGame()
     {
-        using var client = _factory.CreateClient();
-        var initialResponse = await client.PostAsync("/Games/CreateGame", null);
-
-        initialResponse.EnsureSuccessStatusCode();
-
-        var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
-
-        Assert.NotNull(responseData);
-
-        var gameId = responseData.gameId;
-
-        Assert.NotEqual(Guid.Empty, gameId);
-
+        var client = NewClient();
+        var gameId = await CreateGameAsync(client);
         var nextResponse = await client.GetAsync($"/Games/GetGameById/{gameId}");
-
         nextResponse.EnsureSuccessStatusCode();
-
-        var nextJsonResponse = await nextResponse.Content.ReadAsStringAsync();
-
-        var nextResponseData = JsonSerializer.Deserialize<GetByIdRes>(nextJsonResponse, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
-
-        Assert.NotNull(nextResponseData.game);
+        var nextResponseData = await nextResponse.Content.ReadFromJsonAsync<GetByIdRes>(
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         Assert.Equal(gameId, nextResponseData?.game?.Id);
     }
 
     [Fact]
     public async Task EndGameEndsRunningGame()
     {
-        using var client = _factory.CreateClient();
-        var initialResponse = await client.PostAsync("/Games/CreateGame", null);
-
-        initialResponse.EnsureSuccessStatusCode();
-        var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<Dictionary<string, Guid>>(jsonResponse);
-        Assert.NotNull(responseData);
-        var gameId = responseData["gameId"];
-        Assert.NotEqual(Guid.Empty, gameId);
-
+        var client = NewClient();
+        var gameId = await CreateGameAsync(client);
         var endResponse = await client.GetAsync($"/Games/EndGame/{gameId}");
-
         endResponse.EnsureSuccessStatusCode();
     }
 
@@ -227,31 +121,13 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task AddPlayersReturnsSuccess()
     {
-        using var scope = _factory.Services.CreateScope();
-
-        var client = _factory.CreateClient();
-        var initialResponse = await client.PostAsync("/Games/CreateGame", null);
-        initialResponse.EnsureSuccessStatusCode();
-
-        var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
-
-        Assert.NotNull(responseData);
-        var gameId = responseData.gameId;
-
+        var client = NewClient();
+        var gameId = await CreateGameAsync(client);
         const int NUM_PLAYERS = 10;
-
         var playerSessions = await CreateDummyEntitiesWithAuthentication(gameId, NUM_PLAYERS);
-
         foreach (var (playerClient, player) in playerSessions)
         {
-            var playerJson = JsonSerializer.Serialize(player);
-            var playerContent = new StringContent(playerJson, System.Text.Encoding.UTF8, "application/json");
-
-            var playerResponse = await playerClient.PostAsync($"/Games/AddPlayer/{gameId}", playerContent);
+            var playerResponse = await playerClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", player);
             playerResponse.EnsureSuccessStatusCode();
         }
     }
@@ -261,34 +137,15 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task StartGameStartsGameSuccessfully()
     {
-        using var scope = _factory.Services.CreateScope();
-
-        var client = _factory.CreateClient();
-        var initialResponse = await client.PostAsync("/Games/CreateGame", null);
-        initialResponse.EnsureSuccessStatusCode();
-
-        var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
-
-        Assert.NotNull(responseData);
-        var gameId = responseData.gameId;
-
+        var client = NewClient();
+        var gameId = await CreateGameAsync(client);
         const int NUM_PLAYERS = 10;
-
         var playerSessions = await CreateDummyEntitiesWithAuthentication(gameId, NUM_PLAYERS);
-
         foreach (var (playerClient, player) in playerSessions)
         {
-            var playerJson = JsonSerializer.Serialize(player);
-            var playerContent = new StringContent(playerJson, System.Text.Encoding.UTF8, "application/json");
-
-            var playerResponse = await playerClient.PostAsync($"/Games/AddPlayer/{gameId}", playerContent);
+            var playerResponse = await playerClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", player);
             playerResponse.EnsureSuccessStatusCode();
         }
-
         var startGameResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
         startGameResponse.EnsureSuccessStatusCode();
     }
@@ -299,34 +156,15 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task EndGameEndsGameSuccessfully()
     {
-        using var scope = _factory.Services.CreateScope();
-
-        var client = _factory.CreateClient();
-        var initialResponse = await client.PostAsync("/Games/CreateGame", null);
-        initialResponse.EnsureSuccessStatusCode();
-
-        var jsonResponse = await initialResponse.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<CreateGameRes>(jsonResponse, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
-
-        Assert.NotNull(responseData);
-        var gameId = responseData.gameId;
-
+        var client = NewClient();
+        var gameId = await CreateGameAsync(client);
         const int NUM_PLAYERS = 10;
-
         var playerSessions = await CreateDummyEntitiesWithAuthentication(gameId, NUM_PLAYERS);
-
         foreach (var (playerClient, player) in playerSessions)
         {
-            var playerJson = JsonSerializer.Serialize(player);
-            var playerContent = new StringContent(playerJson, System.Text.Encoding.UTF8, "application/json");
-
-            var playerResponse = await playerClient.PostAsync($"/Games/AddPlayer/{gameId}", playerContent);
+            var playerResponse = await playerClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", player);
             playerResponse.EnsureSuccessStatusCode();
         }
-
         var finalResponse = await client.GetAsync($"/Games/EndGame/{gameId}");
         finalResponse.EnsureSuccessStatusCode();
     }
