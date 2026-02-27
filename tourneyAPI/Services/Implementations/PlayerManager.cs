@@ -99,65 +99,33 @@ public class PlayerManager : IPlayerManager
     public async Task<bool> UpdateAsync(Player updatePlayer)
     {
         Log.Information("Update Player Async");
-
-        try
+        if (updatePlayer?.Id == null)
         {
-            if (updatePlayer == null)
-            {
-                throw new InvalidArgumentException("UpdateAsync");
-            }
-            else
-            {
-                var foundPlayer = await _db.Players.FindAsync(updatePlayer.Id);
-                if (foundPlayer is null)
-                {
-                    throw new PlayerNotFoundException("UpdateAsync");
-                }
-                else
-                {
-                    _db.Update(foundPlayer);
-                    await _db.SaveChangesAsync();
-                    return true;
-                }
-            }
-        }
-        catch (PlayerNotFoundException e)
-        {
-            Log.Error($"UpdatePlayer is null. Unable to updatePlayer\n {e}");
+            Log.Error("UpdatePlayer is null");
             return false;
         }
-        catch (InvalidArgumentException e)
+        var foundPlayer = await _db.Players.FindAsync(updatePlayer.Id);
+        if (foundPlayer == null)
         {
-            Log.Error("Error: {e}", e.ToString());
+            Log.Error("Player not found during update");
             return false;
         }
+        _db.Update(foundPlayer);
+        await _db.SaveChangesAsync();
+        return true;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
         Log.Information($"Delete Player {id}");
-
-        var foundPlayer = new Player { UserId = "" };
-
-        try
+        var foundPlayer = await _db.Players.FindAsync(id);
+        if (foundPlayer == null)
         {
-            foundPlayer = await _db.Players.FindAsync(id);
-
-            if (foundPlayer == null)
-            {
-                throw new PlayerNotFoundException("DeleteAsync");
-            }
-            else
-            {
-                _db.Players.Remove(foundPlayer);
-                await _db.SaveChangesAsync();
-                return true;
-            }
-        }
-        catch (PlayerNotFoundException e)
-        {
-            Log.Warning($"Player not found. Unable to delete\n {e}");
+            Log.Warning("Player not found. Unable to delete");
             return false;
         }
+        _db.Players.Remove(foundPlayer);
+        await _db.SaveChangesAsync();
+        return true;
     }
 }
