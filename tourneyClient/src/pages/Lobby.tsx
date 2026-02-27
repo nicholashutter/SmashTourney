@@ -22,7 +22,7 @@ const Lobby = () =>
 
     //get playerId, gameId and setter functions from useContext wrapper
     //should have either been loaded from joinTourney or createTourney pages
-    const { gameId: gameId, playerId: playerId, setPlayerId: setPlayerId } = useGameData();
+    const { gameId: gameId, playerId: playerId } = useGameData();
 
 
     //explicitly typing as boolean because this type of conditional check confuses me 

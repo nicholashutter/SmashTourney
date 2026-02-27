@@ -1,16 +1,14 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 
 import BasicHeading from "@/components/HeadingOne";
 import BasicInput from "@/components/BasicInput";
 import SubmitButton from "@/components/SubmitButton";
 import { RequestService } from "@/services/RequestService";
-import { validateInput, validateGameIdResponse, validateTotalPlayers } from "@/services/validationService";
+import { validateGameIdResponse, validateTotalPlayers } from "@/services/validationService";
 import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS, SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { useNavigate } from 'react-router';
 import { useGameData } from "@/components/GameIdContext";
-import { v4 as uuidv4 } from "uuid";
 import HeadingTwo from "@/components/HeadingTwo";
-import { Player } from "@/models/entities/Player";
 
 /*Ready for E2E testing */
 
@@ -29,10 +27,10 @@ const CreateTourney = () =>
   //gameType true is double elimination
   //gameType false is single elimination
   //will set this with an enum like object
-  const [gameType, setGameType] = useState(false);
+  const [_gameType, setGameType] = useState(false);
 
   //handle max player selection
-  const handleMaxPlayers = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const handleMaxPlayers = (e: ChangeEvent<HTMLInputElement>) =>
   {
     const numplayers = parseInt(e.target.value);
     if (validateTotalPlayers(numplayers))
@@ -48,7 +46,7 @@ const CreateTourney = () =>
   }
 
   //handle select game selection
-  const handleSelectGameType = async (e: React.ChangeEvent<HTMLSelectElement>) =>
+  const handleSelectGameType = async (e: ChangeEvent<HTMLSelectElement>) =>
   {
     //get value of event from select element
     const selected = e.target.value;

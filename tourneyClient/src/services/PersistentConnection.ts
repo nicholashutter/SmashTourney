@@ -9,7 +9,7 @@ class SignalRService
 
     private connection: HubConnection | null = null;
 
-    private onPlayersUpdated: ((players: Player[]) => void) | null;
+    private onPlayersUpdated: ((players: Player[]) => void) | null = null;
 
     private gameId: string = "";
 

@@ -1,8 +1,6 @@
 import BasicHeading from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
-import Vs from "@/components/Vs";
-import StartGame from "@/components/StartGame";
 
 /*
     possibly using useGameData

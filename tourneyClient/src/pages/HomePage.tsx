@@ -1,5 +1,4 @@
-import React from "react";
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { ApplicationUser } from '@/models/entities/ApplicationUser';
@@ -10,7 +9,6 @@ import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
-import { useGameData } from "@/components/GameIdContext";
 
 /*Ready for E2E testing */
 
@@ -30,12 +28,12 @@ const HomePage = () =>
     Password: password
   }
 
-  const userNameHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const userNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setUserName(e.target.value);
   }
 
-  const passwordHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const passwordHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setPassword(e.target.value);
   }

@@ -1,5 +1,4 @@
-import React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { useGameData } from "@/components/GameIdContext";
@@ -62,7 +61,7 @@ const JoinTourney = () =>
       const resolvedModules = await Promise.all(modulePromises);
 
       //extract the default export (the character object) from each module
-      const characterObjects = resolvedModules.map((module) => module.default);
+      const characterObjects = resolvedModules.map((module) => (module as { default: Character }).default);
 
       //save the array of character objects to state
       setCharacters(characterObjects);
@@ -72,7 +71,7 @@ const JoinTourney = () =>
     fetchAllCharacters();
   });
 
-  const gameIdHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const gameIdHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
     const validateGameId = validateInput(e.target.value);
     if (validateGameId)
@@ -87,7 +86,7 @@ const JoinTourney = () =>
 
   }
 
-  const displayNameHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const displayNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
     const validateDisplayName = validateInput(e.target.value);
     if (validateDisplayName)

@@ -1,5 +1,4 @@
-import React from "react";
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { ApplicationUser } from "@/models/entities/ApplicationUser";
@@ -29,7 +28,7 @@ const GuestSignUp = () =>
     Password: password
   }
 
-  const userNameHandler = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const userNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setUserName(e.target.value);
   }

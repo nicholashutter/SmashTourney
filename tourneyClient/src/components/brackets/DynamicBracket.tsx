@@ -1,4 +1,4 @@
-import React, { JSX, use } from "react";
+import { JSX, FC, Fragment } from "react";
 import { motion } from "framer-motion";
 import drawService from "@/services/drawService";
 import { useWindowSize } from "@/hooks/useWindowSize";
@@ -7,7 +7,7 @@ type Props = {
     numPlayers: number;
 };
 
-const DrawWinnersBracket: React.FC<Props> = ({ numPlayers }) =>
+const DrawWinnersBracket: FC<Props> = ({ numPlayers }) =>
 {
 
     const { width, height } = useWindowSize();
@@ -71,7 +71,7 @@ const DrawWinnersBracket: React.FC<Props> = ({ numPlayers }) =>
 
             // Bracket connector lines are pushed here
             finalBracket.push(
-                <React.Fragment key={`C-${roundIndex}-${i}`}>
+                <Fragment key={`C-${roundIndex}-${i}`}>
 
                     <motion.line
                         x1={playerOne.x}
@@ -116,7 +116,7 @@ const DrawWinnersBracket: React.FC<Props> = ({ numPlayers }) =>
                         variants={drawService}
                         custom={roundIndex * 100 + i * 5 + 3}
                     />
-                </React.Fragment>
+                </Fragment>
             );
 
             nextMatch.push({

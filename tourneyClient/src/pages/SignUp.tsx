@@ -1,7 +1,7 @@
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { RequestService } from "@/services/RequestService";
 import { SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { ApplicationUser } from "@/models/entities/ApplicationUser";
@@ -18,15 +18,15 @@ const SignUp = () =>
   const [applicationUser, setApplicationUser] = useState({} as ApplicationUser);
   const navigate = useNavigate();
 
-  const handleUserNameChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const handleUserNameChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setUserName(e.target.value);
   };
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setEmail(e.target.value);
   };
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+  const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setPassword(e.target.value);
   };

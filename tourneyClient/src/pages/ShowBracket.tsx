@@ -1,44 +1,10 @@
 
-import { Player } from "@/models/entities/Player";
-import { useGameData } from "@/components/GameIdContext";
-import { useState, useEffect } from "react";
-import { RequestService } from "@/services/RequestService";
 import DrawWinnersBracket from "@/components/brackets/DynamicBracket";
 
 
 const ShowBracket = () =>
 {
 
-    const [playersInGame, setPlayersInGame] = useState<Player[]>([]);
-
-    const { gameId } = useGameData();
-
-    useEffect(() =>
-    {
-        const asyncRequest = async () =>
-        {
-            setPlayersInGame(await RequestService(
-                "getPlayersInGame",
-                {
-                    body:
-                    {
-                    },
-                    routeParams:
-                    {
-                        gameId: gameId!,
-                    }
-                }
-            ));
-        }
-        try
-        {
-            asyncRequest();
-        }
-        catch (err)
-        {
-            console.log(err);
-        }
-    });
 
 
     return (
