@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 
 import BasicHeading from "@/components/HeadingOne";
 import BasicInput from "@/components/BasicInput";
@@ -9,6 +9,21 @@ import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS, SERVER_ERROR, SUBMIT_SUCCESS
 import { useNavigate } from 'react-router';
 import { useGameData } from "@/hooks/useGameData";
 import HeadingTwo from "@/components/HeadingTwo";
+import { Character } from "@/models/entities/Character";
+import { CharacterName } from "@/models/Enums/CharacterName";
+import { Archetype } from "@/models/Enums/Archetype";
+import { FallSpeed } from "@/models/Enums/FallSpeed";
+import { TierPlacement } from "@/models/Enums/TierPlacement";
+import { WeightClass } from "@/models/Enums/WeightClass";
+import { Player } from "@/models/entities/Player";
+import { v4 as uuidv4 } from "uuid";
+import
+{
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 /*Ready for E2E testing */
 
@@ -19,11 +34,37 @@ const CreateTourney = () =>
     GameId?: string;
   };
 
+  type SessionStatusResponse = {
+    UserName?: string;
+  };
+
+  type BackendCharacterPayload = {
+    id: string;
+    characterName: keyof typeof CharacterName;
+    archetype: keyof typeof Archetype;
+    fallSpeed: keyof typeof FallSpeed;
+    tierPlacement: keyof typeof TierPlacement;
+    weightClass: keyof typeof WeightClass;
+  };
+
+  type AddPlayerPayload = Omit<Player, "currentCharacter"> & {
+    currentCharacter: BackendCharacterPayload;
+  };
+
+  const getEnumKeyByValue = <TMap extends Record<string, string>>(
+    enumMap: TMap,
+    value: string
+  ): keyof TMap | null =>
+  {
+    const foundPair = Object.entries(enumMap).find(([, enumValue]) => enumValue === value);
+    return (foundPair?.[0] as keyof TMap) ?? null;
+  };
+
   //dynamic import react router useNavigate
   const navigate = useNavigate();
 
   //setup store for gameId after creation
-  const { setGameId: setId } = useGameData();
+  const { setGameId: setId, setPlayerId: setPlayerId } = useGameData();
 
   //variables for users selections
   //will set this with dropdown component with preset values
@@ -33,6 +74,23 @@ const CreateTourney = () =>
   //gameType false is single elimination
   //will set this with an enum like object
   const [gameType, setGameType] = useState(false);
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [currentCharacter, setCurrentCharacter] = useState({} as Character);
+
+  useEffect(() =>
+  {
+    const characterModuleMap = import.meta.glob("../models/entities/Characters/*.ts");
+
+    const fetchAllCharacters = async () =>
+    {
+      const modulePromises = Object.values(characterModuleMap).map((dynamicImport) => dynamicImport());
+      const resolvedModules = await Promise.all(modulePromises);
+      const characterObjects = resolvedModules.map((module) => (module as { default: Character }).default);
+      setCharacters(characterObjects);
+    };
+
+    fetchAllCharacters();
+  }, []);
 
   //handle max player selection
   const handleMaxPlayers = (e: ChangeEvent<HTMLInputElement>) =>
@@ -75,6 +133,18 @@ const CreateTourney = () =>
   //handle submit selection
   const handleSubmit = async () =>
   {
+    const mappedCharacterName = getEnumKeyByValue(CharacterName, currentCharacter.characterName);
+    const mappedArchetype = getEnumKeyByValue(Archetype, currentCharacter.archetype);
+    const mappedFallSpeed = getEnumKeyByValue(FallSpeed, currentCharacter.fallSpeed);
+    const mappedTierPlacement = getEnumKeyByValue(TierPlacement, currentCharacter.tierPlacement);
+    const mappedWeightClass = getEnumKeyByValue(WeightClass, currentCharacter.weightClass);
+
+    if (!mappedCharacterName || !mappedArchetype || !mappedFallSpeed || !mappedTierPlacement || !mappedWeightClass)
+    {
+      window.alert(INVALID_CHARACTERS("Character Selection"));
+      return;
+    }
+
     try
     {
       //call request service and provide no body object since our api does not need a body for createGame
@@ -83,8 +153,42 @@ const CreateTourney = () =>
 
       if (validateGameIdResponse(gameId ?? ""))
       {
+        const session = await RequestService<"sessionStatus", never, SessionStatusResponse>("sessionStatus");
+        const hostDisplayName = session?.UserName?.trim() ?? "";
+
+        if (!hostDisplayName)
+        {
+          window.alert(SERVER_ERROR("Create Tourney"));
+          return;
+        }
+
+        const hostPlayerId = uuidv4();
+        const hostPlayerPayload: AddPlayerPayload = {
+          Id: hostPlayerId,
+          displayName: hostDisplayName,
+          currentScore: 0,
+          currentRound: 0,
+          currentCharacter: {
+            id: currentCharacter.id,
+            characterName: mappedCharacterName,
+            archetype: mappedArchetype,
+            fallSpeed: mappedFallSpeed,
+            tierPlacement: mappedTierPlacement,
+            weightClass: mappedWeightClass,
+          },
+          currentGameId: gameId!,
+        };
+
+        await RequestService("addPlayers", {
+          body: hostPlayerPayload,
+          routeParams: {
+            gameId: gameId!
+          }
+        });
+
         //use setId useContext function
         setId(gameId!);
+        setPlayerId(hostPlayerId);
 
         window.alert(SUBMIT_SUCCESS("Create Tourney"));
         //force navigation without user intervention upon request completion and alert dismissal
@@ -117,6 +221,18 @@ const CreateTourney = () =>
           <HeadingTwo headingText={`Mode: ${gameType ? "Double Elimination" : "Single Elimination"}`} />
           <HeadingTwo headingText={`Enter Total Players (Up to ${MAX_SUPPORTED_PLAYERS})`} />
           <BasicInput labelText="" htmlFor="maxPlayers" name="maxPlayers" id="maxPlayers" value={numPlayers} onChange={handleMaxPlayers} />
+          <DropdownMenu>
+            <DropdownMenuTrigger className="shrink p-2 m-2 bg-white hover:ring-2 hover:ring-green-400 text-black  font-bold rounded shadow-md 
+      transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">{currentCharacter.characterName || "Choose Your Fighter"}</DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {characters.map((character, index) => (
+                <DropdownMenuItem key={index}
+                  onSelect={() => setCurrentCharacter(character)}>
+                  {character.characterName}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <SubmitButton buttonLabel="Create Tourney" onSubmit={handleSubmit} />
         </div>
       </div>
