@@ -26,7 +26,7 @@ const RequestBuilder = {
   },
   addPlayers: {
     method: "POST",
-    path: "/Games/AddPlayers/{gameId}",
+    path: "/Games/AddPlayer/{gameId}",
     params: ["gameId"]
   },
   getPlayersInGame: {
@@ -60,27 +60,32 @@ const RequestBuilder = {
     path: "/Games/StartMatch/{gameId}",
     params: ["gameId"]
   },
-  endMatch: { method: "POST", path: "/Games/EndMatch" },
+  endMatch: {
+    method: "POST",
+    path: "/Games/EndMatch/{gameId}",
+    params: ["gameId"]
+  },
 
-  register: { method: "POST", path: "/Users/Register" },
-  login: { method: "POST", path: "/Users/Login" },
+  register: { method: "POST", path: "/register" },
+  login: { method: "POST", path: "/users/login" },
+  demoCredentials: { method: "GET", path: "/users/demo-credentials" },
   profile: {
     method: "GET",
     path: "/Users/Profile/{userId}",
     params: ["userId"]
   },
   updateProfile: { method: "PUT", path: "/Users/UpdateProfile" },
-  logout: { method: "POST", path: "/Users/logout" },
+  logout: { method: "POST", path: "/users/logout" },
 
   getAllUsers: { method: "GET", path: "/users/GetAllUsers" },
   getUserById: {
     method: "GET",
-    path: "/users/GetById/{Id}",
+    path: "/users/GetById{Id}",
     params: ["Id"]
   },
   getUserByUserName: {
     method: "GET",
-    path: "/users/GetByUserName/{UserName}",
+    path: "/users/GetByUserName{UserName}",
     params: ["UserName"]
   },
   updateUser: { method: "PUT", path: "/users/UpdateUser" },
@@ -124,6 +129,7 @@ export const RequestService =
 
     return fetch(url, {
       method,
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       ...options,
       body: options?.body ? JSON.stringify(options.body) : undefined

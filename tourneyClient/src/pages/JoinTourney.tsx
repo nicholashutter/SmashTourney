@@ -1,7 +1,7 @@
 import { useState, useEffect, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
-import { useGameData } from "@/components/GameIdContext";
+import { useGameData } from "@/hooks/useGameData";
 import { validateInput } from "@/services/validationService";
 import { INVALID_CHARACTERS, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { Character } from "@/models/entities/Character.ts";
@@ -69,12 +69,12 @@ const JoinTourney = () =>
 
     //Run the async loader function
     fetchAllCharacters();
-  });
+  }, []);
 
   const gameIdHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
     const validateGameId = validateInput(e.target.value);
-    if (validateGameId)
+    if (validateGameId.isValid)
     {
       //custom useContext for gameId
       setGameId(e.target.value);
@@ -89,9 +89,9 @@ const JoinTourney = () =>
   const displayNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
     const validateDisplayName = validateInput(e.target.value);
-    if (validateDisplayName)
+    if (validateDisplayName.isValid)
     {
-      setDisplayName(displayName);
+      setDisplayName(e.target.value);
     }
     else
     {
@@ -122,17 +122,14 @@ const JoinTourney = () =>
       await RequestService(
         "addPlayers",
         {
-          body:
-          {
-            player
-          },
+          body: player,
           routeParams:
           {
             gameId
           }
         }
       );
-      await lobbyConnection.updateOthers(displayName);
+      await lobbyConnection.updateOthers(gameId);
       window.alert(SUBMIT_SUCCESS("Join Tourney"));
 
       navigate("/lobby");

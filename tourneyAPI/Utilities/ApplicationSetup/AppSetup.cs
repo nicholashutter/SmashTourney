@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Helpers; 
 using Services;
 using CustomExceptions;
+using Microsoft.AspNetCore.Identity;
+using Entities;
 
 public class AppSetup
 {
@@ -53,6 +55,47 @@ public class AppSetup
                     throw new UserNotFoundException("HandleSession: TILT - should not get here");
                 }
             }
+        }
+    }
+
+    public static async Task SeedDemoUserAsync(IServiceProvider services, IHostEnvironment environment)
+    {
+        if (!environment.IsDevelopment())
+        {
+            return;
+        }
+
+        using var scope = services.CreateScope();
+        var identityUserManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var existingDemoUser = await identityUserManager.FindByNameAsync(AppConstants.DemoUserName);
+
+        if (existingDemoUser is not null)
+        {
+            Log.Information("Demo user '{DemoUserName}' is available for development login.", AppConstants.DemoUserName);
+            return;
+        }
+
+        var demoUser = new ApplicationUser
+        {
+            UserName = AppConstants.DemoUserName,
+            Email = AppConstants.DemoUserEmail,
+            EmailConfirmed = true,
+            RegistrationDate = DateTime.UtcNow,
+            LastLoginDate = DateTime.UtcNow,
+        };
+
+        var creationResult = await identityUserManager.CreateAsync(demoUser, AppConstants.DemoUserPassword);
+
+        if (creationResult.Succeeded)
+        {
+            Log.Information("Demo login seeded. Username: {DemoUserName} Password: {DemoUserPassword}", AppConstants.DemoUserName, AppConstants.DemoUserPassword);
+            return;
+        }
+
+        foreach (var error in creationResult.Errors)
+        {
+            Log.Error("Failed to seed demo user. Code={ErrorCode}, Description={ErrorDescription}", error.Code, error.Description);
         }
     }
 

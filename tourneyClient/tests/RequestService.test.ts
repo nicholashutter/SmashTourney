@@ -116,7 +116,7 @@ test("RequestService formats POST request with array of Player objects for addPl
     });
 
     const [url, options] = (fetch as any).mock.calls[0];
-    expect(url).toContain(`/Games/AddPlayers/${gameId}`);
+    expect(url).toContain(`/Games/AddPlayer/${gameId}`);
     expect(options.method).toBe("POST");
     expect(options.headers["Content-Type"]).toBe("application/json");
 

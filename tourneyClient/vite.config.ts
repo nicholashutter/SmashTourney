@@ -12,8 +12,24 @@ export default defineConfig({
     [
       react(),
       tailwindcss(),
-      eslint({failOnWarning: false})
+      eslint({ failOnWarning: false })
     ],
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      onwarn(warning, warn)
+      {
+        if (
+          typeof warning.message === "string" &&
+          warning.message.includes("contains an annotation that Rollup cannot interpret")
+        )
+        {
+          return;
+        }
+        warn(warning);
+      }
+    }
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

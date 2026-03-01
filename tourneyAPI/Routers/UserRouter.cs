@@ -6,6 +6,7 @@ using System;
 using Serilog;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
+using Helpers;
 
 /*
 
@@ -15,10 +16,63 @@ This class may be removed at some point
 */
 public static class UserRouter
 {
+    private sealed class LoginRequest
+    {
+        public string UserName { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
 
     public static void Map(WebApplication app)
     {
         var UserRoutes = app.MapGroup("/users");
+
+        UserRoutes.MapPost("/login", async (
+            LoginRequest loginRequest,
+            UserManager<ApplicationUser> identityUserManager,
+            SignInManager<ApplicationUser> signInManager) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/users/login' \n Time: {Timestamp}", DateTime.UtcNow);
+
+            if (string.IsNullOrWhiteSpace(loginRequest.UserName) || string.IsNullOrWhiteSpace(loginRequest.Password))
+            {
+                return Results.BadRequest("Username and password are required.");
+            }
+
+            var foundUser = await identityUserManager.FindByNameAsync(loginRequest.UserName)
+                ?? await identityUserManager.FindByEmailAsync(loginRequest.UserName);
+
+            if (foundUser is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var signInResult = await signInManager.PasswordSignInAsync(
+                foundUser,
+                loginRequest.Password,
+                isPersistent: false,
+                lockoutOnFailure: false);
+
+            if (!signInResult.Succeeded)
+            {
+                return Results.Unauthorized();
+            }
+
+            return Results.Ok(new { Message = "Login successful" });
+        });
+
+        UserRoutes.MapGet("/demo-credentials", (IHostEnvironment environment) =>
+        {
+            if (!environment.IsDevelopment())
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(new
+            {
+                UserName = AppConstants.DemoUserName,
+                Password = AppConstants.DemoUserPassword
+            });
+        });
 
         UserRoutes.MapGet("/GetAllUsers", async (HttpContext context, IUserManager userManager) =>
         {

@@ -1,15 +1,6 @@
-export const headingColors =
-    {
-        white: "white",
-        black: "black"
-    } as const;
-
-export type headingColorsType = typeof headingColors[keyof typeof headingColors];
-
-
 type AppProps = {
     headingText: string;
-    headingColors: headingColorsType;
+    headingColors: "white" | "black";
 };
 
 

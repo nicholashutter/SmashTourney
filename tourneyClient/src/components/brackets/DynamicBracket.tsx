@@ -1,4 +1,4 @@
-import { JSX, FC, Fragment } from "react";
+import { FC, ReactElement } from "react";
 import { motion } from "framer-motion";
 import drawService from "@/services/drawService";
 import { useWindowSize } from "@/hooks/useWindowSize";
@@ -7,149 +7,338 @@ type Props = {
     numPlayers: number;
 };
 
-const DrawWinnersBracket: FC<Props> = ({ numPlayers }) =>
+type MatchNode = {
+    x: number;
+    y: number;
+};
+
+type Region = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
+const clampToBracketSize = (requestedPlayers: number): number =>
 {
+    const sanitized = Math.max(2, Math.floor(requestedPlayers || 2));
+    let powerOfTwo = 1;
 
-    const { width, height } = useWindowSize();
-    //define initial layout grid
-
-    const viewBox = `0 0 ${width} ${height}`;
-
-    // Starting horizontal position for the first column of match nodes
-    const initialXOffset = width * .05;
-
-    // Starting vertical position for the first match node
-    const initialYOffset = height * .05;
-
-    // Horizontal length of the connector line between rounds
-    const matchConnectorWidth = width * .05;
-
-    // Vertical height allocated per match node
-    const matchBoxHeight = height * .04;
-
-    // Horizontal spacing between each round of matches
-    const matchHorizontalGap = width * .08;
-
-    // Vertical spacing between match nodes within the same round
-    const matchVerticalGap = height * .02;
-
-    //matchnode is the visual representation of each match
-    type MatchNode = {
-        x: number;
-        y: number;
-        id: string;
-    };
-
-    //define initial node based on numPlayers prop
-    let currentMatch: MatchNode[] = Array.from({ length: numPlayers }, (_, i) => ({
-        x: initialXOffset,
-        y: initialYOffset + i * (matchBoxHeight + matchVerticalGap),
-        id: `C0-${i}`,
-    }));
-
-    //container for the bracket as recursively rendered
-    const finalBracket: JSX.Element[] = [];
-
-    // Round counter to track progression through bracket layers
-    let roundIndex = 0;
-
-    // Recursive bracket construction: pair match nodes until one remains
-    while (currentMatch.length > 1)
+    while (powerOfTwo < sanitized)
     {
-        const nextMatch: MatchNode[] = []; // Stores match nodes for the next round
-
-        for (let i = 0; i < currentMatch.length - 1; i += 2)
-        {
-            const playerOne = currentMatch[i];
-            const playerTwo = currentMatch[i + 1];
-
-            // Vertical midpoint between paired nodes
-            const verticalMidpoint = (playerOne.y + playerTwo.y) / 2;
-
-            // Horizontal position for next round's connector
-            const nextX = playerOne.x + matchHorizontalGap;
-
-            // Bracket connector lines are pushed here
-            finalBracket.push(
-                <Fragment key={`C-${roundIndex}-${i}`}>
-
-                    <motion.line
-                        x1={playerOne.x}
-                        y1={playerOne.y}
-                        x2={nextX}
-                        y2={playerOne.y}
-                        stroke="#ffffff"
-                        strokeWidth="2"
-                        variants={drawService}
-                        custom={roundIndex * 100 + i * 5}
-                    />
-
-                    <motion.line
-                        x1={playerTwo.x}
-                        y1={playerTwo.y}
-                        x2={nextX}
-                        y2={playerTwo.y}
-                        stroke="#ffffff"
-                        strokeWidth="2"
-                        variants={drawService}
-                        custom={roundIndex * 100 + i * 5 + 1}
-                    />
-
-                    <motion.line
-                        x1={nextX}
-                        y1={playerOne.y}
-                        x2={nextX}
-                        y2={playerTwo.y}
-                        stroke="#ffffff"
-                        strokeWidth="2"
-                        variants={drawService}
-                        custom={roundIndex * 100 + i * 5 + 2}
-                    />
-
-                    <motion.line
-                        x1={nextX}
-                        y1={verticalMidpoint}
-                        x2={nextX + matchConnectorWidth}
-                        y2={verticalMidpoint}
-                        stroke="#ffffff"
-                        strokeWidth="2"
-                        variants={drawService}
-                        custom={roundIndex * 100 + i * 5 + 3}
-                    />
-                </Fragment>
-            );
-
-            nextMatch.push({
-                x: nextX + matchConnectorWidth,
-                y: verticalMidpoint,
-                id: `C${roundIndex + 1}-${i / 2}`,
-            });
-        }
-
-        // Handle unpaired match node (odd number of players in current round)
-        // TILT should not be possible
-        if (currentMatch.length % 2 === 1)
-        {
-            const unpairedMatchNode = currentMatch[currentMatch.length - 1];
-            nextMatch.push({
-                x: unpairedMatchNode.x + matchHorizontalGap + matchConnectorWidth,
-                y: unpairedMatchNode.y,
-                id: `C${roundIndex + 1}-orphan`,
-            });
-        }
-
-        currentMatch = nextMatch;
-        roundIndex++;
+        powerOfTwo *= 2;
     }
 
-    //calculate number of rounds for losers bracket
-    const loserBracketRounds = 2 * (roundIndex - 1);
-    console.log("Loser bracket rounds:", loserBracketRounds);
+    return powerOfTwo;
+};
+
+const getRoundCounts = (startingMatches: number): number[] =>
+{
+    const counts: number[] = [];
+    let currentCount = Math.max(1, startingMatches);
+
+    while (currentCount >= 1)
+    {
+        counts.push(currentCount);
+
+        if (currentCount === 1)
+        {
+            break;
+        }
+
+        currentCount = Math.max(1, Math.floor(currentCount / 2));
+    }
+
+    return counts;
+};
+
+const getLosersRoundCounts = (bracketPlayers: number): number[] =>
+{
+    const winnersRounds = Math.log2(bracketPlayers);
+
+    if (winnersRounds <= 1)
+    {
+        return [1];
+    }
+
+    const counts: number[] = [];
+
+    for (let stage = 0; stage < winnersRounds - 1; stage++)
+    {
+        const count = Math.max(1, Math.floor(bracketPlayers / Math.pow(2, stage + 2)));
+        counts.push(count, count);
+    }
+
+    return counts;
+};
+
+const buildRoundNodes = (roundCounts: number[], region: Region): MatchNode[][] =>
+{
+    const totalRounds = roundCounts.length;
+    const columnGap = region.width / Math.max(2, totalRounds + 0.6);
+    const startX = region.x + columnGap * 0.35;
+
+    return roundCounts.map((count, roundIndex) =>
+    {
+        const x = startX + columnGap * roundIndex;
+        const verticalStep = region.height / (count + 1);
+
+        return Array.from({ length: count }, (_, index) => ({
+            x,
+            y: region.y + verticalStep * (index + 1),
+        }));
+    });
+};
+
+const renderBracketLines = (
+    rounds: MatchNode[][],
+    keyPrefix: string,
+    stroke: string,
+    startDelayIndex: number
+): { lines: ReactElement[]; nextDelayIndex: number } =>
+{
+    const lines: ReactElement[] = [];
+    let delayCursor = startDelayIndex;
+
+    for (let roundIndex = 0; roundIndex < rounds.length - 1; roundIndex++)
+    {
+        const currentRound = rounds[roundIndex];
+        const nextRound = rounds[roundIndex + 1];
+
+        if (currentRound.length === 0 || nextRound.length === 0)
+        {
+            continue;
+        }
+
+        const elbowX = currentRound[0].x + (nextRound[0].x - currentRound[0].x) * 0.58;
+
+        for (let targetIndex = 0; targetIndex < nextRound.length; targetIndex++)
+        {
+            const target = nextRound[targetIndex];
+
+            const mappedSources = currentRound.filter((_, sourceIndex) =>
+                Math.floor((sourceIndex * nextRound.length) / currentRound.length) === targetIndex
+            );
+
+            mappedSources.forEach((source, sourceLocalIndex) =>
+            {
+                lines.push(
+                    <motion.line
+                        key={`${keyPrefix}-h1-${roundIndex}-${targetIndex}-${sourceLocalIndex}`}
+                        x1={source.x}
+                        y1={source.y}
+                        x2={elbowX}
+                        y2={source.y}
+                        stroke={stroke}
+                        strokeWidth="2"
+                        variants={drawService}
+                        custom={delayCursor / 8}
+                    />
+                );
+                delayCursor += 1;
+            });
+
+            if (mappedSources.length > 1)
+            {
+                const sortedByY = [...mappedSources].sort((a, b) => a.y - b.y);
+
+                lines.push(
+                    <motion.line
+                        key={`${keyPrefix}-v-${roundIndex}-${targetIndex}`}
+                        x1={elbowX}
+                        y1={sortedByY[0].y}
+                        x2={elbowX}
+                        y2={sortedByY[sortedByY.length - 1].y}
+                        stroke={stroke}
+                        strokeWidth="2"
+                        variants={drawService}
+                        custom={delayCursor / 8}
+                    />
+                );
+                delayCursor += 1;
+            }
+
+            lines.push(
+                <motion.line
+                    key={`${keyPrefix}-h2-${roundIndex}-${targetIndex}`}
+                    x1={elbowX}
+                    y1={target.y}
+                    x2={target.x}
+                    y2={target.y}
+                    stroke={stroke}
+                    strokeWidth="2"
+                    variants={drawService}
+                    custom={delayCursor / 8}
+                />
+            );
+            delayCursor += 1;
+        }
+    }
+
+    return { lines, nextDelayIndex: delayCursor };
+};
+
+const DrawDoubleEliminationBracket: FC<Props> = ({ numPlayers }) =>
+{
+    const { width, height } = useWindowSize();
+    const safeWidth = Math.max(900, width);
+    const safeHeight = Math.max(700, height);
+    const bracketPlayers = clampToBracketSize(numPlayers);
+
+    const winnersRoundCounts = getRoundCounts(bracketPlayers / 2);
+    const losersRoundCounts = getLosersRoundCounts(bracketPlayers);
+
+    const winnersRegion: Region = {
+        x: safeWidth * 0.04,
+        y: safeHeight * 0.08,
+        width: safeWidth * 0.92,
+        height: safeHeight * 0.38,
+    };
+
+    const losersRegion: Region = {
+        x: safeWidth * 0.04,
+        y: safeHeight * 0.54,
+        width: safeWidth * 0.92,
+        height: safeHeight * 0.36,
+    };
+
+    const winnersRounds = buildRoundNodes(winnersRoundCounts, winnersRegion);
+    const losersRounds = buildRoundNodes(losersRoundCounts, losersRegion);
+
+    const winnersLinesResult = renderBracketLines(winnersRounds, "winners", "#ffffff", 0);
+    const losersLinesResult = renderBracketLines(
+        losersRounds,
+        "losers",
+        "#f5f5f5",
+        winnersLinesResult.nextDelayIndex
+    );
+
+    const winnersFinal = winnersRounds[winnersRounds.length - 1]?.[0];
+    const losersFinal = losersRounds[losersRounds.length - 1]?.[0];
+    const grandFinalX = safeWidth * 0.94;
+    const grandFinalY = safeHeight * 0.5;
+
+    const grandFinalLines: ReactElement[] = [];
+    let grandDelay = losersLinesResult.nextDelayIndex;
+
+    if (winnersFinal)
+    {
+        const elbowX = winnersFinal.x + (grandFinalX - winnersFinal.x) * 0.5;
+        grandFinalLines.push(
+            <motion.line
+                key="grand-w-h"
+                x1={winnersFinal.x}
+                y1={winnersFinal.y}
+                x2={elbowX}
+                y2={winnersFinal.y}
+                stroke="#ffffff"
+                strokeWidth="2"
+                variants={drawService}
+                custom={grandDelay / 8}
+            />
+        );
+        grandDelay += 1;
+        grandFinalLines.push(
+            <motion.line
+                key="grand-w-v"
+                x1={elbowX}
+                y1={winnersFinal.y}
+                x2={elbowX}
+                y2={grandFinalY}
+                stroke="#ffffff"
+                strokeWidth="2"
+                variants={drawService}
+                custom={grandDelay / 8}
+            />
+        );
+        grandDelay += 1;
+        grandFinalLines.push(
+            <motion.line
+                key="grand-w-to-final"
+                x1={elbowX}
+                y1={grandFinalY}
+                x2={grandFinalX}
+                y2={grandFinalY}
+                stroke="#ffffff"
+                strokeWidth="2"
+                variants={drawService}
+                custom={grandDelay / 8}
+            />
+        );
+        grandDelay += 1;
+    }
+
+    if (losersFinal)
+    {
+        const elbowX = losersFinal.x + (grandFinalX - losersFinal.x) * 0.5;
+        grandFinalLines.push(
+            <motion.line
+                key="grand-l-h"
+                x1={losersFinal.x}
+                y1={losersFinal.y}
+                x2={elbowX}
+                y2={losersFinal.y}
+                stroke="#f5f5f5"
+                strokeWidth="2"
+                variants={drawService}
+                custom={grandDelay / 8}
+            />
+        );
+        grandDelay += 1;
+        grandFinalLines.push(
+            <motion.line
+                key="grand-l-v"
+                x1={elbowX}
+                y1={losersFinal.y}
+                x2={elbowX}
+                y2={grandFinalY}
+                stroke="#f5f5f5"
+                strokeWidth="2"
+                variants={drawService}
+                custom={grandDelay / 8}
+            />
+        );
+        grandDelay += 1;
+        grandFinalLines.push(
+            <motion.line
+                key="grand-l-to-final"
+                x1={elbowX}
+                y1={grandFinalY}
+                x2={grandFinalX}
+                y2={grandFinalY}
+                stroke="#f5f5f5"
+                strokeWidth="2"
+                variants={drawService}
+                custom={grandDelay / 8}
+            />
+        );
+    }
+
     return (
-        <motion.svg width="100%" height="100%" viewBox={viewBox} preserveAspectRatio="xMidYMid meet">
-            {finalBracket}
+        <motion.svg
+            width="100%"
+            height="100%"
+            viewBox={`0 0 ${safeWidth} ${safeHeight}`}
+            preserveAspectRatio="xMidYMid meet"
+            initial="hidden"
+            animate="visible"
+            className="overflow-visible"
+        >
+            <text x={safeWidth * 0.04} y={safeHeight * 0.05} fill="#ffffff" fontSize="20" fontWeight="700">
+                WINNERS BRACKET
+            </text>
+            <text x={safeWidth * 0.04} y={safeHeight * 0.51} fill="#ffffff" fontSize="20" fontWeight="700">
+                LOSERS BRACKET
+            </text>
+            <text x={safeWidth * 0.86} y={safeHeight * 0.49} fill="#ffffff" fontSize="16" fontWeight="700">
+                GRAND FINALS
+            </text>
+
+            {winnersLinesResult.lines}
+            {losersLinesResult.lines}
+            {grandFinalLines}
         </motion.svg>
     );
 };
 
-export default DrawWinnersBracket
+export default DrawDoubleEliminationBracket;

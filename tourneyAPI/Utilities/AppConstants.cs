@@ -7,4 +7,8 @@ public static class AppConstants
     public const string ServerURL = "http://localhost:5280";
     public const string HubURL = "/hubs/GameServiceHub";
     public const string ClientUrl = "http://localhost:5173";
+
+    public const string DemoUserName = "demoUser";
+    public const string DemoUserEmail = "demo@smashtourney.local";
+    public const string DemoUserPassword = "DemoP@ssword123!";
 }

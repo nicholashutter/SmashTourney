@@ -1,13 +1,12 @@
 import PlayerList from '@/components/PlayerList';
 import BasicButton from '@/components/BasicButton';
-import BasicInput from '@/components/BasicInput';
 import SubmitButton from '@/components/SubmitButton';
 import HeadingTwo from "@/components/HeadingTwo";
 import { Player } from "@/models/entities/Player";
 import { RequestService } from '@/services/RequestService';
 import PersistentConnection from "@/services/PersistentConnection";
 import { useEffect, useState } from 'react';
-import { useGameData } from '@/components/GameIdContext';
+import { useGameData } from '@/hooks/useGameData';
 import { SERVER_ERROR, SUBMIT_SUCCESS } from '@/constants/AppConstants';
 import { useNavigate } from 'react-router';
 
@@ -15,10 +14,12 @@ import { useNavigate } from 'react-router';
 
 const Lobby = () =>
 {
-    const [players, setPlayers] = useState<Player[]>([]);
+    type GetPlayersInGameResponse = {
+        currentPlayers?: Player[];
+    };
 
-    //open connection to front end signalR hub wrapper
-    const lobbyConnection = new PersistentConnection();
+    const [players, setPlayers] = useState<Player[]>([]);
+    const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
 
     //get playerId, gameId and setter functions from useContext wrapper
     //should have either been loaded from joinTourney or createTourney pages
@@ -32,56 +33,93 @@ const Lobby = () =>
 
     useEffect(() =>
     {
+        if (!gameId)
+        {
+            setIsLoadingPlayers(false);
+            return;
+        }
+
+        const lobbyConnection = new PersistentConnection();
+        let isDisposed = false;
+
         //sync wrapper for useEffect over async call to api
 
         //variable shadowing here which should satisfy typescript string|null type error
         const asyncRequest = async (gameId: string) =>
         {
-            const result: Player[] = await RequestService("getPlayersInGame",
-                {
-                    body:
+            try
+            {
+                const result = await RequestService<"getPlayersInGame", Record<string, never>, GetPlayersInGameResponse>("getPlayersInGame",
                     {
-                    },
-                    routeParams:
-                    {
-                        gameId
+                        body:
+                        {
+                        },
+                        routeParams:
+                        {
+                            gameId
+                        }
                     }
+                )
+                //setPlayers array to result from api
+                //this should load players already in game on page load
+                if (!isDisposed)
+                {
+                    setPlayers(result.currentPlayers ?? []);
                 }
-            )
-            //setPlayers array to result from api
-            //this should load players already in game on page load
-            setPlayers(result);
+            }
+            catch (err)
+            {
+                console.log(err);
+                if (!isDisposed)
+                {
+                    setPlayers([]);
+                }
+            }
+            finally
+            {
+                if (!isDisposed)
+                {
+                    setIsLoadingPlayers(false);
+                }
+            }
         };
 
-        try
+        const initializeLobby = async () =>
         {
-            if (gameId)
-            {
-                asyncRequest(gameId);
-            }
-
-
-            //create connections for all players in game to signalR hub
-            lobbyConnection.createPlayerConnection();
             lobbyConnection.setOnPlayersUpdated((updatedPlayers) =>
             {
-                setPlayers(updatedPlayers);
+                if (!isDisposed)
+                {
+                    setPlayers(updatedPlayers);
+                }
             });
-            lobbyConnection.setGameId(gameId!);
-        }
-        catch (err)
+            await lobbyConnection.createPlayerConnection(gameId);
+            await asyncRequest(gameId);
+        };
+
+        initializeLobby();
+
+        return () =>
         {
-            console.log(err);
-        }
+            isDisposed = true;
+            lobbyConnection.disconnect();
+        };
 
-
-    }, []);
+    }, [gameId]);
 
     const handleSubmit = async () =>
     {
         try
         {
-            await RequestService("startGame");
+            if (!gameId)
+            {
+                window.alert(SERVER_ERROR("Start Game"));
+                return;
+            }
+
+            await RequestService("startGame", {
+                routeParams: { gameId }
+            });
             window.alert(SUBMIT_SUCCESS("Join Game"));
             navigate("/inMatch");
         }
@@ -100,10 +138,19 @@ const Lobby = () =>
             <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
                 <title>Not Found</title>
                 <div className='shrink flex flex-col text-2xl p-4 m-4 '>
-                    <HeadingTwo headingText="Current Players in Game" />
-                    <PlayerList players={players} />
-                    <BasicInput labelText="Session Code:" name="sessionCode" htmlFor="sessionCode" id="sessionCode" value={gameId!} onChange={() => { }} />
-                    <HeadingTwo headingText="Waiting On Additional Players..." />
+                    <HeadingTwo headingText={`Lobby Players (${players.length})`} />
+                    {isLoadingPlayers ? (
+                        <HeadingTwo headingText="Loading players..." />
+                    ) : (
+                        <PlayerList players={players} />
+                    )}
+                    <div className="flex flex-col items-center">
+                        <label className="text-3xl text-white font-[Arial] text-shadow-lg">Session Code:</label>
+                        <p className="bg-white m-5 px-3 py-2 rounded shadow-md text-black text-center max-w-sm w-full break-all text-base">
+                            {gameId ?? ""}
+                        </p>
+                    </div>
+                    <HeadingTwo headingText="Waiting for players to join..." />
                     {firstInLobby &&
                         <SubmitButton buttonLabel="All Players In" onSubmit={
                             handleSubmit

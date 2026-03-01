@@ -7,13 +7,18 @@ import { RequestService } from "@/services/RequestService";
 import { validateGameIdResponse, validateTotalPlayers } from "@/services/validationService";
 import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS, SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { useNavigate } from 'react-router';
-import { useGameData } from "@/components/GameIdContext";
+import { useGameData } from "@/hooks/useGameData";
 import HeadingTwo from "@/components/HeadingTwo";
 
 /*Ready for E2E testing */
 
 const CreateTourney = () =>
 {
+  type CreateGameResponse = {
+    gameId?: string;
+    GameId?: string;
+  };
+
   //dynamic import react router useNavigate
   const navigate = useNavigate();
 
@@ -27,7 +32,7 @@ const CreateTourney = () =>
   //gameType true is double elimination
   //gameType false is single elimination
   //will set this with an enum like object
-  const [_gameType, setGameType] = useState(false);
+  const [gameType, setGameType] = useState(false);
 
   //handle max player selection
   const handleMaxPlayers = (e: ChangeEvent<HTMLInputElement>) =>
@@ -70,20 +75,27 @@ const CreateTourney = () =>
   //handle submit selection
   const handleSubmit = async () =>
   {
-    //call request service and provide no body object since our api does not need a body for createGame
-    const gameId: string = await RequestService("createGame");
-
-    if (validateGameIdResponse(gameId))
+    try
     {
-      //use setId useContext function  
-      setId(gameId);
+      //call request service and provide no body object since our api does not need a body for createGame
+      const response = await RequestService<"createGame", never, CreateGameResponse>("createGame");
+      const gameId = response?.gameId ?? response?.GameId;
 
-      window.alert(SUBMIT_SUCCESS("Create Tourney"));
-      //force navigation without user intervention upon request completion and alert dismissal
+      if (validateGameIdResponse(gameId ?? ""))
+      {
+        //use setId useContext function
+        setId(gameId!);
 
-      navigate("/joinTourney");
+        window.alert(SUBMIT_SUCCESS("Create Tourney"));
+        //force navigation without user intervention upon request completion and alert dismissal
+        navigate("/lobby");
+      }
+      else
+      {
+        window.alert(SERVER_ERROR("Create Tourney"));
+      }
     }
-    else
+    catch
     {
       window.alert(SERVER_ERROR("Create Tourney"));
     }
@@ -102,6 +114,7 @@ const CreateTourney = () =>
             <option className="text-black">Single Elimination</option>
             <option className="text-black">Double Elimination</option>
           </select>
+          <HeadingTwo headingText={`Mode: ${gameType ? "Double Elimination" : "Single Elimination"}`} />
           <HeadingTwo headingText={`Enter Total Players (Up to ${MAX_SUPPORTED_PLAYERS})`} />
           <BasicInput labelText="" htmlFor="maxPlayers" name="maxPlayers" id="maxPlayers" value={numPlayers} onChange={handleMaxPlayers} />
           <SubmitButton buttonLabel="Create Tourney" onSubmit={handleSubmit} />

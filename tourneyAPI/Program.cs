@@ -74,6 +74,8 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 var app = builder.Build();
 
+await AppSetup.SeedDemoUserAsync(app.Services, app.Environment);
+
 //PROD
 //app.UseHttpsRedirection(); 
 app.UseCors();

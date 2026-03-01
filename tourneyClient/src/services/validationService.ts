@@ -60,7 +60,7 @@ export const validateGameIdResponse = (gameId: string) =>
     {
         const validateGameId = validateInput(gameId);
 
-        if (validateGameId)
+        if (validateGameId.isValid)
         {
             return true;
         }

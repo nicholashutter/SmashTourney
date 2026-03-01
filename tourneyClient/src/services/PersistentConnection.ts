@@ -22,8 +22,18 @@ class SignalRService
    * - "Successfully Joined" triggers updateOthers(gameId)
    * - "PlayersUpdated" invokes the registered callback with updated player data
    */
-    public createPlayerConnection()
+    public async createPlayerConnection(gameId?: string)
     {
+        if (gameId)
+        {
+            this.gameId = gameId;
+        }
+
+        if (this.connection && this.connection.state !== "Disconnected")
+        {
+            return;
+        }
+
         this.connection = new HubConnectionBuilder()
             .withUrl(HUB_URL,
                 {
@@ -35,7 +45,10 @@ class SignalRService
 
         this.connection.on("Successfully Joined", () =>
         {
-            this.updateOthers(this.gameId);
+            if (this.gameId)
+            {
+                this.updateOthers(this.gameId);
+            }
 
         });
         this.connection.on("PlayersUpdated", (players: Player[]) =>
@@ -45,7 +58,14 @@ class SignalRService
                 this.onPlayersUpdated(players);
             }
         });
-        this.connection.start().catch(error => console.log(error));
+        try
+        {
+            await this.connection.start();
+        }
+        catch (error)
+        {
+            console.log(error);
+        }
     }
     /**
    * Registers a callback to handle incoming player updates from the hub.
@@ -66,6 +86,11 @@ class SignalRService
    */
     public async updateOthers(gameId: string)
     {
+        if (!gameId)
+        {
+            return;
+        }
+
         try
         {
             await this.connection?.invoke("UpdatePlayers", gameId);
@@ -73,6 +98,22 @@ class SignalRService
         catch (err)
         {
             console.error(err);
+        }
+    }
+
+    public async disconnect()
+    {
+        try
+        {
+            await this.connection?.stop();
+        }
+        catch (error)
+        {
+            console.error(error);
+        }
+        finally
+        {
+            this.connection = null;
         }
     }
 
