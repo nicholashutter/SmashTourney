@@ -3,13 +3,19 @@ import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { useGameData } from "@/hooks/useGameData";
 import { validateInput } from "@/services/validationService";
-import { INVALID_CHARACTERS, SUBMIT_SUCCESS } from "@/constants/AppConstants";
+import { INVALID_CHARACTERS, SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { Character } from "@/models/entities/Character.ts";
+import { CharacterName } from "@/models/Enums/CharacterName";
+import { Archetype } from "@/models/Enums/Archetype";
+import { FallSpeed } from "@/models/Enums/FallSpeed";
+import { TierPlacement } from "@/models/Enums/TierPlacement";
+import { WeightClass } from "@/models/Enums/WeightClass";
 import { Player } from "@/models/entities/Player";
 import { v4 as uuidv4 } from "uuid";
 import PersistentConnection from "@/services/PersistentConnection"
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
+import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
 import
@@ -25,6 +31,33 @@ import
 
 const JoinTourney = () =>
 {
+  type BackendCharacterPayload = {
+    id: string;
+    characterName: keyof typeof CharacterName;
+    archetype: keyof typeof Archetype;
+    fallSpeed: keyof typeof FallSpeed;
+    tierPlacement: keyof typeof TierPlacement;
+    weightClass: keyof typeof WeightClass;
+  };
+
+  type AddPlayerPayload = Omit<Player, "currentCharacter"> & {
+    currentCharacter: BackendCharacterPayload;
+  };
+
+  const getEnumKeyByValue = <TMap extends Record<string, string>>(
+    enumMap: TMap,
+    value: string
+  ): keyof TMap | null =>
+  {
+    const foundPair = Object.entries(enumMap).find(([, enumValue]) => enumValue === value);
+    return (foundPair?.[0] as keyof TMap) ?? null;
+  };
+
+  const normalizeGameId = (value: string): string => value.replace(/\s+/g, "").trim();
+
+  const isValidGuid = (value: string): boolean =>
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(value);
+
 
   //from react router for navigation without reloading
   const navigate = useNavigate();
@@ -38,9 +71,8 @@ const JoinTourney = () =>
 
   //player will choose through dropdown components
   const [currentCharacter, setCurrentCharacter] = useState({} as Character);
-
-  //create instance of signalR to send lobby updates to other users
-  const lobbyConnection = new PersistentConnection();
+  const [joinStatus, setJoinStatus] = useState("Idle");
+  const [isJoining, setIsJoining] = useState(false);
 
 
 
@@ -73,11 +105,12 @@ const JoinTourney = () =>
 
   const gameIdHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
-    const validateGameId = validateInput(e.target.value);
+    const normalizedGameId = normalizeGameId(e.target.value);
+    const validateGameId = validateInput(normalizedGameId);
     if (validateGameId.isValid)
     {
       //custom useContext for gameId
-      setGameId(e.target.value);
+      setGameId(normalizedGameId);
     }
     else
     {
@@ -102,41 +135,102 @@ const JoinTourney = () =>
 
   const submitHandler = async () =>
   {
-    if (gameId)
+    if (isJoining)
     {
-      //check if the playerId is undefined or null if it is then set it here
+      return;
+    }
 
-      if (!playerId)
+    const normalizedGameId = normalizeGameId(gameId ?? "");
+
+    if (!normalizedGameId)
+    {
+      window.alert(INVALID_CHARACTERS("GameId"));
+      return;
+    }
+
+    if (!isValidGuid(normalizedGameId))
+    {
+      window.alert("Session code must be a valid GUID.");
+      return;
+    }
+
+    if (!displayName.trim())
+    {
+      window.alert(INVALID_CHARACTERS("Display Name"));
+      return;
+    }
+
+    const mappedCharacterName = getEnumKeyByValue(CharacterName, currentCharacter.characterName);
+    const mappedArchetype = getEnumKeyByValue(Archetype, currentCharacter.archetype);
+    const mappedFallSpeed = getEnumKeyByValue(FallSpeed, currentCharacter.fallSpeed);
+    const mappedTierPlacement = getEnumKeyByValue(TierPlacement, currentCharacter.tierPlacement);
+    const mappedWeightClass = getEnumKeyByValue(WeightClass, currentCharacter.weightClass);
+
+    if (!mappedCharacterName || !mappedArchetype || !mappedFallSpeed || !mappedTierPlacement || !mappedWeightClass)
+    {
+      window.alert(INVALID_CHARACTERS("Character Selection"));
+      return;
+    }
+
+    const resolvedPlayerId = playerId ?? uuidv4();
+    if (!playerId)
+    {
+      setPlayerId(resolvedPlayerId);
+    }
+
+    const playerPayload: AddPlayerPayload =
+    {
+      Id: resolvedPlayerId,
+      displayName: displayName.trim(),
+      currentScore: 0,
+      currentRound: 0,
+      currentCharacter:
       {
-        setPlayerId(uuidv4());
-      }
-      const player: Player =
-        {
-          Id: playerId,
-          displayName: displayName,
-          currentScore: 0,
-          currentRound: 0,
-          currentCharacter: currentCharacter,
-          currentGameId: gameId
-        } as Player;
+        id: currentCharacter.id,
+        characterName: mappedCharacterName,
+        archetype: mappedArchetype,
+        fallSpeed: mappedFallSpeed,
+        tierPlacement: mappedTierPlacement,
+        weightClass: mappedWeightClass,
+      },
+      currentGameId: normalizedGameId
+    };
+
+    const lobbyConnection = new PersistentConnection();
+
+    try
+    {
+      setIsJoining(true);
+      setJoinStatus("Joining room...");
+
       await RequestService(
         "addPlayers",
         {
-          body: player,
+          body: playerPayload,
           routeParams:
           {
-            gameId
+            gameId: normalizedGameId
           }
         }
       );
-      await lobbyConnection.updateOthers(gameId);
-      window.alert(SUBMIT_SUCCESS("Join Tourney"));
 
+      await lobbyConnection.createPlayerConnection(normalizedGameId);
+      await lobbyConnection.updateOthers(normalizedGameId);
+
+      setJoinStatus("Join successful. Opening lobby...");
+      window.alert(SUBMIT_SUCCESS("Join Tourney"));
       navigate("/lobby");
     }
-    else
+    catch (err)
     {
-      window.alert(INVALID_CHARACTERS("GameId"));
+      console.error(err);
+      setJoinStatus("Join failed. Please try again.");
+      window.alert(SERVER_ERROR("Join Tourney"));
+    }
+    finally
+    {
+      setIsJoining(false);
+      await lobbyConnection.disconnect();
     }
 
   }
@@ -172,7 +266,8 @@ const JoinTourney = () =>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <SubmitButton buttonLabel="Join Room" onSubmit={submitHandler} />
+          <HeadingTwo headingText={joinStatus} />
+          <SubmitButton buttonLabel={isJoining ? "Joining..." : "Join Room"} onSubmit={submitHandler} />
           <BasicButton buttonLabel="Return to Main Menu" href="/" />
 
         </div>

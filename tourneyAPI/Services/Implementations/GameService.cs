@@ -169,6 +169,7 @@ public class GameService : IGameService
             Log.Information($"Failed to Create Players from Users game {gameId} not found");
             return false;
         }
+        player.UserId = userId;
         player.CurrentGameID = gameId;
         foundGame.currentPlayers.Add(player);
         Log.Information("Players Created From Users");

@@ -126,6 +126,40 @@ test("RequestService formats POST request with array of Player objects for addPl
     expect(parsedBody[0].currentCharacter.id).toBe(CharacterId.Marth);
 });
 
+test("RequestService addPlayers payload can omit userId", async () =>
+{
+    const gameId = "f9c2d4eb-8786-449a-ae28-7823813339b6";
+
+    const playerPayload = {
+        Id: "93f00506-bcc6-4d0d-a5f0-c588505f3b60",
+        displayName: "NoUserIdClientPayload",
+        currentScore: 0,
+        currentRound: 0,
+        currentCharacter: Marth,
+        currentGameId: gameId
+    };
+
+    (fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true })
+    });
+
+    const result = await RequestService("addPlayers", {
+        routeParams: { gameId },
+        body: playerPayload
+    });
+
+    expect(result).toEqual({ success: true });
+
+    const [url, options] = (fetch as any).mock.calls[0];
+    expect(url).toContain(`/Games/AddPlayer/${gameId}`);
+    expect(options.method).toBe("POST");
+
+    const parsedBody = JSON.parse(options.body);
+    expect(parsedBody.userId).toBeUndefined();
+    expect(parsedBody.displayName).toBe("NoUserIdClientPayload");
+});
+
 /**
  *  Verifies that RequestService parses a Game object and nested Player[] from response.
  * - Endpoint: getPlayersInGame

@@ -4,6 +4,7 @@ using Serilog;
 using Helpers;
 using Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +36,11 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
 .AddEntityFrameworkStores<ApplicationDbContext>();
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 //cors policy for browser from different origin during development
 builder.Services.AddCors(options =>
@@ -79,6 +85,8 @@ await AppSetup.SeedDemoUserAsync(app.Services, app.Environment);
 //PROD
 //app.UseHttpsRedirection(); 
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapHub<ConnectionHub>(AppConstants.HubURL);
 app.UseDefaultFiles();
 app.UseStaticFiles();

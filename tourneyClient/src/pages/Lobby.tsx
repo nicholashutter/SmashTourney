@@ -20,6 +20,7 @@ const Lobby = () =>
 
     const [players, setPlayers] = useState<Player[]>([]);
     const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
+    const [joinNotice, setJoinNotice] = useState<string | null>(null);
 
     //get playerId, gameId and setter functions from useContext wrapper
     //should have either been loaded from joinTourney or createTourney pages
@@ -90,7 +91,30 @@ const Lobby = () =>
             {
                 if (!isDisposed)
                 {
-                    setPlayers(updatedPlayers);
+                    setPlayers((previousPlayers) =>
+                    {
+                        const previousIds = new Set(previousPlayers.map((player) => player.Id));
+                        const newPlayers = updatedPlayers.filter((player) => !previousIds.has(player.Id));
+
+                        if (newPlayers.length > 0)
+                        {
+                            const newNames = newPlayers.map((player) => player.displayName || "A player");
+                            const noticeText = newNames.length === 1
+                                ? `${newNames[0]} joined the lobby.`
+                                : `${newNames.join(", ")} joined the lobby.`;
+
+                            setJoinNotice(noticeText);
+                            setTimeout(() =>
+                            {
+                                if (!isDisposed)
+                                {
+                                    setJoinNotice(null);
+                                }
+                            }, 2500);
+                        }
+
+                        return updatedPlayers;
+                    });
                 }
             });
             await lobbyConnection.createPlayerConnection(gameId);
@@ -139,6 +163,9 @@ const Lobby = () =>
                 <title>Not Found</title>
                 <div className='shrink flex flex-col text-2xl p-4 m-4 '>
                     <HeadingTwo headingText={`Lobby Players (${players.length})`} />
+                    {joinNotice && (
+                        <p className="text-base text-white bg-black/40 rounded px-3 py-2 m-2">{joinNotice}</p>
+                    )}
                     {isLoadingPlayers ? (
                         <HeadingTwo headingText="Loading players..." />
                     ) : (

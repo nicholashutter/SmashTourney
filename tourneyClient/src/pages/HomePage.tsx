@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { ApplicationUser } from '@/models/entities/ApplicationUser';
@@ -14,36 +14,12 @@ import BasicButton from "@/components/BasicButton";
 
 const HomePage = () =>
 {
-  type DemoCredentials = {
-    UserName: string;
-    Password: string;
-  }
-
   //dynamic import react router useNavigate
   const navigate = useNavigate();
 
   //user input values
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
-  const [demoCredentials, setDemoCredentials] = useState<DemoCredentials | null>(null);
-
-  useEffect(() =>
-  {
-    const getDemoCredentials = async () =>
-    {
-      try
-      {
-        const result = await RequestService<"demoCredentials", never, DemoCredentials>("demoCredentials");
-        setDemoCredentials(result);
-      }
-      catch
-      {
-        setDemoCredentials(null);
-      }
-    }
-
-    getDemoCredentials();
-  }, []);
 
   //setup user object RequestService expects
   const user: ApplicationUser =
@@ -93,19 +69,6 @@ const HomePage = () =>
     }
   }
 
-  const useDemoLogin = () =>
-  {
-    if (demoCredentials === null)
-    {
-      return;
-    }
-
-    setUserName(demoCredentials.UserName);
-    setPassword(demoCredentials.Password);
-  }
-
-
-
   return (
     <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}
       <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 "> {/* max width is 90 percent of parent (viewport) inner flexbox to center content and text */}
@@ -114,14 +77,6 @@ const HomePage = () =>
           <BasicHeading headingText="Welcome!" headingColors="white" />
           <BasicInput labelText="Username:" htmlFor="username" name="username" id="username" value={userName} onChange={userNameHandler} />
           <BasicInput labelText="Password:" htmlFor="password" name="password" id="password" value={password} onChange={passwordHandler} />
-
-          {demoCredentials && (
-            <div className="text-base text-white/90 mb-2">
-              <p>Demo Username: {demoCredentials.UserName}</p>
-              <p>Demo Password: {demoCredentials.Password}</p>
-              <SubmitButton buttonLabel="Use Demo Account" onSubmit={useDemoLogin} />
-            </div>
-          )}
 
           <SubmitButton buttonLabel="Sign In" onSubmit={onSubmit} />
           <HeadingTwo headingText="Or" />

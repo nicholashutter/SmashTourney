@@ -88,5 +88,25 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         logoutResponse.EnsureSuccessStatusCode();
     }
 
+    [Fact]
+    public async Task SessionEndpointRequiresAuthentication()
+    {
+        var client = NewClient(handleCookies: true);
+        var response = await client.GetAsync("/users/session");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SessionEndpointReturnsOkWhenAuthenticated()
+    {
+        var creds = RandomCredentials();
+        var client = await RegisterAndLoginAsync(creds, useCookies: true);
+
+        var response = await client.GetAsync("/users/session");
+
+        response.EnsureSuccessStatusCode();
+    }
+
 
 }

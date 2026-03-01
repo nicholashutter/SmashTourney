@@ -60,32 +60,28 @@ const RequestBuilder = {
     path: "/Games/StartMatch/{gameId}",
     params: ["gameId"]
   },
-  endMatch: {
-    method: "POST",
-    path: "/Games/EndMatch/{gameId}",
-    params: ["gameId"]
-  },
+  endMatch: { method: "POST", path: "/Games/EndMatch" },
 
-  register: { method: "POST", path: "/register" },
+  register: { method: "POST", path: "/Users/Register" },
   login: { method: "POST", path: "/users/login" },
-  demoCredentials: { method: "GET", path: "/users/demo-credentials" },
+  sessionStatus: { method: "GET", path: "/users/session" },
   profile: {
     method: "GET",
     path: "/Users/Profile/{userId}",
     params: ["userId"]
   },
   updateProfile: { method: "PUT", path: "/Users/UpdateProfile" },
-  logout: { method: "POST", path: "/users/logout" },
+  logout: { method: "POST", path: "/Users/logout" },
 
   getAllUsers: { method: "GET", path: "/users/GetAllUsers" },
   getUserById: {
     method: "GET",
-    path: "/users/GetById{Id}",
+    path: "/users/GetById/{Id}",
     params: ["Id"]
   },
   getUserByUserName: {
     method: "GET",
-    path: "/users/GetByUserName{UserName}",
+    path: "/users/GetByUserName/{UserName}",
     params: ["UserName"]
   },
   updateUser: { method: "PUT", path: "/users/UpdateUser" },
@@ -133,13 +129,43 @@ export const RequestService =
       headers: { "Content-Type": "application/json" },
       ...options,
       body: options?.body ? JSON.stringify(options.body) : undefined
-    }).then((res) =>
+    }).then(async (res) =>
     {
       if (!res.ok)
       {
         throw new Error(`HTTP ${res.status}`);
       }
-      return res.json() as Promise<Res>;
+
+      if (res.status === 204)
+      {
+        return undefined as Res;
+      }
+
+      const contentType = res.headers?.get?.("content-type") ?? "";
+      const textBody = typeof res.text === "function" ? await res.text() : "";
+      if (!textBody)
+      {
+        if (typeof res.json === "function")
+        {
+          return res.json() as Promise<Res>;
+        }
+
+        return undefined as Res;
+      }
+
+      if (contentType.includes("application/json"))
+      {
+        return JSON.parse(textBody) as Res;
+      }
+
+      try
+      {
+        return JSON.parse(textBody) as Res;
+      }
+      catch
+      {
+        return textBody as Res;
+      }
     });
   };
 

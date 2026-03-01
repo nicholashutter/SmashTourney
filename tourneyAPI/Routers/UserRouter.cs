@@ -7,6 +7,7 @@ using Serilog;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Helpers;
+using System.Security.Claims;
 
 /*
 
@@ -73,6 +74,19 @@ public static class UserRouter
                 Password = AppConstants.DemoUserPassword
             });
         });
+
+        UserRoutes.MapGet("/session", (ClaimsPrincipal user) =>
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            var userName = user.Identity?.Name ?? string.Empty;
+
+            return Results.Ok(new
+            {
+                IsAuthenticated = user.Identity?.IsAuthenticated ?? false,
+                UserId = userId,
+                UserName = userName
+            });
+        }).RequireAuthorization();
 
         UserRoutes.MapGet("/GetAllUsers", async (HttpContext context, IUserManager userManager) =>
         {

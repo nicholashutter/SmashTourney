@@ -101,8 +101,10 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         var gameId = await CreateGameAsync(client);
         var nextResponse = await client.GetAsync($"/Games/GetGameById/{gameId}");
         nextResponse.EnsureSuccessStatusCode();
+        var serializerOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        serializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
         var nextResponseData = await nextResponse.Content.ReadFromJsonAsync<GetByIdRes>(
-            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            serializerOptions);
         Assert.Equal(gameId, nextResponseData?.game?.Id);
     }
 
@@ -130,6 +132,92 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
             var playerResponse = await playerClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", player);
             playerResponse.EnsureSuccessStatusCode();
         }
+    }
+
+    [Fact]
+    public async Task AddPlayerWithoutUserIdInBody_UsesClaimUserIdAndReturnsSuccess()
+    {
+        var gameId = await CreateGameAsync(NewClient());
+
+        var authenticatedClient = NewClient(handleCookies: true);
+        var registerRequest = new RegisterRequest
+        {
+            Email = $"nouserid_{Guid.NewGuid()}@example.com",
+            Password = "SecureP@ssw0rd123!"
+        };
+
+        (await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+        (await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+
+        var addPlayerPayload = new
+        {
+            id = Guid.NewGuid(),
+            displayName = "NoUserIdBody",
+            currentScore = 0,
+            currentRound = 0,
+            currentCharacter = new
+            {
+                id = Guid.NewGuid(),
+                characterName = 0,
+                archetype = 0,
+                fallSpeed = 0,
+                tierPlacement = 1,
+                weightClass = 2
+            },
+            currentGameID = gameId
+        };
+
+        var addPlayerResponse = await authenticatedClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", addPlayerPayload);
+        addPlayerResponse.EnsureSuccessStatusCode();
+
+        var gameResponse = await authenticatedClient.GetAsync($"/Games/GetGameById/{gameId}");
+        gameResponse.EnsureSuccessStatusCode();
+
+        var serializerOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        serializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        var gameData = await gameResponse.Content.ReadFromJsonAsync<GetByIdRes>(
+            serializerOptions);
+
+        Assert.NotNull(gameData?.game);
+        Assert.NotEmpty(gameData!.game.currentPlayers);
+        Assert.False(string.IsNullOrWhiteSpace(gameData.game.currentPlayers[0].UserId));
+    }
+
+    [Fact]
+    public async Task AddPlayerAcceptsStringEnumPayloadFromJoinTourney()
+    {
+        var gameId = await CreateGameAsync(NewClient());
+
+        var authenticatedClient = NewClient(handleCookies: true);
+        var registerRequest = new RegisterRequest
+        {
+            Email = $"stringenum_{Guid.NewGuid()}@example.com",
+            Password = "SecureP@ssw0rd123!"
+        };
+
+        (await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+        (await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+
+        var addPlayerPayload = new
+        {
+            id = Guid.NewGuid(),
+            displayName = "StringEnumPlayer",
+            currentScore = 0,
+            currentRound = 0,
+            currentCharacter = new
+            {
+                id = Guid.NewGuid(),
+                characterName = "MARIO",
+                archetype = "ALL_ROUNDER",
+                fallSpeed = "FAST_FALLERS",
+                tierPlacement = "A",
+                weightClass = "MIDDLEWEIGHT"
+            },
+            currentGameID = gameId
+        };
+
+        var addPlayerResponse = await authenticatedClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", addPlayerPayload);
+        addPlayerResponse.EnsureSuccessStatusCode();
     }
 
 

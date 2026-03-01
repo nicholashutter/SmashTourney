@@ -12,24 +12,27 @@ import Lobby from './pages/Lobby.tsx';
 import InMatch from './pages/InMatch.tsx';
 import ShowBracket from './pages/ShowBracket.tsx';
 import { GameDataProvider } from './components/GameIdContext.tsx';
+import RequireAuth from './components/RequireAuth.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <GameDataProvider>
     <BrowserRouter>
       <Routes>
-        <Route path="*" element={<NotFound />} />
         <Route path="/" element={<HomePage />} />
-        <Route path="/createTourney" element={<CreateTourney />} />
-        <Route path="/joinTourney" element={<JoinTourney />} />
         <Route path="/signUp" element={<SignUp />} />
-        <Route path="/tourneyMenu" element={<TourneyMenu />} />
-        {
-          //commenting out guestSignUp because page is finished but api endpoints not written yet
-          //<Route path="/guestSignUp" element={<GuestSignIn />} />
-        }
-        <Route path="/lobby" element={<Lobby />} />
-        <Route path="/inMatch" element={<InMatch />} />
-        <Route path="/showBracket" element={<ShowBracket />} />
+        <Route path="*" element={<NotFound />} />
+        <Route element={<RequireAuth />}>
+          <Route path="/createTourney" element={<CreateTourney />} />
+          <Route path="/joinTourney" element={<JoinTourney />} />
+          <Route path="/tourneyMenu" element={<TourneyMenu />} />
+          {
+            //commenting out guestSignUp because page is finished but api endpoints not written yet
+            //<Route path="/guestSignUp" element={<GuestSignIn />} />
+          }
+          <Route path="/lobby" element={<Lobby />} />
+          <Route path="/inMatch" element={<InMatch />} />
+          <Route path="/showBracket" element={<ShowBracket />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   </GameDataProvider>
