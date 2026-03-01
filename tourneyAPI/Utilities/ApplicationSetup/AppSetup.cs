@@ -58,7 +58,7 @@ public class AppSetup
         }
     }
 
-    public static async Task SeedDemoUserAsync(IServiceProvider services, IHostEnvironment environment)
+    public static async Task SeedDevelopmentUsersAsync(IServiceProvider services, IHostEnvironment environment, IConfiguration configuration)
     {
         if (!environment.IsDevelopment())
         {
@@ -73,30 +73,119 @@ public class AppSetup
         if (existingDemoUser is not null)
         {
             Log.Information("Demo user '{DemoUserName}' is available for development login.", AppConstants.DemoUserName);
+        }
+        else
+        {
+            var demoUser = new ApplicationUser
+            {
+                UserName = AppConstants.DemoUserName,
+                Email = AppConstants.DemoUserEmail,
+                EmailConfirmed = true,
+                RegistrationDate = DateTime.UtcNow,
+                LastLoginDate = DateTime.UtcNow,
+            };
+
+            var creationResult = await identityUserManager.CreateAsync(demoUser, AppConstants.DemoUserPassword);
+
+            if (creationResult.Succeeded)
+            {
+                Log.Information("Demo login seeded. Username: {DemoUserName} Password: {DemoUserPassword}", AppConstants.DemoUserName, AppConstants.DemoUserPassword);
+            }
+            else
+            {
+                foreach (var error in creationResult.Errors)
+                {
+                    Log.Error("Failed to seed demo user. Code={ErrorCode}, Description={ErrorDescription}", error.Code, error.Description);
+                }
+            }
+        }
+
+        var enableDummyUsers = configuration.GetValue<bool>(AppConstants.EnableDummyUsersConfigKey);
+        if (!enableDummyUsers)
+        {
+            int removedCount = 0;
+            for (int i = 1; i <= AppConstants.DummyUserSeedCount; i++)
+            {
+                var suffix = i.ToString("00");
+                var userName = $"{AppConstants.DummyUserNamePrefix}{suffix}";
+                var existingDummyUser = await identityUserManager.FindByNameAsync(userName);
+                if (existingDummyUser is null)
+                {
+                    continue;
+                }
+
+                var deleteResult = await identityUserManager.DeleteAsync(existingDummyUser);
+                if (deleteResult.Succeeded)
+                {
+                    removedCount++;
+                    continue;
+                }
+
+                foreach (var error in deleteResult.Errors)
+                {
+                    Log.Error(
+                        "Failed to remove dummy user {DummyUserName}. Code={ErrorCode}, Description={ErrorDescription}",
+                        userName,
+                        error.Code,
+                        error.Description);
+                }
+            }
+
+            Log.Information(
+                "Development dummy-user seed is disabled. Removed={RemovedCount}. Set '{ConfigKey}' to true to enable.",
+                removedCount,
+                AppConstants.EnableDummyUsersConfigKey);
             return;
         }
 
-        var demoUser = new ApplicationUser
-        {
-            UserName = AppConstants.DemoUserName,
-            Email = AppConstants.DemoUserEmail,
-            EmailConfirmed = true,
-            RegistrationDate = DateTime.UtcNow,
-            LastLoginDate = DateTime.UtcNow,
-        };
+        int seededCount = 0;
+        int existingCount = 0;
 
-        var creationResult = await identityUserManager.CreateAsync(demoUser, AppConstants.DemoUserPassword);
-
-        if (creationResult.Succeeded)
+        for (int i = 1; i <= AppConstants.DummyUserSeedCount; i++)
         {
-            Log.Information("Demo login seeded. Username: {DemoUserName} Password: {DemoUserPassword}", AppConstants.DemoUserName, AppConstants.DemoUserPassword);
-            return;
+            var suffix = i.ToString("00");
+            var userName = $"{AppConstants.DummyUserNamePrefix}{suffix}";
+            var password = $"{AppConstants.DummyUserPasswordPrefix}{suffix}";
+
+            var existingDummyUser = await identityUserManager.FindByNameAsync(userName);
+            if (existingDummyUser is not null)
+            {
+                existingCount++;
+                continue;
+            }
+
+            var dummyUser = new ApplicationUser
+            {
+                UserName = userName,
+                Email = $"{userName}@smashtourney.local",
+                EmailConfirmed = true,
+                RegistrationDate = DateTime.UtcNow,
+                LastLoginDate = DateTime.UtcNow,
+            };
+
+            var dummyCreationResult = await identityUserManager.CreateAsync(dummyUser, password);
+            if (dummyCreationResult.Succeeded)
+            {
+                seededCount++;
+                continue;
+            }
+
+            foreach (var error in dummyCreationResult.Errors)
+            {
+                Log.Error(
+                    "Failed to seed dummy user {DummyUserName}. Code={ErrorCode}, Description={ErrorDescription}",
+                    userName,
+                    error.Code,
+                    error.Description);
+            }
         }
 
-        foreach (var error in creationResult.Errors)
-        {
-            Log.Error("Failed to seed demo user. Code={ErrorCode}, Description={ErrorDescription}", error.Code, error.Description);
-        }
+        Log.Information(
+            "Development dummy-user seed complete. Seeded={SeededCount}, Existing={ExistingCount}, Pattern={UserPattern}/{PasswordPattern}",
+            seededCount,
+            existingCount,
+            "dummy01..dummy16",
+            "DummyPass!01..DummyPass!16");
     }
 
 

@@ -205,3 +205,79 @@ test("RequestService parses Game object and Player[] from getPlayersInGame respo
     expect(url).toContain(`/Games/GetPlayersInGame/${gameId}`);
     expect(options.method).toBe("POST");
 });
+
+test("CreateTourney flow enforces auth and succeeds when authenticated", async () =>
+{
+    const gameId = "7f3ebf71-704e-4d34-bca9-eb2852e6f922";
+
+    (fetch as any)
+        .mockResolvedValueOnce({
+            ok: true,
+            headers: { get: () => "application/json" },
+            text: async () => JSON.stringify({ GameId: gameId })
+        })
+        .mockResolvedValueOnce({
+            ok: false,
+            status: 401,
+            headers: { get: () => "application/json" },
+            text: async () => ""
+        });
+
+    const created = await RequestService<"createGame", never, { GameId: string }>("createGame");
+    expect(created.GameId).toBe(gameId);
+
+    await expect(
+        RequestService<"sessionStatus", never, { IsAuthenticated: boolean }>("sessionStatus")
+    ).rejects.toThrow("HTTP 401");
+
+    expect((fetch as any).mock.calls).toHaveLength(2);
+    expect((fetch as any).mock.calls[0][0]).toContain("/Games/CreateGame");
+    expect((fetch as any).mock.calls[1][0]).toContain("/users/session");
+    expect((fetch as any).mock.calls[0][1].credentials).toBe("include");
+    expect((fetch as any).mock.calls[1][1].credentials).toBe("include");
+
+    (fetch as any).mockReset();
+
+    const addPlayerPayload = {
+        Id: "0de2acbb-b6f0-4f01-ab0a-3f7fb58d3f57",
+        displayName: "AuthedUser",
+        currentScore: 0,
+        currentRound: 0,
+        currentCharacter: Marth,
+        currentGameId: gameId
+    };
+
+    (fetch as any)
+        .mockResolvedValueOnce({
+            ok: true,
+            headers: { get: () => "application/json" },
+            text: async () => JSON.stringify({ GameId: gameId })
+        })
+        .mockResolvedValueOnce({
+            ok: true,
+            headers: { get: () => "application/json" },
+            text: async () => JSON.stringify({ IsAuthenticated: true, UserName: "dummy01" })
+        })
+        .mockResolvedValueOnce({
+            ok: true,
+            headers: { get: () => "application/json" },
+            text: async () => JSON.stringify({ success: true })
+        });
+
+    const createdAuthed = await RequestService<"createGame", never, { GameId: string }>("createGame");
+    expect(createdAuthed.GameId).toBe(gameId);
+
+    const session = await RequestService<"sessionStatus", never, { IsAuthenticated: boolean; UserName: string }>("sessionStatus");
+    expect(session.IsAuthenticated).toBe(true);
+    expect(session.UserName).toBe("dummy01");
+
+    const addResult = await RequestService("addPlayers", {
+        routeParams: { gameId },
+        body: addPlayerPayload
+    });
+
+    expect(addResult).toEqual({ success: true });
+    expect((fetch as any).mock.calls).toHaveLength(3);
+    expect((fetch as any).mock.calls[2][0]).toContain(`/Games/AddPlayer/${gameId}`);
+    expect((fetch as any).mock.calls[2][1].credentials).toBe("include");
+});

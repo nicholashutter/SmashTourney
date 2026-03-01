@@ -17,6 +17,7 @@ import { TierPlacement } from "@/models/Enums/TierPlacement";
 import { WeightClass } from "@/models/Enums/WeightClass";
 import { Player } from "@/models/entities/Player";
 import { v4 as uuidv4 } from "uuid";
+import PersistentConnection from "@/services/PersistentConnection";
 import
 {
   DropdownMenu,
@@ -185,6 +186,20 @@ const CreateTourney = () =>
             gameId: gameId!
           }
         });
+
+        const lobbyConnection = new PersistentConnection();
+        try
+        {
+          await lobbyConnection.createPlayerConnection(gameId!);
+          await lobbyConnection.updateOthers(gameId!);
+        }
+        catch
+        {
+        }
+        finally
+        {
+          await lobbyConnection.disconnect();
+        }
 
         //use setId useContext function
         setId(gameId!);

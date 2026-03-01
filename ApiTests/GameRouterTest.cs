@@ -12,53 +12,72 @@ using System.Security.Cryptography.X509Certificates;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using System.Net.Http.Json;
+using System.Net;
 
 public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
 
-        class CreateGameRes { public Guid gameId { get; set; } }
-        class GetByIdRes { public Game game { get; set; } }
-        class GetAllGamesRes { public List<Game> games { get; set; } }
+    class CreateGameRes { public Guid gameId { get; set; } }
+    class GetByIdRes { public Game game { get; set; } }
+    class GetAllGamesRes { public List<Game> games { get; set; } }
 
-        public GameRouterTest()
+    public GameRouterTest()
+    {
+        _factory = new CustomWebApplicationFactory<Program>();
+        using var scope = _factory.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
+    }
+
+    public class RegisterRequest { public string Email { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; }
+
+    private HttpClient NewClient(bool handleCookies = false) =>
+        _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = handleCookies });
+
+    private async Task<Guid> CreateGameAsync(HttpClient client)
+    {
+        var resp = await client.PostAsync("/Games/CreateGame", null);
+        resp.EnsureSuccessStatusCode();
+        var data = await resp.Content.ReadFromJsonAsync<CreateGameRes>();
+        return data?.gameId ?? Guid.Empty;
+    }
+
+    private async Task<List<(HttpClient client, Player player)>> CreateDummyEntitiesWithAuthentication(Guid gameId, int numberOfPlayers)
+    {
+        var list = new List<(HttpClient, Player)>();
+        for (int i = 0; i < numberOfPlayers; i++)
         {
-            _factory = new CustomWebApplicationFactory<Program>();
-            using var scope = _factory.Services.CreateScope();
-            scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
+            var client = NewClient(handleCookies: true);
+            var email = $"test{i}_{Guid.NewGuid()}@example.com";
+            var password = "SecureP@ssw0rd123!";
+            var userName = $"Player{i}";
+
+            var registerRequest = new RegisterRequest { Email = email, Password = password };
+            (await client.PostAsJsonAsync("/register?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+            (await client.PostAsJsonAsync("/login?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+
+            list.Add((client, new Player { UserId = "", DisplayName = userName, CurrentCharacter = new Mario(), CurrentGameID = gameId }));
         }
+        return list;
+    }
 
-        public class RegisterRequest { public string Email { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; }
-
-        private HttpClient NewClient(bool handleCookies = false) =>
-            _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = handleCookies });
-
-        private async Task<Guid> CreateGameAsync(HttpClient client)
+    private static object CreateAddPlayerPayload(Guid gameId, string displayName) => new
+    {
+        id = Guid.NewGuid(),
+        displayName,
+        currentScore = 0,
+        currentRound = 0,
+        currentCharacter = new
         {
-            var resp = await client.PostAsync("/Games/CreateGame", null);
-            resp.EnsureSuccessStatusCode();
-            var data = await resp.Content.ReadFromJsonAsync<CreateGameRes>();
-            return data?.gameId ?? Guid.Empty;
-        }
-
-        private async Task<List<(HttpClient client, Player player)>> CreateDummyEntitiesWithAuthentication(Guid gameId, int numberOfPlayers)
-        {
-            var list = new List<(HttpClient, Player)>();
-            for (int i = 0; i < numberOfPlayers; i++)
-            {
-                var client = NewClient(handleCookies: true);
-                var email = $"test{i}_{Guid.NewGuid()}@example.com";
-                var password = "SecureP@ssw0rd123!";
-                var userName = $"Player{i}";
-
-                var registerRequest = new RegisterRequest { Email = email, Password = password };
-                (await client.PostAsJsonAsync("/register?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
-                (await client.PostAsJsonAsync("/login?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
-
-                list.Add((client, new Player { UserId = "", DisplayName = userName, CurrentCharacter = new Mario(), CurrentGameID = gameId }));
-            }
-            return list;
-        }
+            id = Guid.NewGuid(),
+            characterName = "MARIO",
+            archetype = "ALL_ROUNDER",
+            fallSpeed = "FAST_FALLERS",
+            tierPlacement = "A",
+            weightClass = "MIDDLEWEIGHT"
+        },
+        currentGameID = gameId
+    };
 
     [Fact]
     public async Task CreateGameReturnsSuccess()
@@ -132,6 +151,54 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
             var playerResponse = await playerClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", player);
             playerResponse.EnsureSuccessStatusCode();
         }
+    }
+
+    [Fact]
+    public async Task AddPlayerWithoutAuthentication_ReturnsUnauthorized()
+    {
+        var unauthenticatedClient = NewClient();
+        var gameId = await CreateGameAsync(unauthenticatedClient);
+
+        var response = await unauthenticatedClient.PostAsJsonAsync(
+            $"/Games/AddPlayer/{gameId}",
+            CreateAddPlayerPayload(gameId, "NoAuthUser"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SessionStatusWithoutAuthentication_ReturnsUnauthorized()
+    {
+        var unauthenticatedClient = NewClient();
+
+        var response = await unauthenticatedClient.GetAsync("/users/session");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AuthenticatedCreateTourneyFlow_AllowsSessionAndAddPlayer()
+    {
+        var gameId = await CreateGameAsync(NewClient());
+
+        var authenticatedClient = NewClient(handleCookies: true);
+        var registerRequest = new RegisterRequest
+        {
+            Email = $"authflow_{Guid.NewGuid()}@example.com",
+            Password = "SecureP@ssw0rd123!"
+        };
+
+        (await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+        (await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+
+        var sessionResponse = await authenticatedClient.GetAsync("/users/session");
+        sessionResponse.EnsureSuccessStatusCode();
+
+        var addPlayerResponse = await authenticatedClient.PostAsJsonAsync(
+            $"/Games/AddPlayer/{gameId}",
+            CreateAddPlayerPayload(gameId, "AuthFlowUser"));
+
+        addPlayerResponse.EnsureSuccessStatusCode();
     }
 
     [Fact]

@@ -8,6 +8,11 @@ type AppProps =
 
 const PlayerList = ({ players }: AppProps) =>
 {
+  const resolvePlayerId = (player: Player): string =>
+  {
+    return player.Id ?? player.id ?? "";
+  };
+
   if (players.length === 0)
   {
     return (
@@ -22,7 +27,7 @@ const PlayerList = ({ players }: AppProps) =>
   return (
     <div className="flex flex-col gap-1">
       {players.map((player, index) => (
-        <Card className="max-w-sm overflow-hidden p-1 m-1" key={player.Id ?? `${player.displayName}-${index}`}>
+        <Card className="max-w-sm overflow-hidden p-1 m-1" key={resolvePlayerId(player) || `${player.displayName}-${index}`}>
           <CardContent>
             <p className="text-sm truncate font-bold ">{player.displayName}</p>
             <p className="text-sm truncate">{player.currentCharacter.characterName}</p>

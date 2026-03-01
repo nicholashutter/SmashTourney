@@ -27,6 +27,10 @@ Migrations/
 
 # Visual Studio Code settings
 .vscode/
+!.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
 
 # NuGet dependencies
 *.nupkg

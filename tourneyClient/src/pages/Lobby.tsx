@@ -18,6 +18,20 @@ const Lobby = () =>
         currentPlayers?: Player[];
     };
 
+    const resolvePlayerId = (player: Player): string =>
+    {
+        return player.Id ?? player.id ?? "";
+    };
+
+    const normalizePlayers = (incomingPlayers: Player[]): Player[] =>
+    {
+        return incomingPlayers.map((player) => ({
+            ...player,
+            Id: resolvePlayerId(player),
+            currentGameId: player.currentGameId ?? player.currentGameID ?? ""
+        }));
+    };
+
     const [players, setPlayers] = useState<Player[]>([]);
     const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
     const [joinNotice, setJoinNotice] = useState<string | null>(null);
@@ -28,7 +42,7 @@ const Lobby = () =>
 
 
     //explicitly typing as boolean because this type of conditional check confuses me 
-    const firstInLobby: boolean = players.length > 0 && players[0].Id === playerId;
+    const firstInLobby: boolean = players.length > 0 && resolvePlayerId(players[0]) === playerId;
 
     const navigate = useNavigate();
 
@@ -65,7 +79,7 @@ const Lobby = () =>
                 //this should load players already in game on page load
                 if (!isDisposed)
                 {
-                    setPlayers(result.currentPlayers ?? []);
+                    setPlayers(normalizePlayers(result.currentPlayers ?? []));
                 }
             }
             catch (err)
@@ -93,8 +107,9 @@ const Lobby = () =>
                 {
                     setPlayers((previousPlayers) =>
                     {
-                        const previousIds = new Set(previousPlayers.map((player) => player.Id));
-                        const newPlayers = updatedPlayers.filter((player) => !previousIds.has(player.Id));
+                        const normalizedUpdatedPlayers = normalizePlayers(updatedPlayers);
+                        const previousIds = new Set(previousPlayers.map((player) => resolvePlayerId(player)));
+                        const newPlayers = normalizedUpdatedPlayers.filter((player) => !previousIds.has(resolvePlayerId(player)));
 
                         if (newPlayers.length > 0)
                         {
@@ -113,7 +128,7 @@ const Lobby = () =>
                             }, 2500);
                         }
 
-                        return updatedPlayers;
+                        return normalizedUpdatedPlayers;
                     });
                 }
             });

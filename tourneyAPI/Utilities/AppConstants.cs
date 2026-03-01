@@ -11,4 +11,10 @@ public static class AppConstants
     public const string DemoUserName = "demoUser";
     public const string DemoUserEmail = "demo@smashtourney.local";
     public const string DemoUserPassword = "DemoP@ssword123!";
+
+    public const int DummyUserSeedCount = 16;
+    public const string DummyUserNamePrefix = "dummy";
+    public const string DummyUserPasswordPrefix = "DummyPass!";
+
+    public const string EnableDummyUsersConfigKey = "DevelopmentSeed:EnableDummyUsers";
 }

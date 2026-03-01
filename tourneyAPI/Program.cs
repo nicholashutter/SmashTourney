@@ -80,7 +80,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 var app = builder.Build();
 
-await AppSetup.SeedDemoUserAsync(app.Services, app.Environment);
+await AppSetup.SeedDevelopmentUsersAsync(app.Services, app.Environment, app.Configuration);
 
 //PROD
 //app.UseHttpsRedirection(); 
