@@ -2,15 +2,18 @@ namespace Contracts;
 
 using Enums;
 
+// Specifies options used when creating a new game.
 public sealed record CreateGameOptions(
     BracketMode BracketMode = BracketMode.SINGLE_ELIMINATION
 );
 
+// Represents the winner selection for a reported bracket match.
 public sealed record ReportMatchRequest(
     Guid MatchId,
     Guid WinnerPlayerId
 );
 
+// Represents a player's bracket state for UI rendering.
 public sealed record BracketPlayerView(
     Guid PlayerId,
     string DisplayName,
@@ -19,6 +22,7 @@ public sealed record BracketPlayerView(
     bool Eliminated
 );
 
+// Represents one bracket match and its progression links.
 public sealed record BracketMatchView(
     Guid MatchId,
     BracketLane Lane,
@@ -32,6 +36,7 @@ public sealed record BracketMatchView(
     Guid? NextMatchForLoser
 );
 
+// Represents a full bracket snapshot for a game.
 public sealed record BracketSnapshotResponse(
     Guid GameId,
     BracketMode Mode,
@@ -41,6 +46,7 @@ public sealed record BracketSnapshotResponse(
     IReadOnlyList<BracketMatchView> Matches
 );
 
+// Represents the currently active match in a game.
 public sealed record CurrentMatchResponse(
     Guid GameId,
     Guid MatchId,
@@ -49,4 +55,14 @@ public sealed record CurrentMatchResponse(
     int MatchNumber,
     Guid PlayerOneId,
     Guid PlayerTwoId
+);
+
+// Represents the high-level game state returned to the client.
+public sealed record GameStateResponse(
+    Guid GameId,
+    GameState State,
+    bool GameStarted,
+    Guid? CurrentMatchId,
+    Guid? CurrentMatchPlayerOneId,
+    Guid? CurrentMatchPlayerTwoId
 );

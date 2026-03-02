@@ -1,29 +1,24 @@
 namespace Services;
 
-
-/* PlayerrRepository implements a repository layer for Player Objects to persist them to the database */
-/* This class currently has no use and may get cut from the first release */
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Entities;
 using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using System.Diagnostics.CodeAnalysis;
 
 [ExcludeFromCodeCoverage]
+// Implements persistence operations for player records.
 public class PlayerManager : IPlayerManager
 {
     private readonly ApplicationDbContext _db;
 
-
+    // Creates a new player manager with the application database context.
     public PlayerManager(ApplicationDbContext db)
     {
         _db = db;
     }
 
+    // Creates a new player record.
     public async Task<Guid?> CreateAsync(Player newPlayer)
     {
         Log.Information("Creating New Player");
@@ -48,6 +43,7 @@ public class PlayerManager : IPlayerManager
         }
     }
 
+    // Gets one player record by identifier.
     public async Task<Player?> GetByIdAsync(Guid id)
     {
         Log.Information("Getting Player By Id {id}", id);
@@ -73,21 +69,22 @@ public class PlayerManager : IPlayerManager
         }
     }
 
+    // Gets all player records.
     public async Task<List<Player>?> GetAllPlayersAsync()
     {
         Log.Information("Get All Players");
 
-        var Players = new List<Player>();
+        var players = new List<Player>();
 
         try
         {
-            Players = await _db.Players.ToListAsync();
+            players = await _db.Players.ToListAsync();
 
-            if (Players.Count == 0)
+            if (players.Count == 0)
             {
                 throw new EmptyPlayersCollectionException("GetAllAsync");
             }
-            return Players;
+            return players;
         }
         catch (EmptyPlayersCollectionException e)
         {
@@ -96,6 +93,7 @@ public class PlayerManager : IPlayerManager
         }
     }
 
+    // Updates an existing player record.
     public async Task<bool> UpdateAsync(Player updatePlayer)
     {
         Log.Information("Update Player Async");
@@ -115,6 +113,7 @@ public class PlayerManager : IPlayerManager
         return true;
     }
 
+    // Deletes a player record by identifier.
     public async Task<bool> DeleteAsync(Guid id)
     {
         Log.Information($"Delete Player {id}");

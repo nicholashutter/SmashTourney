@@ -21,7 +21,11 @@ public class PlayerValidator()
             throw new PlayerValidationException($"{TAG}: UserId cannot be blank.");
         }
 
-        if (!Guid.TryParse(validatePlayer.UserId, out _))
+        try
+        {
+            _ = Guid.Parse(validatePlayer.UserId);
+        }
+        catch (FormatException)
         {
             throw new PlayerValidationException($"{TAG}: UserId is not a valid GUID.");
         }

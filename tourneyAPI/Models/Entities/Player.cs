@@ -3,6 +3,7 @@ using Enums;
 
 namespace Entities;
 
+// Represents a tournament participant linked to a user account and game.
 public class Player
 {
     [Required]

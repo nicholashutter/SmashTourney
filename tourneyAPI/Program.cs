@@ -4,15 +4,38 @@ using Serilog;
 using Helpers;
 using Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using System.Text.Json.Serialization;
+
+// Determines whether a development CORS origin is allowed.
+static bool IsDevelopmentOriginAllowed(string? origin)
+{
+    if (string.IsNullOrWhiteSpace(origin))
+    {
+        return false;
+    }
+
+    Uri parsedOriginUri;
+    try
+    {
+        parsedOriginUri = new Uri(origin, UriKind.Absolute);
+    }
+    catch (UriFormatException)
+    {
+        return false;
+    }
+
+    return parsedOriginUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+        || parsedOriginUri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+}
 
 
 var builder = WebApplication.CreateBuilder(args);
 
-//set urls for server
+// Configures the server URL bindings.
 builder.WebHost.UseUrls(AppConstants.ServerURL);
 
-//static init function for logger
+// Configures structured application logging.
 AppSetup.SetupLogging();
 
 
@@ -21,28 +44,32 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddSignalR();
 
-//scoped services will be destroyed after the function scope that uses them closes 
+// Registers scoped application services.
 builder.Services.AddScoped<IPlayerManager, PlayerManager>();
 builder.Services.AddScoped<IUserManager, UserManager>();
 
-//gameService is this applications "application" singleton
+// Registers the game orchestrator as a singleton service.
 builder.Services.AddSingleton<IGameService, GameService>();
 
-//hand logging pipeline over from asp.net core webapp to serilog
+// Connects ASP.NET logging to Serilog.
 builder.Services.AddSerilog();
 
-//username and pw based auth using ASP net core identity
+// Enables authorization for authenticated endpoints.
 builder.Services.AddAuthorization();
 
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
 .AddEntityFrameworkStores<ApplicationDbContext>();
+
+// Uses a disabled sender while email infrastructure is not enabled.
+builder.Services.AddTransient<IEmailSender, DisabledEmailSender>();
+builder.Services.AddTransient<Microsoft.AspNetCore.Identity.IEmailSender<ApplicationUser>, DisabledEmailSender>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
-//cors policy for browser from different origin during development
+// Configures CORS policies for development and production environments.
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(
@@ -51,16 +78,7 @@ builder.Services.AddCors(options =>
             if (builder.Environment.IsDevelopment())
             {
                 policy
-                    .SetIsOriginAllowed(origin =>
-                    {
-                        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-                        {
-                            return false;
-                        }
-
-                        return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-                            || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
-                    })
+                    .SetIsOriginAllowed(IsDevelopmentOriginAllowed)
                     .AllowAnyHeader()
                     .AllowAnyMethod()
                     .AllowCredentials();
@@ -75,15 +93,6 @@ builder.Services.AddCors(options =>
         });
 });
 
-/* TODO implement IEmailSender 
-builder.Services.Configure<IdentityOptions>(options =>
-{
-    options.SignIn.RequireConfirmedEmail = true;
-});
-
-builder.Services.AddTransient<IEmailSender, EmailSender>(); */
-
-
 builder.Services.ConfigureApplicationCookie(options =>
     {
         // options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
@@ -92,7 +101,7 @@ builder.Services.ConfigureApplicationCookie(options =>
         // options.Cookie.SameSite = SameSiteMode.Strict;
         options.Events.OnSignedIn = async context =>
             {
-                //assign signed in users a server side session
+                // Assigns a server-side session record for the signed-in user.
                 await AppSetup.HandleUserSession(context, context.Principal?.Identity?.Name ?? string.Empty);
             };
     });
@@ -100,9 +109,10 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 var app = builder.Build();
 
+await AppSetup.ClearDevelopmentGamesForDummyProfileAsync(app.Services, app.Environment, app.Configuration);
 await AppSetup.SeedDevelopmentUsersAsync(app.Services, app.Environment, app.Configuration);
 
-//PROD
+// Configures the HTTP request pipeline.
 //app.UseHttpsRedirection(); 
 app.UseCors();
 app.UseAuthentication();
@@ -112,16 +122,16 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 
-//add route handlers
+// Maps identity and feature routes.
 
 app.MapIdentityApi<ApplicationUser>();
-//extend IdentityApi provided routes
+// Extends identity API routes with domain-specific endpoints.
 UserRouter.Map(app);
 PlayerRouter.Map(app);
 GameRouter.Map(app);
 
 
-
+// Handles graceful shutdown for Ctrl+C.
 Console.CancelKeyPress += (sender, eventArgs) =>
 {
     AppSetup.LogServerStop();

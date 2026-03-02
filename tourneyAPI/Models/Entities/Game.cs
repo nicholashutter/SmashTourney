@@ -1,19 +1,10 @@
 using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Microsoft.Net.Http.Headers;
 using System;
 using Enums;
 
 namespace Entities;
 
-public enum Votes
-{
-    ZERO,
-    ONE,
-    TWO
-}
-
+// Represents a tournament game and its persisted progression state.
 public class Game
 {
     public Guid Id { get; set; }
@@ -29,33 +20,37 @@ public class Game
 
     public int currentMatch { get; set; } = 0;
 
-    public Votes _votes = Votes.ZERO;
+    private Votes _currentVotes = Votes.ZERO;
 
-    private readonly object lockVotes = new object();
+    private readonly object _votesLock = new object();
 
-    private readonly object lockCurrentRound = new object();
+    private readonly object _currentRoundLock = new object();
 
+    // Returns the current game vote state.
     public Votes GetVotes()
     {
-        return _votes;
+        return _currentVotes;
     }
 
+    // Updates the current game vote state.
     public void SetVotes(Votes votes)
     {
-        lock (lockVotes)
+        lock (_votesLock)
         {
-            _votes = votes;
+            _currentVotes = votes;
         }
     }
 
+    // Returns the current round number.
     public int GetCurrentRound()
     {
         return currentRound;
     }
 
+    // Updates the current round number.
     public void SetCurrentRound(int newRound)
     {
-        lock (lockCurrentRound)
+        lock (_currentRoundLock)
         {
             currentRound = newRound;
         }

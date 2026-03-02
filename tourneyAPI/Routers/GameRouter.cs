@@ -2,23 +2,23 @@ namespace Routers;
 
 using Contracts;
 using Entities;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Services;
 using System;
 using Serilog;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Validators;
 using System.Security.Claims;
 
+// Maps game lifecycle and bracket progression endpoints.
 public static class GameRouter
 {
+    // Registers all game API endpoints.
     public static void Map(WebApplication app)
     {
-        var GameRoutes = app.MapGroup("/Games");
+        var gameRoutes = app.MapGroup("/Games");
 
 
-        GameRoutes.MapGet("/getAllGames", async (HttpContext context, IGameService gameService) =>
+        gameRoutes.MapGet("/getAllGames", async (HttpContext context, IGameService gameService) =>
         {
             Log.Information("Request Type: Get \n URL: '/Games/getAllGames' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -34,7 +34,7 @@ public static class GameRouter
             return Results.Ok(response);
         });
 
-        GameRoutes.MapPost("/CreateGame", async (HttpContext context, IGameService gameService) =>
+        gameRoutes.MapPost("/CreateGame", async (HttpContext context, IGameService gameService) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/CreateGame' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -45,7 +45,7 @@ public static class GameRouter
             return Results.Ok(response);
         });
 
-        GameRoutes.MapPost("/CreateGameWithMode", async (HttpContext context, IGameService gameService, CreateGameOptions options) =>
+        gameRoutes.MapPost("/CreateGameWithMode", async (HttpContext context, IGameService gameService, CreateGameOptions options) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/CreateGameWithMode' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -57,7 +57,7 @@ public static class GameRouter
         });
 
 
-        GameRoutes.MapGet("/GetGameById/{gameId}", async (HttpContext context, Guid gameId, IGameService gameService) =>
+        gameRoutes.MapGet("/GetGameById/{gameId}", async (HttpContext context, Guid gameId, IGameService gameService) =>
         {
             Log.Information("Request Type: Get \n URL: '/Games/GetGameById' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -73,7 +73,7 @@ public static class GameRouter
             return Results.Ok(response);
         });
 
-        GameRoutes.MapPost("/GetPlayersInGame/{gameId}", async (HttpContext context, Guid gameId, IGameService gameService) =>
+        gameRoutes.MapPost("/GetPlayersInGame/{gameId}", async (HttpContext context, Guid gameId, IGameService gameService) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/GetPlayersInGame' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -93,7 +93,7 @@ public static class GameRouter
         });
 
 
-        GameRoutes.MapGet("/EndGame/{gameId}", (HttpContext context, Guid gameId, IGameService gameService) =>
+        gameRoutes.MapGet("/EndGame/{gameId}", (HttpContext context, Guid gameId, IGameService gameService) =>
         {
             Log.Information("Request Type: Get \n URL: '/Games/EndGame' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -109,7 +109,7 @@ public static class GameRouter
 
 
 
-        GameRoutes.MapPost("/AddPlayer/{gameId}", (HttpContext context, IGameService gameService, Guid gameId, Player player) =>
+        gameRoutes.MapPost("/AddPlayer/{gameId}", (HttpContext context, IGameService gameService, Guid gameId, Player player) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/AddPlayer' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -132,7 +132,7 @@ public static class GameRouter
         });
 
 
-        GameRoutes.MapPost("/CreateUserSession", (HttpContext context, IGameService gameService, ApplicationUser user) =>
+        gameRoutes.MapPost("/CreateUserSession", (HttpContext context, IGameService gameService, ApplicationUser user) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/AllPlayersIn' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -148,7 +148,7 @@ public static class GameRouter
             return Results.Ok($"User Session Created for {user.UserName}");
         });
 
-        GameRoutes.MapPost("/StartGame/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        gameRoutes.MapPost("/StartGame/{gameId}", async (HttpContext context, IGameService gameService, IHubContext<ConnectionHub> hubContext, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/StartGame' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -159,10 +159,12 @@ public static class GameRouter
                 return Results.Problem("Internal Server Error");
             }
 
+            await hubContext.Clients.Group(gameId.ToString()).SendAsync("GameStarted", gameId.ToString());
+
             return Results.Ok($"Game {gameId} successfully started");
         });
 
-        GameRoutes.MapPost("/LoadGame/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        gameRoutes.MapPost("/LoadGame/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/LoadGame' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -176,7 +178,7 @@ public static class GameRouter
             return Results.Ok($"Game {gameId} successfully loaded");
         });
 
-        GameRoutes.MapPost("/SaveGame/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        gameRoutes.MapPost("/SaveGame/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/SaveGame' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -185,49 +187,7 @@ public static class GameRouter
             return Results.Ok($"Game {gameId} saved");
         });
 
-        GameRoutes.MapPost("/StartRound/{gameId}", (HttpContext context, IGameService gameService, Guid gameId) =>
-        {
-            Log.Information("Request Type: Post \n URL: '/Games/StartRound' \n Time:{Timestamp}", DateTime.UtcNow);
-
-            gameService.StartRound(gameId);
-
-            return Results.Ok();
-        });
-
-
-        GameRoutes.MapPost("/StartMatch/{gameId}", (HttpContext context, IGameService gameService, Guid gameId) =>
-                {
-                    Log.Information("Request Type: Post \n URL: '/Games/StartMatch' \n Time:{Timestamp}", DateTime.UtcNow);
-
-                    List<Player>? players = gameService.StartMatch(gameId);
-
-                    if (players is null)
-                    {
-                        return Results.Problem("Internal Server Error");
-                    }
-
-                    var response = new { Players = players };
-
-                    return Results.Ok(response);
-                });
-
-        GameRoutes.MapPost("/EndMatch/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId, Player MatchWinner) =>
-                {
-                    Log.Information("Request Type: Post \n URL: '/Games/EndMatch' \n Time:{Timestamp}", DateTime.UtcNow);
-
-                    PlayerValidator.Validate(MatchWinner, "EndMatchRoute");
-
-                    bool success = await gameService.EndMatchAsync(gameId, MatchWinner);
-
-                    if (!success)
-                    {
-                        return Results.Problem("Internal Server Error");
-                    }
-
-                    return Results.Ok($"Current match for game {gameId} ended");
-                });
-
-        GameRoutes.MapGet("/GetBracket/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        gameRoutes.MapGet("/GetBracket/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Get \n URL: '/Games/GetBracket' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -240,7 +200,7 @@ public static class GameRouter
             return Results.Ok(snapshot);
         });
 
-        GameRoutes.MapGet("/GetCurrentMatch/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        gameRoutes.MapGet("/GetCurrentMatch/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Get \n URL: '/Games/GetCurrentMatch' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -253,7 +213,20 @@ public static class GameRouter
             return Results.Ok(currentMatch);
         });
 
-        GameRoutes.MapPost("/ReportMatch/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId, ReportMatchRequest request) =>
+        gameRoutes.MapGet("/GetFlowState/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        {
+            Log.Information("Request Type: Get \n URL: '/Games/GetFlowState' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var flowState = await gameService.GetGameStateAsync(gameId);
+            if (flowState is null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(flowState);
+        });
+
+        gameRoutes.MapPost("/ReportMatch/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId, ReportMatchRequest request) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/ReportMatch' \n Time:{Timestamp}", DateTime.UtcNow);
 

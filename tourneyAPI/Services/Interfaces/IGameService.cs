@@ -1,69 +1,57 @@
 namespace Services;
 
-using System.Security;
 using System.Security.Claims;
 using Contracts;
 using Entities;
-using Enums;
-using Microsoft.Extensions.Configuration.UserSecrets;
 
+// Defines game lifecycle and bracket progression operations used by API routes.
 public interface IGameService
 {
-    // API route /NewGame
+    // Creates a new game using default settings.
     Task<Guid> CreateGame();
 
-    // API route /Games/CreateGameWithMode
+    // Creates a new game with explicit bracket options.
     Task<Guid> CreateGame(CreateGameOptions options);
 
-    // API route /EndGame
+    // Ends an existing game and clears its runtime state.
     bool EndGame(Guid endGameId);
 
-    // API route /GetGameById (debug)
+    // Returns one game by identifier.
     Task<Game?> GetGameByIdAsync(Guid gameId);
 
+    // Returns players currently assigned to the game.
     Task<List<Player>> GetPlayersInGame(Guid gameId);
 
-    // API route /GetAllGames (debug)
+    // Returns all active games.
     Task<List<Game>?> GetAllGamesAsync();
 
-    //Called by callback when ApplicationUser successfully Auths into app
+    // Creates an in-memory user session after successful sign-in.
     bool CreateUserSession(ApplicationUser addUser);
 
+    // Ends an in-memory user session.
     bool EndUserSession(ClaimsPrincipal user);
 
-    // API route /AllPlayersIn
-    bool AddPlayerToGame(Player players, Guid gameId, string userId);
+    // Adds or updates a player in a game.
+    bool AddPlayerToGame(Player player, Guid gameId, string userId);
 
-    // API route StartGame
+    // Starts tournament progression for a game.
     Task<bool> StartGameAsync(Guid existingGameId);
 
-    // LoadGameAsync will check against the db and attempt to restore
-    // game state from games persisted in db
+    // Loads persisted bracket state into runtime memory.
     Task<bool> LoadGameAsync(Guid gameId);
 
-    // API route /SaveGame
-    // SaveGame will persist current game state to the database
+    // Persists current game state to storage.
     Task UpdateGameAsync(Guid gameId);
 
-    // Gameservice will need to pass itself to roundService and track an instance of roundService
-    // API route //StartRound
-    void StartRound(Guid gameId);
-
-    // API route /EndRound
-    bool EndRound(Guid gameId);
-
-    // API route StartMatch
-    List<Player>? StartMatch(Guid gameId);
-
-    // API route EndMatch
-    Task<bool> EndMatchAsync(Guid gameId, Player matchWinner);
-
-    // API route /Games/GetBracket/{gameId}
+    // Returns a bracket snapshot for client rendering.
     Task<BracketSnapshotResponse?> GetBracketSnapshotAsync(Guid gameId);
 
-    // API route /Games/GetCurrentMatch/{gameId}
+    // Returns the current active match for a game.
     Task<CurrentMatchResponse?> GetCurrentMatchAsync(Guid gameId);
 
-    // API route /Games/ReportMatch/{gameId}
+    // Returns the high-level game progression state.
+    Task<GameStateResponse?> GetGameStateAsync(Guid gameId);
+
+    // Applies one match result to the bracket engine.
     Task<bool> ReportMatchResultAsync(Guid gameId, ReportMatchRequest request);
 }

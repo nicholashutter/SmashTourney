@@ -1,27 +1,24 @@
 
 namespace Services;
 
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Entities;
 using Helpers;
-using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Serilog;
-using System.Diagnostics.Eventing.Reader;
 
-/* UserManager is an identityUser service that implements repository pattern */
+// Implements user account operations through ASP.NET Identity.
 public class UserManager : IUserManager
 {
     private readonly UserManager<ApplicationUser> _identityUserManager;
 
+    // Creates a new user manager with the underlying identity manager.
     public UserManager(UserManager<ApplicationUser> identityUserManager)
     {
         _identityUserManager = identityUserManager;
     }
 
+    // Creates a user account and returns the identity result.
     public async Task<IdentityResult> CreateUserAsync(ApplicationUser user, string password)
     {
         var result = await _identityUserManager.CreateAsync(user, password);
@@ -36,6 +33,7 @@ public class UserManager : IUserManager
         return result;
     }
 
+    // Gets a user by unique identifier.
     public async Task<ApplicationUser?> GetUserByIdAsync(string id)
     {
         Log.Information("Attempting to retrieve user by ID: {UserId}", id);
@@ -57,6 +55,7 @@ public class UserManager : IUserManager
     }
 
 
+    // Gets a user by username.
     public async Task<ApplicationUser?> GetUserByUserNameAsync(string userName)
     {
         Log.Information("Attempting to retrieve user by username: {UserName}", userName);
@@ -72,12 +71,14 @@ public class UserManager : IUserManager
         return foundUser;
     }
 
+    // Gets all users in the identity store.
     public async Task<List<ApplicationUser>?> GetAllUsersAsync()
     {
         Log.Information("Attempting to retrieve all users.");
 
         var allUsers = await _identityUserManager.Users.ToListAsync();
 
+    // Updates a user profile and returns the identity result.
         if (allUsers.Count == 0)
         {
 
@@ -128,6 +129,7 @@ public class UserManager : IUserManager
         return result;
     }
 
+    // Deletes a user by identifier and returns the identity result.
     public async Task<IdentityResult> DeleteUserAsync(string id)
     {
         Log.Information("Attempting to delete user with ID: {UserId}", id);

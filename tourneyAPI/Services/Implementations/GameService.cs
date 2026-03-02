@@ -1,28 +1,18 @@
 namespace Services;
 
-/* GameService implements game operation logic */
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Security.Claims;
+using System.Text.Json;
 using Contracts;
 using Entities;
 using Enums;
-using Helpers;
-using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Services.Brackets;
-using System.Security.Claims;
-using System.Text.Json;
 
+// Coordinates game lifecycle, bracket state transitions, and persistence.
 public class GameService : IGameService
 {
     private readonly IServiceProvider _serviceProvider;
-
-    private readonly IServiceScopeFactory _scopeFactory;
-
-    private readonly Dictionary<Guid, BracketMode> _gameModes = new();
 
     private readonly Dictionary<Guid, BracketRuntimeState> _bracketStates = new();
 
@@ -32,591 +22,582 @@ public class GameService : IGameService
         [BracketMode.DOUBLE_ELIMINATION] = new DoubleEliminationEngine()
     };
 
-    //list that holds all currently played games in memory
-    private List<Game> _games;
-
-    //list that represents users authenticated but not in a specific game
     public List<ApplicationUser> _userSessions;
 
-
-    //these lists are used to allow for game and player round syncronization
-    private Stack<Player> _hasNotPlayed = new Stack<Player>();
-
-    //GameService has a singleton lifetime and is created on application start
-    public GameService(IServiceScopeFactory scopeFactory, IServiceProvider serviceProvider)
+    // Creates a game service with required dependencies and in-memory state stores.
+    public GameService(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
-        _scopeFactory = scopeFactory;
-        _games = new List<Game>();
         _userSessions = new List<ApplicationUser>();
     }
 
-    //api route /NewGame 
+    // Creates a new game with default bracket mode.
     public async Task<Guid> CreateGame()
     {
         Log.Information("CreateGame");
 
-        var game = new Game { Id = Guid.NewGuid() };
-        await InsertGameAsync(game);
-        _games.Add(game);
-        _gameModes[game.Id] = BracketMode.SINGLE_ELIMINATION;
+        var game = new Game
+        {
+            Id = Guid.NewGuid(),
+            BracketMode = BracketMode.SINGLE_ELIMINATION
+        };
 
-        Log.Information($"New Game with gameId {game.Id} created");
+        await InsertGameAsync(game);
+
+        Log.Information("New game created with gameId {GameId}", game.Id);
         return game.Id;
     }
 
-    public Task<Guid> CreateGame(CreateGameOptions options)
+    // Creates a new game with caller-specified options.
+    public async Task<Guid> CreateGame(CreateGameOptions options)
     {
         var requestedMode = options?.BracketMode ?? BracketMode.SINGLE_ELIMINATION;
-        return CreateModeAwareGame(requestedMode);
-    }
 
-    private async Task<Guid> CreateModeAwareGame(BracketMode requestedMode)
-    {
-        var gameId = await CreateGame();
-        _gameModes[gameId] = requestedMode;
-
-        var foundGame = _games.FirstOrDefault(game => game.Id == gameId);
-        if (foundGame is not null)
+        var game = new Game
         {
-            foundGame.BracketMode = requestedMode;
-            await UpdateGameAsync(gameId);
-        }
+            Id = Guid.NewGuid(),
+            BracketMode = requestedMode
+        };
 
-        return gameId;
+        await InsertGameAsync(game);
+
+        Log.Information("New game created with gameId {GameId} and mode {BracketMode}", game.Id, requestedMode);
+        return game.Id;
     }
 
-
-    private async Task InsertGameAsync(Game currentGame)
+    // Persists a newly created game record.
+    private async Task InsertGameAsync(Game game)
     {
-        Log.Information("Insert Game");
         using var scope = _serviceProvider.CreateScope();
-        var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        _db.Games.Add(currentGame);
-        await _db.SaveChangesAsync();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        dbContext.Games.Add(game);
+        await dbContext.SaveChangesAsync();
     }
 
-    //api route /SaveGame
-    //SaveGame will persist current game state to the database
+    // Persists current runtime bracket state for a specific game.
     public async Task UpdateGameAsync(Guid gameId)
     {
-        Log.Information("Update Game Async");
         using var scope = _serviceProvider.CreateScope();
-        var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        var foundGame = _games.Find(g => g.Id == gameId)
-                         ?? throw new GameNotFoundException("UpdateGameAsync");
-
-        foundGame.BracketMode = _gameModes.TryGetValue(gameId, out var mode)
-            ? mode
-            : foundGame.BracketMode;
-
-        if (_bracketStates.TryGetValue(gameId, out var bracketState))
+        var dbGame = await dbContext.Games.FindAsync(gameId);
+        if (dbGame is null)
         {
-            foundGame.BracketStateJson = JsonSerializer.Serialize(bracketState);
+            throw new InvalidOperationException($"Game with ID {gameId} does not exist.");
         }
 
-        var dbGame = await _db.Games.FindAsync(gameId)
-                     ?? throw new GameNotFoundException($"Game with ID {gameId} does not exist.");
+        if (_bracketStates.ContainsKey(gameId))
+        {
+            var bracketState = _bracketStates[gameId];
+            dbGame.BracketMode = bracketState.Mode;
+            dbGame.BracketStateJson = JsonSerializer.Serialize(bracketState);
+        }
 
-        _db.Entry(dbGame).CurrentValues.SetValues(foundGame);
-        await _db.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
     }
 
-    //api route /ResumeGame
+    // Loads a game's persisted bracket runtime state into memory.
     public async Task<bool> LoadGameAsync(Guid gameId)
     {
-        Log.Information($"Load Game {gameId}");
-        using var scope = _serviceProvider.CreateScope();
-        var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Log.Information("Load game {GameId}", gameId);
 
-        var foundGame = await _db.Games.FindAsync(gameId);
-        if (foundGame is null)
+        var game = await GetGameByIdAsync(gameId);
+        if (game is null)
         {
-            Log.Warning("FoundGame is null. Unable to load game");
+            Log.Warning("Unable to load game {GameId} because it does not exist", gameId);
             return false;
         }
 
-        _gameModes[gameId] = foundGame.BracketMode;
-
-        if (!string.IsNullOrWhiteSpace(foundGame.BracketStateJson))
+        if (string.IsNullOrWhiteSpace(game.BracketStateJson))
         {
-            try
-            {
-                var hydratedState = JsonSerializer.Deserialize<BracketRuntimeState>(foundGame.BracketStateJson);
-                if (hydratedState is not null)
-                {
-                    _bracketStates[gameId] = hydratedState;
-                }
-            }
-            catch (JsonException ex)
-            {
-                Log.Warning(ex, "Unable to hydrate bracket runtime state for game {GameId}", gameId);
-            }
+            return true;
         }
 
-        _games.Add(foundGame);
+        try
+        {
+            var hydratedState = JsonSerializer.Deserialize<BracketRuntimeState>(game.BracketStateJson);
+            if (hydratedState is not null)
+            {
+                _bracketStates[gameId] = hydratedState;
+            }
+        }
+        catch (JsonException exception)
+        {
+            Log.Warning(exception, "Unable to hydrate bracket runtime state for game {GameId}", gameId);
+            return false;
+        }
+
         return true;
     }
 
-    //api route /GetAllGames
+    // Returns all games with their currently assigned players.
     public async Task<List<Game>?> GetAllGamesAsync()
     {
-        Log.Information("Get All Games");
         using var scope = _serviceProvider.CreateScope();
-        var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        if (_games.Count > 0) return _games;
-        var games = await _db.Games.ToListAsync();
+        var games = await dbContext.Games.ToListAsync();
         if (games.Count == 0)
         {
-            Log.Warning("All Games Returns Zero, Did You Just Reset The DB?");
+            Log.Warning("GetAllGames returned zero games");
             return null;
         }
+
+        foreach (var game in games)
+        {
+            game.currentPlayers = await dbContext.Players
+                .Include(player => player.CurrentCharacter)
+                .Where(player => player.CurrentGameID == game.Id)
+                .ToListAsync();
+        }
+
         return games;
     }
 
-    //api route /GetGameById
+    // Returns a single game and its currently assigned players.
     public async Task<Game?> GetGameByIdAsync(Guid gameId)
     {
-        Log.Information($"Get Game By Id {gameId}");
-        var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
-        if (foundGame != null) return foundGame;
-
         using var scope = _serviceProvider.CreateScope();
-        var _db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        return await _db.Games.FindAsync(gameId);
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var game = await dbContext.Games.FirstOrDefaultAsync(currentGame => currentGame.Id == gameId);
+        if (game is null)
+        {
+            return null;
+        }
+
+        game.currentPlayers = await dbContext.Players
+            .Include(player => player.CurrentCharacter)
+            .Where(player => player.CurrentGameID == gameId)
+            .ToListAsync();
+
+        return game;
     }
 
-    public async Task<List<Player>> GetPlayersInGame(Guid gameId) =>
-        (await GetGameByIdAsync(gameId))?.currentPlayers ?? new List<Player>();
+    // Returns players assigned to a specific game.
+    public async Task<List<Player>> GetPlayersInGame(Guid gameId)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-    //Api route /CreateUserSession
-    //will only let authenticated users further inside the application if the gameID presented is valid
+        return await dbContext.Players
+            .Include(player => player.CurrentCharacter)
+            .Where(player => player.CurrentGameID == gameId)
+            .ToListAsync();
+    }
+
+            // Creates or refreshes an in-memory user session entry.
     public bool CreateUserSession(ApplicationUser addUser)
     {
-        if (addUser == null)
+        if (addUser is null)
         {
-            Log.Error("Unable to add User to game: addUser is null");
+            Log.Error("Unable to add user session because user payload is null");
             return false;
         }
-        _userSessions.Add(addUser);
-        Log.Information($"User {addUser.UserName} added to user sessions.");
-        return true;
-    }
 
-    public bool EndUserSession(ClaimsPrincipal user)
-    {
-        Log.Information($"Ending User Session for {user.Identity.Name}");
-        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
+        var existingSession = _userSessions.FirstOrDefault(user => user.Id == addUser.Id);
+        if (existingSession is not null)
         {
-            Log.Error("Unable to end User Session: userId could not be parsed from ClaimsPrincipal");
-            return false;
-        }
-        if (_userSessions.All(u => u.Id != userId))
-        {
-            Log.Warning("Unable to end User Session: User not found in user sessions");
-            return false;
-        }
-        return true;
-    }
-
-    //api route /AllPlayersIn
-    //Player comes from the front end
-    public bool AddPlayerToGame(Player player, Guid gameId, string userId)
-    {
-        var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
-        if (foundGame == null)
-        {
-            Log.Information($"Failed to Create Players from Users game {gameId} not found");
-            return false;
-        }
-        player.UserId = userId;
-        player.CurrentGameID = gameId;
-        foundGame.currentPlayers.Add(player);
-        Log.Information("Players Created From Users");
-        return true;
-    }
-
-
-    //api route StartGame
-    public async Task<bool> StartGameAsync(Guid existingGameId)
-    {
-        Log.Information($"End Game {existingGameId}");
-        try
-        {
-            var foundGame = await GetGameByIdAsync(existingGameId)
-                            ?? (_games.FirstOrDefault(g => g.Id == existingGameId)
-                                ?? throw new GameNotFoundException("StartGameAsync"));
-
-            var mode = _gameModes.TryGetValue(existingGameId, out var configuredMode)
-                ? configuredMode
-                : BracketMode.SINGLE_ELIMINATION;
-
-            if (mode == BracketMode.DOUBLE_ELIMINATION)
-            {
-                var doubleEngine = _bracketEngines[BracketMode.DOUBLE_ELIMINATION];
-                _bracketStates[existingGameId] = doubleEngine.Initialize(existingGameId, foundGame.currentPlayers);
-                foundGame.BracketMode = BracketMode.DOUBLE_ELIMINATION;
-                foundGame.BracketStateJson = JsonSerializer.Serialize(_bracketStates[existingGameId]);
-                await UpdateGameAsync(existingGameId);
-                return true;
-            }
-
-            GenerateBracket(existingGameId);
+            existingSession.UserName = addUser.UserName;
+            existingSession.Email = addUser.Email;
             return true;
         }
-        catch (Exception e) when (e is GameNotFoundException || e is InvalidFunctionResponseException)
+
+        _userSessions.Add(addUser);
+        Log.Information("User {UserName} added to in-memory user sessions", addUser.UserName);
+        return true;
+    }
+
+    // Removes an in-memory user session entry.
+    public bool EndUserSession(ClaimsPrincipal user)
+    {
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userId))
         {
-            Log.Error(e.ToString());
+            Log.Error("Unable to end session because userId could not be parsed from ClaimsPrincipal");
             return false;
         }
-    }
 
-    //called by StartGame
-    private void GenerateBracket(Guid gameId)
-    {
-        Log.Information($"Generate Bracket {gameId}");
-        var foundGame = _games.FirstOrDefault(g => g.Id == gameId)
-                        ?? throw new GameNotFoundException("GenerateBracketAsync");
-        CalculateByes(foundGame);
-        InsertByes(foundGame);
-        ShuffleBracket(foundGame);
-    }
-
-    //calculate how many null objects to insert into foundGame based on currentPlayers
-    private void CalculateByes(Game foundGame)
-    {
-        var count = foundGame.currentPlayers.Count;
-        if (count < 2 || count >= 256)
-            throw new BracketGenrationException($"Bracket size invalid: {count}");
-        foreach (var threshold in new[] { 4, 8, 16, 32, 64, 128, 256 })
+        var session = _userSessions.FirstOrDefault(current => current.Id == userId);
+        if (session is null)
         {
-            if (count < threshold)
+            Log.Warning("Unable to end session. User {UserId} was not found in user sessions", userId);
+            return false;
+        }
+
+        _userSessions.Remove(session);
+        return true;
+    }
+
+    // Adds a player to a game or updates existing player assignment.
+    public bool AddPlayerToGame(Player player, Guid gameId, string userId)
+    {
+        if (player is null)
+        {
+            Log.Warning("Rejected AddPlayer for game {GameId} because player payload is null", gameId);
+            return false;
+        }
+
+        if (player.CurrentCharacter is null)
+        {
+            Log.Warning("Rejected AddPlayer for game {GameId} because player character payload is null", gameId);
+            return false;
+        }
+
+        if (_bracketStates.ContainsKey(gameId))
+        {
+            var runtimeState = _bracketStates[gameId];
+            if (runtimeState.GameStarted)
             {
-                foundGame.byes = threshold - count;
+                Log.Warning("Rejected AddPlayer for game {GameId} because game has already started", gameId);
+                return false;
+            }
+        }
+
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var game = dbContext.Games.FirstOrDefault(currentGame => currentGame.Id == gameId);
+
+        if (game is null)
+        {
+            Log.Warning("AddPlayer failed. Game {GameId} was not found", gameId);
+            return false;
+        }
+
+        Guid resolvedPlayerId;
+        if (player.Id == Guid.Empty)
+        {
+            resolvedPlayerId = Guid.NewGuid();
+        }
+        else
+        {
+            resolvedPlayerId = player.Id;
+        }
+
+        var allPlayers = dbContext.Players
+            .Include(currentPlayer => currentPlayer.CurrentCharacter)
+            .ToList();
+
+        Player? existingPlayer = null;
+        foreach (var currentPlayer in allPlayers)
+        {
+            if (currentPlayer.Id == resolvedPlayerId)
+            {
+                existingPlayer = currentPlayer;
                 break;
             }
         }
-    }
 
-    private void InsertByes(Game foundGame)
-    {
-        for (int i = 0; i < foundGame.byes; i++)
+        if (existingPlayer is not null)
         {
+            existingPlayer.UserId = userId;
+            existingPlayer.DisplayName = player.DisplayName;
+            existingPlayer.CurrentScore = player.CurrentScore;
+            existingPlayer.CurrentRound = player.CurrentRound;
+            existingPlayer.CurrentGameID = gameId;
 
-            //use null object pattern or dummy player 
-            //who always loses and is randomly inserted bye number of times
-            foundGame.currentPlayers.Add(new Player
+            if (existingPlayer.CurrentCharacter is null)
             {
-                Id = Guid.NewGuid(),
-                UserId = AppConstants.ByeUserId
-            });
+                existingPlayer.CurrentCharacter = CreateDetachedCharacter(player.CurrentCharacter);
+            }
+            else
+            {
+                var sourceCharacter = player.CurrentCharacter;
+                existingPlayer.CurrentCharacter.characterName = sourceCharacter.characterName;
+                existingPlayer.CurrentCharacter.archetype = sourceCharacter.archetype;
+                existingPlayer.CurrentCharacter.fallSpeed = sourceCharacter.fallSpeed;
+                existingPlayer.CurrentCharacter.tierPlacement = sourceCharacter.tierPlacement;
+                existingPlayer.CurrentCharacter.weightClass = sourceCharacter.weightClass;
+            }
+
+            dbContext.SaveChanges();
+            return true;
         }
-    }
 
-    private void ShuffleBracket(Game foundGame)
-    {
-        Random random = new Random();
-
-        int numberOfPlayers = foundGame.currentPlayers.Count;
-
-        //fisher yates randomization
-        for (int i = numberOfPlayers - 1; i > 0; i--)
+        var playerToAdd = new Player
         {
-            int j = random.Next(0, i + 1);
+            Id = resolvedPlayerId,
+            UserId = userId,
+            DisplayName = player.DisplayName,
+            CurrentScore = player.CurrentScore,
+            CurrentRound = player.CurrentRound,
+            CurrentGameID = gameId,
+            CurrentCharacter = CreateDetachedCharacter(player.CurrentCharacter)
+        };
 
-            (foundGame.currentPlayers[j], foundGame.currentPlayers[i]) = (foundGame.currentPlayers[i], foundGame.currentPlayers[j]);
-        }
+        dbContext.Players.Add(playerToAdd);
 
-
-    }
-
-    //api route /EndGame
-    public bool EndGame(Guid endGameId)
-    {
-        Log.Information($"End Game {endGameId}");
-        var game = _games.FirstOrDefault(g => g.Id == endGameId);
-        if (game == null) return false;
-        _games.Remove(game);
-        _bracketStates.Remove(endGameId);
-        _gameModes.Remove(endGameId);
-        Log.Information($"Game with gameId {game.Id} removed");
+        dbContext.SaveChanges();
         return true;
     }
 
-    //get the game from gameId
-    //foreach put each player in hasNotPlayed
-    private void LoadPlayersForRound(Guid gameId)
+    // Starts bracket processing for a game.
+    public async Task<bool> StartGameAsync(Guid gameId)
     {
-        var foundGame = _games.FirstOrDefault(g => g.Id == gameId)
-                        ?? throw new GameNotFoundException("LoadPlayersForRound");
-        _hasNotPlayed = new Stack<Player>(foundGame.currentPlayers);
-    }
-    //api route //StartRound
-    public void StartRound(Guid gameId) => LoadPlayersForRound(gameId);
+        Log.Information("Start game {GameId}", gameId);
 
+        var game = await GetGameByIdAsync(gameId);
+        if (game is null)
+        {
+            Log.Warning("StartGame failed because game {GameId} was not found", gameId);
+            return false;
+        }
 
+        if (!_bracketEngines.ContainsKey(game.BracketMode))
+        {
+            Log.Error("No bracket engine registered for mode {BracketMode}", game.BracketMode);
+            return false;
+        }
 
-    //api route /EndRound
-    public bool EndRound(Guid gameId)
-    {
-        Log.Information($"EndRoundAsync {gameId}");
-        var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
-        if (foundGame == null) return false;
-        foreach (Player player in foundGame.currentPlayers)
-            player.CurrentRound++;
-        foundGame.currentRound++;
+        var bracketEngine = _bracketEngines[game.BracketMode];
+
+        var initializedState = bracketEngine.Initialize(gameId, game.currentPlayers);
+        _bracketStates[gameId] = initializedState;
+
+        await PersistBracketStateAsync(gameId, initializedState);
+
+        var currentMatch = bracketEngine.BuildCurrentMatch(initializedState);
+        var gameState = ResolveGameState(initializedState, currentMatch);
+        Log.Information("Game {GameId} flow state after start => {FlowState}", gameId, gameState);
+
         return true;
     }
 
-
-    private List<Player> PreMatchSetup(Game foundGame)
+    // Deletes a game and all of its associated players.
+    public bool EndGame(Guid gameId)
     {
-        if (_hasNotPlayed.Count == 0)
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var game = dbContext.Games.FirstOrDefault(currentGame => currentGame.Id == gameId);
+        if (game is null)
         {
-            EndRound(foundGame.Id);
-            return new List<Player>();
+            return false;
         }
 
-        var currentPlayerOne = _hasNotPlayed.Pop();
-        var currentPlayerTwo = _hasNotPlayed.Pop();
-
-        if (currentPlayerOne.CurrentRound != foundGame.currentRound ||
-            currentPlayerTwo.CurrentRound != foundGame.currentRound)
+        var gamePlayers = dbContext.Players.Where(player => player.CurrentGameID == gameId).ToList();
+        if (gamePlayers.Count > 0)
         {
-            throw new RoundMismatchException("StartMatch");
+            dbContext.Players.RemoveRange(gamePlayers);
         }
 
-        foundGame.currentMatch++;
-        return new List<Player> { currentPlayerOne, currentPlayerTwo };
+        dbContext.Games.Remove(game);
+        dbContext.SaveChanges();
+
+        _bracketStates.Remove(gameId);
+        return true;
     }
-    //api route StartMatch
-    //list of players should be unpacked by route and returned in HTTP response
-    public List<Player>? StartMatch(Guid gameId)
+
+    // Builds a bracket snapshot response for client display.
+    public async Task<BracketSnapshotResponse?> GetBracketSnapshotAsync(Guid gameId)
     {
-        Log.Information($"StartMatch {gameId}");
-        var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
-        if (foundGame == null) return null;
+        var state = await GetOrHydrateBracketStateAsync(gameId);
+        if (state is null)
+        {
+            return null;
+        }
+
+        if (!_bracketEngines.ContainsKey(state.Mode))
+        {
+            return null;
+        }
+
+        var bracketEngine = _bracketEngines[state.Mode];
+
+        return bracketEngine.BuildSnapshot(state);
+    }
+
+    // Builds the current active match for gameplay.
+    public async Task<CurrentMatchResponse?> GetCurrentMatchAsync(Guid gameId)
+    {
+        var state = await GetOrHydrateBracketStateAsync(gameId);
+        if (state is null)
+        {
+            return null;
+        }
+
+        if (!_bracketEngines.ContainsKey(state.Mode))
+        {
+            return null;
+        }
+
+        var bracketEngine = _bracketEngines[state.Mode];
+
+        return bracketEngine.BuildCurrentMatch(state);
+    }
+
+    // Returns the high-level game state used by the frontend state machine.
+    public async Task<GameStateResponse?> GetGameStateAsync(Guid gameId)
+    {
+        var game = await GetGameByIdAsync(gameId);
+        if (game is null)
+        {
+            return null;
+        }
+
+        var state = await GetOrHydrateBracketStateAsync(gameId);
+        if (state is null)
+        {
+            return new GameStateResponse(
+                gameId,
+                GameState.LOBBY_WAITING,
+                false,
+                null,
+                null,
+                null);
+        }
+
+        if (!_bracketEngines.ContainsKey(state.Mode))
+        {
+            return new GameStateResponse(
+                gameId,
+                GameState.LOBBY_WAITING,
+                false,
+                null,
+                null,
+                null);
+        }
+
+            var bracketEngine = _bracketEngines[state.Mode];
+
+        var currentMatch = bracketEngine.BuildCurrentMatch(state);
+        var gameState = ResolveGameState(state, currentMatch);
+
+        return new GameStateResponse(
+            gameId,
+            gameState,
+            state.GameStarted,
+            currentMatch?.MatchId,
+            currentMatch?.PlayerOneId,
+            currentMatch?.PlayerTwoId);
+    }
+
+            // Applies a reported match result and advances bracket state.
+    public async Task<bool> ReportMatchResultAsync(Guid gameId, ReportMatchRequest request)
+    {
+        var state = await GetOrHydrateBracketStateAsync(gameId);
+        if (state is null)
+        {
+            return false;
+        }
+
+        if (!_bracketEngines.ContainsKey(state.Mode))
+        {
+            return false;
+        }
+
+        var bracketEngine = _bracketEngines[state.Mode];
+
+        var success = bracketEngine.TryReportMatch(state, request.MatchId, request.WinnerPlayerId);
+        if (!success)
+        {
+            return false;
+        }
+
+        await PersistBracketStateAsync(gameId, state);
+
+        var currentMatch = bracketEngine.BuildCurrentMatch(state);
+        var gameState = ResolveGameState(state, currentMatch);
+        Log.Information("Game {GameId} flow state after report => {FlowState}", gameId, gameState);
+
+        return true;
+    }
+
+    // Returns in-memory bracket state or hydrates it from persisted JSON.
+    private async Task<BracketRuntimeState?> GetOrHydrateBracketStateAsync(Guid gameId)
+    {
+        if (_bracketStates.ContainsKey(gameId))
+        {
+            var existingState = _bracketStates[gameId];
+            return existingState;
+        }
+
+        var game = await GetGameByIdAsync(gameId);
+        if (game is null || string.IsNullOrWhiteSpace(game.BracketStateJson))
+        {
+            return null;
+        }
+
         try
         {
-            return PreMatchSetup(foundGame);
+            var hydratedState = JsonSerializer.Deserialize<BracketRuntimeState>(game.BracketStateJson);
+            if (hydratedState is null)
+            {
+                return null;
+            }
+
+            _bracketStates[gameId] = hydratedState;
+            return hydratedState;
         }
-        catch (RoundMismatchException e)
+        catch (JsonException exception)
         {
-            Log.Error(e.ToString());
+            Log.Warning(exception, "Unable to hydrate bracket runtime state for game {GameId}", gameId);
             return null;
         }
     }
 
-    //api route EndMatch
-    public async Task<bool> EndMatchAsync(Guid gameId, Player matchWinner)
+    // Persists runtime bracket state to the game record.
+    private async Task PersistBracketStateAsync(Guid gameId, BracketRuntimeState state)
     {
-        Log.Information($"End Match Async {gameId}");
-        var foundGame = _games.FirstOrDefault(g => g.Id == gameId);
-        if (foundGame == null) return false;
-        if (!VoteHandler(gameId, matchWinner)) return false;
-        if (!await PostMatchShutdown(foundGame.Id)) return false;
-        return true;
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var game = await dbContext.Games.FindAsync(gameId);
+        if (game is null)
+        {
+            throw new InvalidOperationException($"Unable to persist bracket state because game {gameId} was not found.");
+        }
+
+        game.BracketMode = state.Mode;
+        game.BracketStateJson = JsonSerializer.Serialize(state);
+
+        await dbContext.SaveChangesAsync();
     }
 
-    public Task<BracketSnapshotResponse?> GetBracketSnapshotAsync(Guid gameId)
+    // Resolves current frontend-facing game state from runtime data.
+    private static GameState ResolveGameState(BracketRuntimeState state, CurrentMatchResponse? currentMatch)
     {
-        if (!_bracketStates.TryGetValue(gameId, out var state))
+        if (!state.GameStarted)
         {
-            return Task.FromResult<BracketSnapshotResponse?>(null);
+            return GameState.LOBBY_WAITING;
         }
 
-        if (!_bracketEngines.TryGetValue(state.Mode, out var engine))
+        if (currentMatch is not null)
         {
-            return Task.FromResult<BracketSnapshotResponse?>(null);
+            return GameState.IN_MATCH_ACTIVE;
         }
 
-        return Task.FromResult<BracketSnapshotResponse?>(engine.BuildSnapshot(state));
+        var hasOpenMatches = state.Matches.Any(match =>
+            match.Status == BracketMatchStatus.READY ||
+            match.Status == BracketMatchStatus.IN_PROGRESS ||
+            match.Status == BracketMatchStatus.PENDING);
+
+        if (hasOpenMatches)
+        {
+            return GameState.BRACKET_VIEW;
+        }
+
+        if (state.Matches.Count > 0)
+        {
+            return GameState.COMPLETE;
+        }
+
+        return GameState.LOBBY_WAITING;
     }
 
-    public Task<CurrentMatchResponse?> GetCurrentMatchAsync(Guid gameId)
+    // Creates a detached character entity for safe persistence.
+    private static Character CreateDetachedCharacter(Character sourceCharacter)
     {
-        if (!_bracketStates.TryGetValue(gameId, out var state))
+        return new Character
         {
-            return Task.FromResult<CurrentMatchResponse?>(null);
-        }
-
-        if (!_bracketEngines.TryGetValue(state.Mode, out var engine))
-        {
-            return Task.FromResult<CurrentMatchResponse?>(null);
-        }
-
-        return Task.FromResult(engine.BuildCurrentMatch(state));
+            Id = Guid.NewGuid(),
+            characterName = sourceCharacter.characterName,
+            archetype = sourceCharacter.archetype,
+            fallSpeed = sourceCharacter.fallSpeed,
+            tierPlacement = sourceCharacter.tierPlacement,
+            weightClass = sourceCharacter.weightClass
+        };
     }
-
-    public async Task<bool> ReportMatchResultAsync(Guid gameId, ReportMatchRequest request)
-    {
-        if (!_bracketStates.TryGetValue(gameId, out var state))
-        {
-            return false;
-        }
-
-        if (!_bracketEngines.TryGetValue(state.Mode, out var engine))
-        {
-            return false;
-        }
-
-        var success = engine.TryReportMatch(state, request.MatchId, request.WinnerPlayerId);
-        if (success)
-        {
-            var foundGame = _games.FirstOrDefault(game => game.Id == gameId);
-            if (foundGame is not null)
-            {
-                foundGame.BracketStateJson = JsonSerializer.Serialize(state);
-            }
-
-            await UpdateGameAsync(gameId);
-        }
-
-        return success;
-    }
-
-    //Handle votes for match winner
-    private bool VoteHandler(Guid gameId, Player matchWinner)
-    {
-        Log.Information($"VoteHandlerAsync {gameId}");
-        try
-        {
-            var foundGame = _games.FirstOrDefault(g => g.Id == gameId)
-                            ?? throw new GameNotFoundException("VoteHandlerAsync");
-            var foundPlayer = foundGame.currentPlayers.FirstOrDefault(p => p.Id == matchWinner.Id)
-                              ?? throw new PlayerNotFoundException("VoteHandlerAsync");
-            CastVote(foundGame, foundPlayer);
-            return true;
-        }
-        catch (Exception e) when (e is GameNotFoundException || e is PlayerNotFoundException)
-        {
-            Log.Error(e.ToString());
-            return false;
-        }
-    }
-
-
-    //Individual Vote Casting Logic
-    private void CastVote(Game foundGame, Player MatchWinner)
-    {
-        var currentVotes = foundGame.GetVotes();
-        /* only if two votes are received should the MatchWinner's score increment */
-        foundGame.SetVotes((Votes)((int)currentVotes + 1));
-
-        switch (currentVotes)
-        {
-            case Votes.ZERO:
-                break;
-            case Votes.ONE:
-                break;
-            case Votes.TWO:
-                MatchWinner.CurrentScore++;
-                break;
-        }
-    }
-
-    
-
-    //called by SaveGameAsync or EndGameAsync
-    private async Task<bool> PostMatchShutdown(Guid gameId)
-    {
-        Log.Information($"PostMatchShutdown {gameId}");
-
-        //create userService context
-        await using (var scope = _scopeFactory.CreateAsyncScope())
-        {
-            var userRepository = scope.ServiceProvider.GetRequiredService<IUserManager>();
-            try
-            {
-                var foundGame = _games.Find(g => g.Id == gameId);
-
-                if (foundGame is null)
-                {
-                    throw new GameNotFoundException("PostMatchShutdown");
-                }
-
-                
-
-                foreach (Player player in foundGame.currentPlayers)
-                {
-                    var currentUser = await userRepository.GetUserByIdAsync(player.UserId);
-
-                    switch (IsRealUser(currentUser, player.UserId))
-                    {
-                        case UserType.RealUser:
-                            if (foundGame.currentRound == player.CurrentRound)
-                            {
-                                UpdateUser(currentUser, player);
-                                await userRepository.UpdateUserAsync(currentUser);
-                            }
-                            else
-                            {
-                                Log.Warning("Warning: UpdateUserScore called, but some users aren't on the same round as their game");
-                            }
-                            break;
-                        case UserType.ByeUser:
-                            Log.Information("Bye User processed. No score update needed.");
-                            break;
-                        case UserType.NullUser:
-                            throw new UserNotFoundException("PostMatchShutdown");
-                        default:
-                            throw new InvalidObjectStateException("PostMatchShutdown");
-                    }
-
-
-                }
-            }
-            catch (UserNotFoundException e)
-            {
-                Log.Error($"{e}");
-            }
-            catch (GameNotFoundException e)
-            {
-                Log.Error($"{e}");
-            }
-            catch (InvalidObjectStateException e)
-            {
-                Log.Error($"{e}");
-            }
-        }
-        return true;
-    }
-
-    //validate if user is null object pattern (bye user)
-    //or "real" ApplicationUser
-
-    enum UserType
-    {
-        RealUser,
-        ByeUser,
-
-        NullUser
-    }
-private UserType IsRealUser(ApplicationUser currentUser, string userId) =>
-        userId == AppConstants.ByeUserId ? UserType.ByeUser :
-        currentUser != null ? UserType.RealUser :
-        UserType.NullUser;
-
-    //Update User Values Post Match 
-    private ApplicationUser UpdateUser(ApplicationUser currentUser, Player player)
-    {
-        switch (IsRealUser(currentUser, currentUser.Id))
-        {
-            case UserType.RealUser:
-                currentUser.AllTimeMatches += player.CurrentRound;
-                var currentWins = Math.Abs(player.CurrentScore - player.CurrentRound);
-                currentUser.AllTimeWins += currentWins;
-                break;
-            case UserType.ByeUser:
-                Log.Information("Bye User processed. No score update needed.");
-                break;
-            case UserType.NullUser:
-                throw new UserNotFoundException("UpdateUser");
-        }
-        return currentUser;
-    }
-
 }

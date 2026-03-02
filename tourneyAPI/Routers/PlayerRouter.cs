@@ -1,8 +1,6 @@
 namespace Routers;
 
 using Entities;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Validators;
 using Services;
 using System;
@@ -11,23 +9,23 @@ using System.Diagnostics.CodeAnalysis;
 
 [ExcludeFromCodeCoverage]
 
-/* this playerRouter class may not need to be exposed and may be deleted */
+// Maps player CRUD endpoints used by administrative and testing flows.
 public static class PlayerRouter
 {
+    // Registers all player API endpoints.
     public static void Map(WebApplication app)
     {
+        var playerRoutes = app.MapGroup("/Players");
 
-        var PlayerRoutes = app.MapGroup("/Players");
-
-        PlayerRoutes.MapGet("/", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager) =>
+        playerRoutes.MapGet("/", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager) =>
         {
             Log.Information("Request Type: Get \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
 
             try
             {
-                var Players = await playerManager.GetAllPlayersAsync();
+                var players = await playerManager.GetAllPlayersAsync();
 
-                return Results.Ok(Players);
+                return Results.Ok(players);
             }
             catch (Exception)
             {
@@ -35,7 +33,7 @@ public static class PlayerRouter
             }
         });
 
-        PlayerRoutes.MapPost("/", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager, Player player) =>
+        playerRoutes.MapPost("/", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager, Player player) =>
         {
             Log.Information("Request Type: Post \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -54,7 +52,7 @@ public static class PlayerRouter
 
         });
 
-        PlayerRoutes.MapPut("/", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager, Player player) =>
+        playerRoutes.MapPut("/", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager, Player player) =>
         {
             Log.Information("Request Type: Put \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -72,7 +70,7 @@ public static class PlayerRouter
             }
         });
 
-        PlayerRoutes.MapDelete("/{Id}", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager, string Id) =>
+        playerRoutes.MapDelete("/{Id}", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager, string Id) =>
         {
             Log.Information("Request Type: Delete \n URL: '/Players' \n Time:{Timestamp}", DateTime.UtcNow);
             try

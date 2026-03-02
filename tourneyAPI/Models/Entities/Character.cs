@@ -1,10 +1,10 @@
 namespace Entities;
 
-using Microsoft.EntityFrameworkCore;
 using Enums;
 using System.Diagnostics.CodeAnalysis;
 
 [ExcludeFromCodeCoverage]
+// Represents the chosen fighter attributes for a player.
 public class Character
 {
     public Guid Id { get; set; }

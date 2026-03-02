@@ -37,9 +37,14 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
     public bool TryReportMatch(BracketRuntimeState state, Guid matchId, Guid winnerPlayerId)
     {
         var match = state.Matches.FirstOrDefault(existingMatch => existingMatch.MatchId == matchId);
-        if (match is null || match.Status is BracketMatchStatus.COMPLETE || match.Status is BracketMatchStatus.PENDING)
+        if (match is null || match.Status is BracketMatchStatus.PENDING)
         {
             return false;
+        }
+
+        if (match.Status is BracketMatchStatus.COMPLETE)
+        {
+            return match.WinnerId == winnerPlayerId;
         }
 
         if (match.PlayerOneId is null || match.PlayerTwoId is null)
@@ -161,11 +166,12 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
 
     private static void AddToWinnersPool(BracketRuntimeState state, int round, Guid playerId)
     {
-        if (!state.WinnersPools.TryGetValue(round, out var pool))
+        if (!state.WinnersPools.ContainsKey(round))
         {
-            pool = new List<Guid>();
-            state.WinnersPools[round] = pool;
+            state.WinnersPools[round] = new List<Guid>();
         }
+
+        var pool = state.WinnersPools[round];
 
         pool.Add(playerId);
 
@@ -190,11 +196,12 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
 
     private static void AddToLosersPool(BracketRuntimeState state, int round, Guid playerId)
     {
-        if (!state.LosersPools.TryGetValue(round, out var pool))
+        if (!state.LosersPools.ContainsKey(round))
         {
-            pool = new List<Guid>();
-            state.LosersPools[round] = pool;
+            state.LosersPools[round] = new List<Guid>();
         }
+
+        var pool = state.LosersPools[round];
 
         pool.Add(playerId);
 

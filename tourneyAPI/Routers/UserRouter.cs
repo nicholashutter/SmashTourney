@@ -9,25 +9,22 @@ using Microsoft.AspNetCore.Identity;
 using Helpers;
 using System.Security.Claims;
 
-/*
-
-This class was written prior to integrating my User model into efcore as a IdentityUser
-This class may be removed at some point
-
-*/
+// Maps user authentication and account management endpoints.
 public static class UserRouter
 {
+    // Represents a username/password login payload.
     private sealed class LoginRequest
     {
         public string UserName { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
     }
 
+    // Registers all user API endpoints.
     public static void Map(WebApplication app)
     {
-        var UserRoutes = app.MapGroup("/users");
+        var userRoutes = app.MapGroup("/users");
 
-        UserRoutes.MapPost("/login", async (
+        userRoutes.MapPost("/login", async (
             LoginRequest loginRequest,
             UserManager<ApplicationUser> identityUserManager,
             SignInManager<ApplicationUser> signInManager) =>
@@ -61,7 +58,7 @@ public static class UserRouter
             return Results.Ok(new { Message = "Login successful" });
         });
 
-        UserRoutes.MapGet("/demo-credentials", (IHostEnvironment environment) =>
+        userRoutes.MapGet("/demo-credentials", (IHostEnvironment environment) =>
         {
             if (!environment.IsDevelopment())
             {
@@ -75,7 +72,7 @@ public static class UserRouter
             });
         });
 
-        UserRoutes.MapGet("/session", (ClaimsPrincipal user) =>
+        userRoutes.MapGet("/session", (ClaimsPrincipal user) =>
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
             var userName = user.Identity?.Name ?? string.Empty;
@@ -88,7 +85,7 @@ public static class UserRouter
             });
         }).RequireAuthorization();
 
-        UserRoutes.MapGet("/GetAllUsers", async (HttpContext context, IUserManager userManager) =>
+        userRoutes.MapGet("/GetAllUsers", async (HttpContext context, IUserManager userManager) =>
         {
 
             Log.Information("Request Type: Get \n URL: '/GetAllUsers' \n Time: {Timestamp}", DateTime.UtcNow);
@@ -106,7 +103,7 @@ public static class UserRouter
 
         }).RequireAuthorization();
 
-        UserRoutes.MapGet("/GetById{Id}", async (HttpContext context, IUserManager userManager, string Id) =>
+    userRoutes.MapGet("/GetById{Id}", async (HttpContext context, IUserManager userManager, string Id) =>
         {
 
             Log.Information("Request Type: Get \n URL: '/GetAllUsers' \n Time: {Timestamp}", DateTime.UtcNow);
@@ -124,7 +121,7 @@ public static class UserRouter
 
         }).RequireAuthorization();
 
-        UserRoutes.MapGet("/GetByUserName{UserName}", async (HttpContext context, IUserManager userManager, string UserName) =>
+    userRoutes.MapGet("/GetByUserName{UserName}", async (HttpContext context, IUserManager userManager, string UserName) =>
         {
 
             Log.Information("Request Type: Get \n URL: '/GetAllUsers' \n Time: {Timestamp}", DateTime.UtcNow);
@@ -142,7 +139,7 @@ public static class UserRouter
 
         }).RequireAuthorization();
 
-        UserRoutes.MapPut("/UpdateUser", async (HttpContext context, IUserManager userManager, ApplicationUser user) =>
+                userRoutes.MapPut("/UpdateUser", async (HttpContext context, IUserManager userManager, ApplicationUser user) =>
       {
 
           Log.Information("Request Type: Get \n URL: '/GetAllUsers' \n Time: {Timestamp}", DateTime.UtcNow);
@@ -160,7 +157,7 @@ public static class UserRouter
 
       }).RequireAuthorization();
 
-        UserRoutes.MapDelete("/{Id}", async (HttpContext context, string Id, IUserManager userRepository) =>
+                userRoutes.MapDelete("/{Id}", async (HttpContext context, string Id, IUserManager userRepository) =>
         {
             Log.Information("Request Type: Delete \n URL: '/Users \n Time:{Timestamp}", DateTime.UtcNow);
 
@@ -180,7 +177,7 @@ public static class UserRouter
 
 
 
-        UserRoutes.MapPost("/logout", async (HttpContext context, IGameService gameService) =>
+    userRoutes.MapPost("/logout", async (HttpContext context, IGameService gameService) =>
         {
             await context.SignOutAsync(IdentityConstants.ApplicationScheme);
 

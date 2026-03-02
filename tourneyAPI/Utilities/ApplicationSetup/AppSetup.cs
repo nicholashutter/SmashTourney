@@ -7,6 +7,7 @@ using Services;
 using CustomExceptions;
 using Microsoft.AspNetCore.Identity;
 using Entities;
+using Microsoft.EntityFrameworkCore;
 
 public class AppSetup
 {
@@ -186,6 +187,35 @@ public class AppSetup
             existingCount,
             "dummy01..dummy16",
             "DummyPass!01..DummyPass!16");
+    }
+
+    public static async Task ClearDevelopmentGamesForDummyProfileAsync(IServiceProvider services, IHostEnvironment environment, IConfiguration configuration)
+    {
+        if (!environment.IsDevelopment())
+        {
+            return;
+        }
+
+        var enableDummyUsers = configuration.GetValue<bool>(AppConstants.EnableDummyUsersConfigKey);
+        if (!enableDummyUsers)
+        {
+            return;
+        }
+
+        using var scope = services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var existingGames = await dbContext.Games.ToListAsync();
+
+        if (existingGames.Count == 0)
+        {
+            Log.Information("Development dummy-user profile startup: no existing games to clear.");
+            return;
+        }
+
+        dbContext.Games.RemoveRange(existingGames);
+        await dbContext.SaveChangesAsync();
+
+        Log.Information("Development dummy-user profile startup: cleared {GameCount} existing games.", existingGames.Count);
     }
 
 

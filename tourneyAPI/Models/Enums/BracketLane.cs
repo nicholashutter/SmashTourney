@@ -1,5 +1,6 @@
 namespace Enums;
 
+// Defines which bracket lane a match belongs to.
 public enum BracketLane
 {
     WINNERS,

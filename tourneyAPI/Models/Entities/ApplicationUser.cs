@@ -1,8 +1,8 @@
 ﻿namespace Entities;
 
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Configuration.UserSecrets;
 
+// Stores authenticated user profile and aggregate match statistics.
 public class ApplicationUser : IdentityUser
 {
 
