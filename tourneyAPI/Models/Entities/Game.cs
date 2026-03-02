@@ -17,6 +17,8 @@ public enum Votes
 public class Game
 {
     public Guid Id { get; set; }
+    public BracketMode BracketMode { get; set; } = BracketMode.SINGLE_ELIMINATION;
+    public string? BracketStateJson { get; set; }
     public List<Player> currentPlayers { get; set; } = new List<Player>();
 
     [Required]

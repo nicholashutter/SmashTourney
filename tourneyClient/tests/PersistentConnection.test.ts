@@ -1,8 +1,6 @@
 import { test, expect, vi, beforeEach } from 'vitest';
 import { Player } from '../src/models/entities/Player';
-import { HubConnectionBuilder } from '@microsoft/signalr';
 import SignalRService from '../src/services/PersistentConnection';
-import type { HubConnectionBuilder as RealBuilderType, HubConnection } from '@microsoft/signalr';
 import Marth from '../src/models/entities/Characters/Marth';
 
 
@@ -11,11 +9,14 @@ import Marth from '../src/models/entities/Characters/Marth';
 const mockOn = vi.fn();
 const mockStart = vi.fn().mockResolvedValue(undefined);
 const mockInvoke = vi.fn().mockResolvedValue(undefined);
+const mockStop = vi.fn().mockResolvedValue(undefined);
 
 const mockConnection = {
   on: mockOn,
   start: mockStart,
-  invoke: mockInvoke
+  invoke: mockInvoke,
+  stop: mockStop,
+  state: "Disconnected"
 };
 
 // Mock HubConnectionBuilder chain
@@ -23,7 +24,8 @@ const mockBuild = vi.fn(() => mockConnection);
 const mockWithAutomaticReconnect = vi.fn(() => ({ build: mockBuild }));
 const mockWithUrl = vi.fn(() => ({ withAutomaticReconnect: mockWithAutomaticReconnect }));
 
-vi.mock('@microsoft/signalr', async () => {
+vi.mock('@microsoft/signalr', async () =>
+{
   const actual = await vi.importActual<typeof import('@microsoft/signalr')>('@microsoft/signalr');
   return {
     ...actual,
@@ -33,7 +35,8 @@ vi.mock('@microsoft/signalr', async () => {
   };
 });
 
-beforeEach(() => {
+beforeEach(() =>
+{
   vi.clearAllMocks();
 });
 
@@ -43,9 +46,10 @@ beforeEach(() => {
  * - Mocks HubConnectionBuilder and ensures connection is built and started.
  * - Confirms event handlers for "Successfully Joined" and "PlayersUpdated" are registered.
  */
-test("SignalRService creates and starts connection with correct handlers", async () => {
+test("SignalRService creates and starts connection with correct handlers", async () =>
+{
   const service = new SignalRService();
-  service.createPlayerConnection();
+  await service.createPlayerConnection();
 
   expect(mockWithUrl).toHaveBeenCalledWith(expect.any(String), { withCredentials: true });
   expect(mockWithAutomaticReconnect).toHaveBeenCalled();
@@ -54,18 +58,20 @@ test("SignalRService creates and starts connection with correct handlers", async
 
   expect(mockOn).toHaveBeenCalledWith("Successfully Joined", expect.any(Function));
   expect(mockOn).toHaveBeenCalledWith("PlayersUpdated", expect.any(Function));
+  expect(mockOn).toHaveBeenCalledWith("GameStarted", expect.any(Function));
 });
 
 /**
  *   Verifies that setGameId correctly stores the gameId internally.
  *   Ensures updateOthers uses the correct gameId when invoked after connection.
  */
-test("SignalRService stores gameId and uses it in updateOthers", async () => {
+test("SignalRService stores gameId and uses it in updateOthers", async () =>
+{
   const service = new SignalRService();
   const gameId = "game-xyz123";
 
   service.setGameId(gameId);
-  service.createPlayerConnection();
+  await service.createPlayerConnection();
 
   await service.updateOthers(gameId);
 
@@ -77,7 +83,8 @@ test("SignalRService stores gameId and uses it in updateOthers", async () => {
  *   Verifies that setOnPlayersUpdated registers a callback and invokes it when PlayersUpdated is received.
  *   Simulates receiving a PlayersUpdated event and checks callback execution.
  */
-test("SignalRService invokes onPlayersUpdated callback when PlayersUpdated is received", async () => {
+test("SignalRService invokes onPlayersUpdated callback when PlayersUpdated is received", async () =>
+{
   const service = new SignalRService();
   const mockPlayers: Player[] = [
     {
@@ -91,7 +98,7 @@ test("SignalRService invokes onPlayersUpdated callback when PlayersUpdated is re
 
   const callback = vi.fn();
   service.setOnPlayersUpdated(callback);
-  service.createPlayerConnection();
+  await service.createPlayerConnection();
 
   // Simulate the "PlayersUpdated" event manually
   const playersUpdatedHandler = mockOn.mock.calls.find(
@@ -102,19 +109,60 @@ test("SignalRService invokes onPlayersUpdated callback when PlayersUpdated is re
   playersUpdatedHandler?.(mockPlayers);
 
   expect(callback).toHaveBeenCalledWith(mockPlayers);
-  });
+});
 
 
 /**
  *   Verifies that updateOthers invokes the UpdatePlayers method on the hub.
  *   Mocks connection.invoke and checks it is called with correct arguments.
  */
-test("SignalRService calls UpdatePlayers with correct gameId", async () => {
+test("SignalRService calls UpdatePlayers with correct gameId", async () =>
+{
   const service = new SignalRService();
   const gameId = "game-456";
 
-  service.createPlayerConnection();
+  await service.createPlayerConnection();
   await service.updateOthers(gameId);
 
   expect(mockInvoke).toHaveBeenCalledWith("UpdatePlayers", gameId);
+});
+
+test("SignalRService joins game group on connect when gameId is provided", async () =>
+{
+  const service = new SignalRService();
+  const gameId = "group-123";
+
+  await service.createPlayerConnection(gameId);
+
+  expect(mockInvoke).toHaveBeenCalledWith("JoinGameGroup", gameId);
+});
+
+test("SignalRService invokes onGameStarted callback when GameStarted is received", async () =>
+{
+  const service = new SignalRService();
+  const gameId = "game-start-123";
+  const callback = vi.fn();
+
+  service.setOnGameStarted(callback);
+  await service.createPlayerConnection(gameId);
+
+  const gameStartedHandler = mockOn.mock.calls.find(
+    ([eventName]) => eventName === "GameStarted"
+  )?.[1];
+
+  expect(gameStartedHandler).toBeDefined();
+  gameStartedHandler?.(gameId);
+
+  expect(callback).toHaveBeenCalledWith(gameId);
+});
+
+test("SignalRService calls NotifyGameStarted with correct gameId", async () =>
+{
+  const service = new SignalRService();
+  const gameId = "notify-123";
+
+  await service.createPlayerConnection(gameId);
+  await service.notifyGameStarted(gameId);
+
+  expect(mockInvoke).toHaveBeenCalledWith("NotifyGameStarted", gameId);
 });

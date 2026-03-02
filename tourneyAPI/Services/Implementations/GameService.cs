@@ -5,18 +5,32 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Contracts;
 using Entities;
+using Enums;
 using Helpers;
 using CustomExceptions;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Services.Brackets;
 using System.Security.Claims;
+using System.Text.Json;
 
 public class GameService : IGameService
 {
     private readonly IServiceProvider _serviceProvider;
 
     private readonly IServiceScopeFactory _scopeFactory;
+
+    private readonly Dictionary<Guid, BracketMode> _gameModes = new();
+
+    private readonly Dictionary<Guid, BracketRuntimeState> _bracketStates = new();
+
+    private readonly Dictionary<BracketMode, IBracketEngine> _bracketEngines = new()
+    {
+        [BracketMode.SINGLE_ELIMINATION] = new SingleEliminationEngine(),
+        [BracketMode.DOUBLE_ELIMINATION] = new DoubleEliminationEngine()
+    };
 
     //list that holds all currently played games in memory
     private List<Game> _games;
@@ -45,9 +59,31 @@ public class GameService : IGameService
         var game = new Game { Id = Guid.NewGuid() };
         await InsertGameAsync(game);
         _games.Add(game);
+        _gameModes[game.Id] = BracketMode.SINGLE_ELIMINATION;
 
         Log.Information($"New Game with gameId {game.Id} created");
         return game.Id;
+    }
+
+    public Task<Guid> CreateGame(CreateGameOptions options)
+    {
+        var requestedMode = options?.BracketMode ?? BracketMode.SINGLE_ELIMINATION;
+        return CreateModeAwareGame(requestedMode);
+    }
+
+    private async Task<Guid> CreateModeAwareGame(BracketMode requestedMode)
+    {
+        var gameId = await CreateGame();
+        _gameModes[gameId] = requestedMode;
+
+        var foundGame = _games.FirstOrDefault(game => game.Id == gameId);
+        if (foundGame is not null)
+        {
+            foundGame.BracketMode = requestedMode;
+            await UpdateGameAsync(gameId);
+        }
+
+        return gameId;
     }
 
 
@@ -71,6 +107,15 @@ public class GameService : IGameService
         var foundGame = _games.Find(g => g.Id == gameId)
                          ?? throw new GameNotFoundException("UpdateGameAsync");
 
+        foundGame.BracketMode = _gameModes.TryGetValue(gameId, out var mode)
+            ? mode
+            : foundGame.BracketMode;
+
+        if (_bracketStates.TryGetValue(gameId, out var bracketState))
+        {
+            foundGame.BracketStateJson = JsonSerializer.Serialize(bracketState);
+        }
+
         var dbGame = await _db.Games.FindAsync(gameId)
                      ?? throw new GameNotFoundException($"Game with ID {gameId} does not exist.");
 
@@ -90,6 +135,24 @@ public class GameService : IGameService
         {
             Log.Warning("FoundGame is null. Unable to load game");
             return false;
+        }
+
+        _gameModes[gameId] = foundGame.BracketMode;
+
+        if (!string.IsNullOrWhiteSpace(foundGame.BracketStateJson))
+        {
+            try
+            {
+                var hydratedState = JsonSerializer.Deserialize<BracketRuntimeState>(foundGame.BracketStateJson);
+                if (hydratedState is not null)
+                {
+                    _bracketStates[gameId] = hydratedState;
+                }
+            }
+            catch (JsonException ex)
+            {
+                Log.Warning(ex, "Unable to hydrate bracket runtime state for game {GameId}", gameId);
+            }
         }
 
         _games.Add(foundGame);
@@ -187,6 +250,20 @@ public class GameService : IGameService
                             ?? (_games.FirstOrDefault(g => g.Id == existingGameId)
                                 ?? throw new GameNotFoundException("StartGameAsync"));
 
+            var mode = _gameModes.TryGetValue(existingGameId, out var configuredMode)
+                ? configuredMode
+                : BracketMode.SINGLE_ELIMINATION;
+
+            if (mode == BracketMode.DOUBLE_ELIMINATION)
+            {
+                var doubleEngine = _bracketEngines[BracketMode.DOUBLE_ELIMINATION];
+                _bracketStates[existingGameId] = doubleEngine.Initialize(existingGameId, foundGame.currentPlayers);
+                foundGame.BracketMode = BracketMode.DOUBLE_ELIMINATION;
+                foundGame.BracketStateJson = JsonSerializer.Serialize(_bracketStates[existingGameId]);
+                await UpdateGameAsync(existingGameId);
+                return true;
+            }
+
             GenerateBracket(existingGameId);
             return true;
         }
@@ -263,6 +340,8 @@ public class GameService : IGameService
         var game = _games.FirstOrDefault(g => g.Id == endGameId);
         if (game == null) return false;
         _games.Remove(game);
+        _bracketStates.Remove(endGameId);
+        _gameModes.Remove(endGameId);
         Log.Information($"Game with gameId {game.Id} removed");
         return true;
     }
@@ -340,6 +419,63 @@ public class GameService : IGameService
         if (!VoteHandler(gameId, matchWinner)) return false;
         if (!await PostMatchShutdown(foundGame.Id)) return false;
         return true;
+    }
+
+    public Task<BracketSnapshotResponse?> GetBracketSnapshotAsync(Guid gameId)
+    {
+        if (!_bracketStates.TryGetValue(gameId, out var state))
+        {
+            return Task.FromResult<BracketSnapshotResponse?>(null);
+        }
+
+        if (!_bracketEngines.TryGetValue(state.Mode, out var engine))
+        {
+            return Task.FromResult<BracketSnapshotResponse?>(null);
+        }
+
+        return Task.FromResult<BracketSnapshotResponse?>(engine.BuildSnapshot(state));
+    }
+
+    public Task<CurrentMatchResponse?> GetCurrentMatchAsync(Guid gameId)
+    {
+        if (!_bracketStates.TryGetValue(gameId, out var state))
+        {
+            return Task.FromResult<CurrentMatchResponse?>(null);
+        }
+
+        if (!_bracketEngines.TryGetValue(state.Mode, out var engine))
+        {
+            return Task.FromResult<CurrentMatchResponse?>(null);
+        }
+
+        return Task.FromResult(engine.BuildCurrentMatch(state));
+    }
+
+    public async Task<bool> ReportMatchResultAsync(Guid gameId, ReportMatchRequest request)
+    {
+        if (!_bracketStates.TryGetValue(gameId, out var state))
+        {
+            return false;
+        }
+
+        if (!_bracketEngines.TryGetValue(state.Mode, out var engine))
+        {
+            return false;
+        }
+
+        var success = engine.TryReportMatch(state, request.MatchId, request.WinnerPlayerId);
+        if (success)
+        {
+            var foundGame = _games.FirstOrDefault(game => game.Id == gameId);
+            if (foundGame is not null)
+            {
+                foundGame.BracketStateJson = JsonSerializer.Serialize(state);
+            }
+
+            await UpdateGameAsync(gameId);
+        }
+
+        return success;
     }
 
     //Handle votes for match winner

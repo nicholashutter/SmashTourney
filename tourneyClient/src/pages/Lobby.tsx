@@ -5,7 +5,7 @@ import HeadingTwo from "@/components/HeadingTwo";
 import { Player } from "@/models/entities/Player";
 import { RequestService } from '@/services/RequestService';
 import PersistentConnection from "@/services/PersistentConnection";
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameData } from '@/hooks/useGameData';
 import { SERVER_ERROR, SUBMIT_SUCCESS } from '@/constants/AppConstants';
 import { useNavigate } from 'react-router';
@@ -18,27 +18,28 @@ const Lobby = () =>
         currentPlayers?: Player[];
     };
 
-    const resolvePlayerId = (player: Player): string =>
+    const resolvePlayerId = useCallback((player: Player): string =>
     {
         return player.Id ?? player.id ?? "";
-    };
+    }, []);
 
-    const normalizePlayers = (incomingPlayers: Player[]): Player[] =>
+    const normalizePlayers = useCallback((incomingPlayers: Player[]): Player[] =>
     {
         return incomingPlayers.map((player) => ({
             ...player,
             Id: resolvePlayerId(player),
             currentGameId: player.currentGameId ?? player.currentGameID ?? ""
         }));
-    };
+    }, [resolvePlayerId]);
 
     const [players, setPlayers] = useState<Player[]>([]);
     const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
     const [joinNotice, setJoinNotice] = useState<string | null>(null);
+    const lobbyConnectionRef = useRef<PersistentConnection | null>(null);
 
     //get playerId, gameId and setter functions from useContext wrapper
     //should have either been loaded from joinTourney or createTourney pages
-    const { gameId: gameId, playerId: playerId } = useGameData();
+    const { gameId: gameId, playerId: playerId, setGameStarted } = useGameData();
 
 
     //explicitly typing as boolean because this type of conditional check confuses me 
@@ -55,6 +56,7 @@ const Lobby = () =>
         }
 
         const lobbyConnection = new PersistentConnection();
+        lobbyConnectionRef.current = lobbyConnection;
         let isDisposed = false;
 
         //sync wrapper for useEffect over async call to api
@@ -132,6 +134,14 @@ const Lobby = () =>
                     });
                 }
             });
+            lobbyConnection.setOnGameStarted((startedGameId) =>
+            {
+                if (!isDisposed && startedGameId === gameId)
+                {
+                    setGameStarted(true);
+                    navigate("/showBracket");
+                }
+            });
             await lobbyConnection.createPlayerConnection(gameId);
             await asyncRequest(gameId);
         };
@@ -142,9 +152,13 @@ const Lobby = () =>
         {
             isDisposed = true;
             lobbyConnection.disconnect();
+            if (lobbyConnectionRef.current === lobbyConnection)
+            {
+                lobbyConnectionRef.current = null;
+            }
         };
 
-    }, [gameId]);
+    }, [gameId, navigate, normalizePlayers, resolvePlayerId, setGameStarted]);
 
     const handleSubmit = async () =>
     {
@@ -159,8 +173,12 @@ const Lobby = () =>
             await RequestService("startGame", {
                 routeParams: { gameId }
             });
+
+            setGameStarted(true);
+            await lobbyConnectionRef.current?.notifyGameStarted(gameId);
+
             window.alert(SUBMIT_SUCCESS("Join Game"));
-            navigate("/inMatch");
+            navigate("/showBracket");
         }
         catch (err)
         {

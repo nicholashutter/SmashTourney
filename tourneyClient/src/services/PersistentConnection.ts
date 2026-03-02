@@ -11,6 +11,8 @@ class SignalRService
 
     private onPlayersUpdated: ((players: Player[]) => void) | null = null;
 
+    private onGameStarted: ((gameId: string) => void) | null = null;
+
     private gameId: string = "";
 
     constructor()
@@ -58,9 +60,20 @@ class SignalRService
                 this.onPlayersUpdated(players);
             }
         });
+        this.connection.on("GameStarted", (startedGameId: string) =>
+        {
+            if (this.onGameStarted)
+            {
+                this.onGameStarted(startedGameId);
+            }
+        });
         try
         {
             await this.connection.start();
+            if (this.gameId)
+            {
+                await this.connection.invoke("JoinGameGroup", this.gameId);
+            }
         }
         catch (error)
         {
@@ -73,6 +86,11 @@ class SignalRService
     public setOnPlayersUpdated(callback: (players: Player[]) => void)
     {
         this.onPlayersUpdated = callback;
+    }
+
+    public setOnGameStarted(callback: (gameId: string) => void)
+    {
+        this.onGameStarted = callback;
     }
     /**
    * Stores the current game session ID used for hub communication.
@@ -94,6 +112,23 @@ class SignalRService
         try
         {
             await this.connection?.invoke("UpdatePlayers", gameId);
+        }
+        catch (err)
+        {
+            console.error(err);
+        }
+    }
+
+    public async notifyGameStarted(gameId: string)
+    {
+        if (!gameId)
+        {
+            return;
+        }
+
+        try
+        {
+            await this.connection?.invoke("NotifyGameStarted", gameId);
         }
         catch (err)
         {

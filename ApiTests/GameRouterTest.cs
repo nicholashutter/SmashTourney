@@ -1,7 +1,9 @@
 namespace ApiTests;
 
 using System.Threading.Tasks;
+using Contracts;
 using Entities;
+using Enums;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,8 +21,15 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     private readonly CustomWebApplicationFactory<Program> _factory;
 
     class CreateGameRes { public Guid gameId { get; set; } }
+    class CreateGameWithModeRes { public Guid gameId { get; set; } public BracketMode bracketMode { get; set; } }
     class GetByIdRes { public Game game { get; set; } }
     class GetAllGamesRes { public List<Game> games { get; set; } }
+
+    private static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
 
     public GameRouterTest()
     {
@@ -40,6 +49,15 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         resp.EnsureSuccessStatusCode();
         var data = await resp.Content.ReadFromJsonAsync<CreateGameRes>();
         return data?.gameId ?? Guid.Empty;
+    }
+
+    private async Task<CreateGameWithModeRes> CreateGameWithModeAsync(HttpClient client, BracketMode bracketMode)
+    {
+        var resp = await client.PostAsJsonAsync("/Games/CreateGameWithMode", new { bracketMode = bracketMode.ToString() });
+        resp.EnsureSuccessStatusCode();
+        var data = await resp.Content.ReadFromJsonAsync<CreateGameWithModeRes>(SerializerOptions);
+        Assert.NotNull(data);
+        return data!;
     }
 
     private async Task<List<(HttpClient client, Player player)>> CreateDummyEntitiesWithAuthentication(Guid gameId, int numberOfPlayers)
@@ -108,7 +126,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         for (int i = 0; i < expected; i++) await CreateGameAsync(client);
         var getResponse = await client.GetAsync("/Games/getAllGames");
         getResponse.EnsureSuccessStatusCode();
-        var responseData = await getResponse.Content.ReadFromJsonAsync<GetAllGamesRes>();
+        var responseData = await getResponse.Content.ReadFromJsonAsync<GetAllGamesRes>(SerializerOptions);
         Assert.Equal(expected, responseData?.games?.Count);
     }
 
@@ -120,10 +138,8 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         var gameId = await CreateGameAsync(client);
         var nextResponse = await client.GetAsync($"/Games/GetGameById/{gameId}");
         nextResponse.EnsureSuccessStatusCode();
-        var serializerOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        serializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
         var nextResponseData = await nextResponse.Content.ReadFromJsonAsync<GetByIdRes>(
-            serializerOptions);
+            SerializerOptions);
         Assert.Equal(gameId, nextResponseData?.game?.Id);
     }
 
@@ -240,10 +256,8 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         var gameResponse = await authenticatedClient.GetAsync($"/Games/GetGameById/{gameId}");
         gameResponse.EnsureSuccessStatusCode();
 
-        var serializerOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-        serializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
         var gameData = await gameResponse.Content.ReadFromJsonAsync<GetByIdRes>(
-            serializerOptions);
+            SerializerOptions);
 
         Assert.NotNull(gameData?.game);
         Assert.NotEmpty(gameData!.game.currentPlayers);
@@ -303,6 +317,55 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         }
         var startGameResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
         startGameResponse.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task CreateGameWithModeReturnsRequestedBracketMode()
+    {
+        var client = NewClient();
+        var response = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
+
+        Assert.NotEqual(Guid.Empty, response.gameId);
+        Assert.Equal(BracketMode.DOUBLE_ELIMINATION, response.bracketMode);
+    }
+
+    [Fact]
+    public async Task DoubleEliminationBracketEndpointsReturnSnapshotAndSupportCurrentMatchRoute()
+    {
+        var client = NewClient();
+        var gameResponse = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
+        var gameId = gameResponse.gameId;
+
+        var playerSessions = await CreateDummyEntitiesWithAuthentication(gameId, 4);
+        foreach (var (playerClient, player) in playerSessions)
+        {
+            var addPlayerResponse = await playerClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", player);
+            addPlayerResponse.EnsureSuccessStatusCode();
+        }
+
+        var startGameResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
+        startGameResponse.EnsureSuccessStatusCode();
+
+        var bracketResponse = await client.GetAsync($"/Games/GetBracket/{gameId}");
+        bracketResponse.EnsureSuccessStatusCode();
+        var snapshot = await bracketResponse.Content.ReadFromJsonAsync<BracketSnapshotResponse>(SerializerOptions);
+        Assert.NotNull(snapshot);
+        Assert.Equal(BracketMode.DOUBLE_ELIMINATION, snapshot!.Mode);
+
+        var currentMatchResponse = await client.GetAsync($"/Games/GetCurrentMatch/{gameId}");
+        if (currentMatchResponse.StatusCode == HttpStatusCode.NotFound)
+        {
+            Assert.Equal(HttpStatusCode.NotFound, currentMatchResponse.StatusCode);
+            return;
+        }
+
+        currentMatchResponse.EnsureSuccessStatusCode();
+        var currentMatch = await currentMatchResponse.Content.ReadFromJsonAsync<CurrentMatchResponse>(SerializerOptions);
+        Assert.NotNull(currentMatch);
+
+        var reportRequest = new ReportMatchRequest(currentMatch!.MatchId, currentMatch.PlayerOneId);
+        var reportResponse = await client.PostAsJsonAsync($"/Games/ReportMatch/{gameId}", reportRequest);
+        reportResponse.EnsureSuccessStatusCode();
     }
 
 

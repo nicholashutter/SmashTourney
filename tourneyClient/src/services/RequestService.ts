@@ -14,9 +14,25 @@ export interface ApiEndpoint
 const RequestBuilder = {
   getAllGames: { method: "GET", path: "/Games/getAllGames" },
   createGame: { method: "POST", path: "/Games/CreateGame" },
+  createGameWithMode: { method: "POST", path: "/Games/CreateGameWithMode" },
   getGameById: {
     method: "GET",
     path: "/Games/GetGameById/{gameId}",
+    params: ["gameId"]
+  },
+  getBracket: {
+    method: "GET",
+    path: "/Games/GetBracket/{gameId}",
+    params: ["gameId"]
+  },
+  getCurrentMatch: {
+    method: "GET",
+    path: "/Games/GetCurrentMatch/{gameId}",
+    params: ["gameId"]
+  },
+  reportMatch: {
+    method: "POST",
+    path: "/Games/ReportMatch/{gameId}",
     params: ["gameId"]
   },
   endGame: {

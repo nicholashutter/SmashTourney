@@ -2,13 +2,18 @@ namespace Services;
 
 using System.Security;
 using System.Security.Claims;
+using Contracts;
 using Entities;
+using Enums;
 using Microsoft.Extensions.Configuration.UserSecrets;
 
 public interface IGameService
 {
     // API route /NewGame
     Task<Guid> CreateGame();
+
+    // API route /Games/CreateGameWithMode
+    Task<Guid> CreateGame(CreateGameOptions options);
 
     // API route /EndGame
     bool EndGame(Guid endGameId);
@@ -52,4 +57,13 @@ public interface IGameService
 
     // API route EndMatch
     Task<bool> EndMatchAsync(Guid gameId, Player matchWinner);
+
+    // API route /Games/GetBracket/{gameId}
+    Task<BracketSnapshotResponse?> GetBracketSnapshotAsync(Guid gameId);
+
+    // API route /Games/GetCurrentMatch/{gameId}
+    Task<CurrentMatchResponse?> GetCurrentMatchAsync(Guid gameId);
+
+    // API route /Games/ReportMatch/{gameId}
+    Task<bool> ReportMatchResultAsync(Guid gameId, ReportMatchRequest request);
 }

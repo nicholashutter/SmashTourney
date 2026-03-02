@@ -19,6 +19,11 @@ public class ConnectionHub : Hub
 
     }
 
+    public async Task JoinGameGroup(string gameId)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, gameId);
+    }
+
     public async Task UpdatePlayers(string gameId)
     {
         var players = await _gameService.GetPlayersInGame(Guid.Parse(gameId));
@@ -28,6 +33,9 @@ public class ConnectionHub : Hub
 
     }
 
-
+    public async Task NotifyGameStarted(string gameId)
+    {
+        await Clients.Group(gameId).SendAsync("GameStarted", gameId);
+    }
 
 }

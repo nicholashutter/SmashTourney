@@ -1,6 +1,6 @@
 
 import { describe, test, expect } from 'vitest';
-import { validateInput } from '../src/services/ValidationService';
+import { validateInput } from '../src/services/validationService';
 
 describe('validationService', () =>
 {

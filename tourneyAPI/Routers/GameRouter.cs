@@ -1,5 +1,6 @@
 namespace Routers;
 
+using Contracts;
 using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -40,6 +41,17 @@ public static class GameRouter
             Guid gameId = await gameService.CreateGame();
 
             var response = new { GameId = gameId };
+
+            return Results.Ok(response);
+        });
+
+        GameRoutes.MapPost("/CreateGameWithMode", async (HttpContext context, IGameService gameService, CreateGameOptions options) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/Games/CreateGameWithMode' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            Guid gameId = await gameService.CreateGame(options);
+
+            var response = new { GameId = gameId, options.BracketMode };
 
             return Results.Ok(response);
         });
@@ -214,6 +226,45 @@ public static class GameRouter
 
                     return Results.Ok($"Current match for game {gameId} ended");
                 });
+
+        GameRoutes.MapGet("/GetBracket/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        {
+            Log.Information("Request Type: Get \n URL: '/Games/GetBracket' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var snapshot = await gameService.GetBracketSnapshotAsync(gameId);
+            if (snapshot is null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(snapshot);
+        });
+
+        GameRoutes.MapGet("/GetCurrentMatch/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        {
+            Log.Information("Request Type: Get \n URL: '/Games/GetCurrentMatch' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var currentMatch = await gameService.GetCurrentMatchAsync(gameId);
+            if (currentMatch is null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(currentMatch);
+        });
+
+        GameRoutes.MapPost("/ReportMatch/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId, ReportMatchRequest request) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/Games/ReportMatch' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var success = await gameService.ReportMatchResultAsync(gameId, request);
+            if (!success)
+            {
+                return Results.Problem("Match report could not be applied", statusCode: 501);
+            }
+
+            return Results.Ok();
+        });
 
     }
 }

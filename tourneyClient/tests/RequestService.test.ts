@@ -281,3 +281,96 @@ test("CreateTourney flow enforces auth and succeeds when authenticated", async (
     expect((fetch as any).mock.calls[2][0]).toContain(`/Games/AddPlayer/${gameId}`);
     expect((fetch as any).mock.calls[2][1].credentials).toBe("include");
 });
+
+test("RequestService createGameWithMode sends bracketMode payload", async () =>
+{
+    (fetch as any).mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => "application/json" },
+        text: async () => JSON.stringify({ gameId: "mode-game-id", bracketMode: "DOUBLE_ELIMINATION" })
+    });
+
+    const result = await RequestService<"createGameWithMode", { bracketMode: string }, { gameId: string; bracketMode: string }>(
+        "createGameWithMode",
+        {
+            body: { bracketMode: "DOUBLE_ELIMINATION" }
+        }
+    );
+
+    expect(result.gameId).toBe("mode-game-id");
+    expect(result.bracketMode).toBe("DOUBLE_ELIMINATION");
+
+    const [url, options] = (fetch as any).mock.calls[0];
+    expect(url).toContain("/Games/CreateGameWithMode");
+    expect(options.method).toBe("POST");
+    expect(JSON.parse(options.body)).toEqual({ bracketMode: "DOUBLE_ELIMINATION" });
+});
+
+test("RequestService bracket routes interpolate gameId and parse responses", async () =>
+{
+    const gameId = "7b6f5f95-0e8e-46c6-bb96-ce52726332d2";
+    const currentMatch = {
+        gameId,
+        matchId: "43db2e62-f1fc-4c67-81ca-3578886f3d34",
+        lane: "WINNERS",
+        round: 1,
+        matchNumber: 1,
+        playerOneId: "8aa22920-a8ea-4db7-81d8-91773893ce2a",
+        playerTwoId: "12761655-f130-42fb-8378-6566adf08d90"
+    };
+
+    const bracketSnapshot = {
+        gameId,
+        mode: "DOUBLE_ELIMINATION",
+        gameStarted: true,
+        isGrandFinalResetRequired: false,
+        players: [],
+        matches: []
+    };
+
+    (fetch as any)
+        .mockResolvedValueOnce({
+            ok: true,
+            headers: { get: () => "application/json" },
+            text: async () => JSON.stringify(bracketSnapshot)
+        })
+        .mockResolvedValueOnce({
+            ok: true,
+            headers: { get: () => "application/json" },
+            text: async () => JSON.stringify(currentMatch)
+        })
+        .mockResolvedValueOnce({
+            ok: true,
+            status: 204,
+            headers: { get: () => "" },
+            text: async () => ""
+        });
+
+    const snapshotResult = await RequestService<"getBracket", never, typeof bracketSnapshot>("getBracket", {
+        routeParams: { gameId }
+    });
+
+    const currentMatchResult = await RequestService<"getCurrentMatch", never, typeof currentMatch>("getCurrentMatch", {
+        routeParams: { gameId }
+    });
+
+    const reportResult = await RequestService<"reportMatch", { matchId: string; winnerPlayerId: string }, void>("reportMatch", {
+        routeParams: { gameId },
+        body: {
+            matchId: currentMatch.matchId,
+            winnerPlayerId: currentMatch.playerOneId
+        }
+    });
+
+    expect(snapshotResult.mode).toBe("DOUBLE_ELIMINATION");
+    expect(currentMatchResult.matchId).toBe(currentMatch.matchId);
+    expect(reportResult).toBeUndefined();
+
+    expect((fetch as any).mock.calls[0][0]).toContain(`/Games/GetBracket/${gameId}`);
+    expect((fetch as any).mock.calls[1][0]).toContain(`/Games/GetCurrentMatch/${gameId}`);
+    expect((fetch as any).mock.calls[2][0]).toContain(`/Games/ReportMatch/${gameId}`);
+    expect(JSON.parse((fetch as any).mock.calls[2][1].body)).toEqual({
+        matchId: currentMatch.matchId,
+        winnerPlayerId: currentMatch.playerOneId
+    });
+});

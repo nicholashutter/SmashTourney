@@ -10,12 +10,12 @@ import { useNavigate } from 'react-router';
 import { useGameData } from "@/hooks/useGameData";
 import HeadingTwo from "@/components/HeadingTwo";
 import { Character } from "@/models/entities/Character";
+import { CreateGameWithModeRequest, CreateGameWithModeResponse } from "@/models/entities/Bracket";
 import { CharacterName } from "@/models/Enums/CharacterName";
 import { Archetype } from "@/models/Enums/Archetype";
 import { FallSpeed } from "@/models/Enums/FallSpeed";
 import { TierPlacement } from "@/models/Enums/TierPlacement";
 import { WeightClass } from "@/models/Enums/WeightClass";
-import { Player } from "@/models/entities/Player";
 import { v4 as uuidv4 } from "uuid";
 import PersistentConnection from "@/services/PersistentConnection";
 import
@@ -30,26 +30,26 @@ import
 
 const CreateTourney = () =>
 {
-  type CreateGameResponse = {
-    gameId?: string;
-    GameId?: string;
-  };
-
   type SessionStatusResponse = {
+    UserId?: string;
     UserName?: string;
   };
 
-  type BackendCharacterPayload = {
-    id: string;
-    characterName: keyof typeof CharacterName;
-    archetype: keyof typeof Archetype;
-    fallSpeed: keyof typeof FallSpeed;
-    tierPlacement: keyof typeof TierPlacement;
-    weightClass: keyof typeof WeightClass;
-  };
-
-  type AddPlayerPayload = Omit<Player, "currentCharacter"> & {
-    currentCharacter: BackendCharacterPayload;
+  type AddPlayerPayload = {
+    Id: string;
+    userId: string;
+    displayName: string;
+    currentScore: number;
+    currentRound: number;
+    currentCharacter: {
+      id: string;
+      characterName: keyof typeof CharacterName;
+      archetype: keyof typeof Archetype;
+      fallSpeed: keyof typeof FallSpeed;
+      tierPlacement: keyof typeof TierPlacement;
+      weightClass: keyof typeof WeightClass;
+    };
+    currentGameId: string;
   };
 
   const getEnumKeyByValue = <TMap extends Record<string, string>>(
@@ -149,23 +149,47 @@ const CreateTourney = () =>
     try
     {
       //call request service and provide no body object since our api does not need a body for createGame
-      const response = await RequestService<"createGame", never, CreateGameResponse>("createGame");
+      const selectedMode = gameType ? "DOUBLE_ELIMINATION" : "SINGLE_ELIMINATION";
+      const response = await RequestService<"createGameWithMode", CreateGameWithModeRequest, CreateGameWithModeResponse>(
+        "createGameWithMode",
+        {
+          body: {
+            bracketMode: selectedMode
+          }
+        }
+      );
       const gameId = response?.gameId ?? response?.GameId;
 
       if (validateGameIdResponse(gameId ?? ""))
       {
-        const session = await RequestService<"sessionStatus", never, SessionStatusResponse>("sessionStatus");
-        const hostDisplayName = session?.UserName?.trim() ?? "";
+        let hostUserId = "";
+        let hostDisplayName = "";
+
+        try
+        {
+          const session = await RequestService<"sessionStatus", never, SessionStatusResponse>("sessionStatus");
+          hostUserId = session?.UserId?.trim() ?? "";
+          hostDisplayName = session?.UserName?.trim() ?? "";
+        }
+        catch (error)
+        {
+          console.error("Failed to resolve session details before AddPlayer", error);
+        }
 
         if (!hostDisplayName)
         {
-          window.alert(SERVER_ERROR("Create Tourney"));
-          return;
+          hostDisplayName = "Host";
+        }
+
+        if (!hostUserId)
+        {
+          hostUserId = "host-user";
         }
 
         const hostPlayerId = uuidv4();
         const hostPlayerPayload: AddPlayerPayload = {
           Id: hostPlayerId,
+          userId: hostUserId,
           displayName: hostDisplayName,
           currentScore: 0,
           currentRound: 0,
@@ -193,8 +217,9 @@ const CreateTourney = () =>
           await lobbyConnection.createPlayerConnection(gameId!);
           await lobbyConnection.updateOthers(gameId!);
         }
-        catch
+        catch (error)
         {
+          console.error("Failed to notify lobby updates", error);
         }
         finally
         {
@@ -214,8 +239,9 @@ const CreateTourney = () =>
         window.alert(SERVER_ERROR("Create Tourney"));
       }
     }
-    catch
+    catch (error)
     {
+      console.error("Create Tourney submit failed", error);
       window.alert(SERVER_ERROR("Create Tourney"));
     }
 

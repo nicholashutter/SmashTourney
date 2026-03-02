@@ -13,10 +13,12 @@ import InMatch from './pages/InMatch.tsx';
 import ShowBracket from './pages/ShowBracket.tsx';
 import { GameDataProvider } from './components/GameIdContext.tsx';
 import RequireAuth from './components/RequireAuth.tsx';
+import GameSessionGuard from './components/GameSessionGuard.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <GameDataProvider>
     <BrowserRouter>
+      <GameSessionGuard />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/signUp" element={<SignUp />} />

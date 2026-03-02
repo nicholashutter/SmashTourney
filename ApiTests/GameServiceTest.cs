@@ -1,7 +1,9 @@
 namespace ApiTests;
 
 using System.Threading.Tasks;
+using Contracts;
 using Entities;
+using Enums;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.Extensions.DependencyInjection;
@@ -176,6 +178,70 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         var (gameId, _, players) = await CreateGameWithPlayersAsync(10);
         var playersInGame = await _gameService.GetPlayersInGame(gameId);
         Assert.Equal(players.Count, playersInGame.Count);
+    }
+
+    [Fact]
+    public async Task DoubleEliminationStartGameInitializesBracketSnapshot()
+    {
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.DOUBLE_ELIMINATION));
+        var users = await SetupDummyUsersAsync(4);
+        var players = await SetupDummyPlayersAsync(users);
+
+        for (int i = 0; i < players.Count; i++)
+        {
+            _gameService.AddPlayerToGame(players[i], gameId, users[i].Id);
+        }
+
+        var started = await _gameService.StartGameAsync(gameId);
+        Assert.True(started);
+
+        var snapshot = await _gameService.GetBracketSnapshotAsync(gameId);
+        Assert.NotNull(snapshot);
+        Assert.Equal(BracketMode.DOUBLE_ELIMINATION, snapshot!.Mode);
+        Assert.NotEmpty(snapshot.Matches);
+        Assert.Contains(snapshot.Matches, match => match.Status == BracketMatchStatus.READY);
+    }
+
+    [Fact]
+    public async Task DoubleEliminationReportMatchPersistsAndHydratesAcrossLoadGame()
+    {
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.DOUBLE_ELIMINATION));
+        var users = await SetupDummyUsersAsync(4);
+        var players = await SetupDummyPlayersAsync(users);
+
+        for (int i = 0; i < players.Count; i++)
+        {
+            _gameService.AddPlayerToGame(players[i], gameId, users[i].Id);
+        }
+
+        var started = await _gameService.StartGameAsync(gameId);
+        Assert.True(started);
+
+        var currentMatch = await _gameService.GetCurrentMatchAsync(gameId);
+        Assert.NotNull(currentMatch);
+
+        var reportSuccess = await _gameService.ReportMatchResultAsync(
+            gameId,
+            new ReportMatchRequest(currentMatch!.MatchId, currentMatch.PlayerOneId)
+        );
+        Assert.True(reportSuccess);
+
+        var beforeUnloadSnapshot = await _gameService.GetBracketSnapshotAsync(gameId);
+        Assert.NotNull(beforeUnloadSnapshot);
+        var completedBeforeUnload = beforeUnloadSnapshot!.Matches.Count(match => match.Status == BracketMatchStatus.COMPLETE);
+        Assert.True(completedBeforeUnload >= 1);
+
+        var ended = _gameService.EndGame(gameId);
+        Assert.True(ended);
+
+        var loaded = await _gameService.LoadGameAsync(gameId);
+        Assert.True(loaded);
+
+        var afterLoadSnapshot = await _gameService.GetBracketSnapshotAsync(gameId);
+        Assert.NotNull(afterLoadSnapshot);
+        var completedAfterLoad = afterLoadSnapshot!.Matches.Count(match => match.Status == BracketMatchStatus.COMPLETE);
+        Assert.Equal(completedBeforeUnload, completedAfterLoad);
+        Assert.Equal(BracketMode.DOUBLE_ELIMINATION, afterLoadSnapshot.Mode);
     }
 
     [Fact]
