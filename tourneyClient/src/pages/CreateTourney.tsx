@@ -31,13 +31,14 @@ import
 const CreateTourney = () =>
 {
   type SessionStatusResponse = {
+    userId?: string;
+    userName?: string;
     UserId?: string;
     UserName?: string;
   };
 
   type AddPlayerPayload = {
     Id: string;
-    userId: string;
     displayName: string;
     currentScore: number;
     currentRound: number;
@@ -49,7 +50,7 @@ const CreateTourney = () =>
       tierPlacement: keyof typeof TierPlacement;
       weightClass: keyof typeof WeightClass;
     };
-    currentGameId: string;
+    currentGameID: string;
   };
 
   const getEnumKeyByValue = <TMap extends Record<string, string>>(
@@ -168,12 +169,19 @@ const CreateTourney = () =>
         try
         {
           const session = await RequestService<"sessionStatus", never, SessionStatusResponse>("sessionStatus");
-          hostUserId = session?.UserId?.trim() ?? "";
-          hostDisplayName = session?.UserName?.trim() ?? "";
+          hostUserId = (session?.UserId ?? session?.userId ?? "").trim();
+          hostDisplayName = (session?.UserName ?? session?.userName ?? "").trim();
         }
         catch (error)
         {
           console.error("Failed to resolve session details before AddPlayer", error);
+        }
+
+        if (!hostUserId)
+        {
+          window.alert("Your session appears to have expired. Please log in again.");
+          navigate("/");
+          return;
         }
 
         if (!hostDisplayName)
@@ -181,27 +189,21 @@ const CreateTourney = () =>
           hostDisplayName = "Host";
         }
 
-        if (!hostUserId)
-        {
-          hostUserId = "host-user";
-        }
-
         const hostPlayerId = uuidv4();
         const hostPlayerPayload: AddPlayerPayload = {
           Id: hostPlayerId,
-          userId: hostUserId,
           displayName: hostDisplayName,
           currentScore: 0,
           currentRound: 0,
           currentCharacter: {
-            id: currentCharacter.id,
+            id: uuidv4(),
             characterName: mappedCharacterName,
             archetype: mappedArchetype,
             fallSpeed: mappedFallSpeed,
             tierPlacement: mappedTierPlacement,
             weightClass: mappedWeightClass,
           },
-          currentGameId: gameId!,
+          currentGameID: gameId!,
         };
 
         await RequestService("addPlayers", {
