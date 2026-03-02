@@ -2,27 +2,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "API: Run (http-dummy-users)",
+            "name": "Run Dev PS",
             "type": "node-terminal",
             "request": "launch",
-            "command": "dotnet run --project tourneyAPI --launch-profile http-dummy-users",
+            "command": "powershell -NoExit -Command \"Start-Process powershell -ArgumentList '-NoExit','-Command','Set-Location ''${workspaceFolder}/tourneyClient''; npm run dev'; Set-Location '${workspaceFolder}'; dotnet run --project tourneyAPI --launch-profile http-dummy-users\"",
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "Web: Vite Dev Server",
+            "name": "Run Dev Bash",
             "type": "node-terminal",
             "request": "launch",
-            "command": "powershell -NoExit -Command \"Set-Location '${workspaceFolder}/tourneyClient'; npm run dev\""
-        }
-    ],
-    "compounds": [
-        {
-            "name": "Run Dev",
-            "configurations": [
-                "Web: Vite Dev Server",
-                "API: Run (http-dummy-users)"
-            ],
-            "stopAll": true
+            "command": "bash -lc \"cd '${workspaceFolder}/tourneyClient' && npm run dev & cd '${workspaceFolder}' && dotnet run --project tourneyAPI --launch-profile http-dummy-users\"",
+            "cwd": "${workspaceFolder}"
         }
     ]
 }

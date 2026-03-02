@@ -2,38 +2,31 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "test: vitest (run once)",
+            "label": "Run Dev PS",
             "type": "shell",
-            "command": "npm",
+            "command": "powershell",
             "args": [
-                "run",
-                "test",
-                "--",
-                "--run"
+                "-NoExit",
+                "-Command",
+                "Start-Process powershell -ArgumentList '-NoExit','-Command','Set-Location ''${workspaceFolder}/tourneyClient''; npm run dev'; Set-Location '${workspaceFolder}'; dotnet run --project tourneyAPI --launch-profile http-dummy-users"
             ],
-            "options": {
-                "cwd": "${workspaceFolder}/tourneyClient"
-            }
-        },
-        {
-            "label": "test: dotnet",
-            "type": "shell",
-            "command": "dotnet",
-            "args": [
-                "test",
-                "${workspaceFolder}/tourneyAPI.sln"
-            ],
+            "isBackground": true,
             "options": {
                 "cwd": "${workspaceFolder}"
             }
         },
         {
-            "label": "validate: tests",
-            "dependsOrder": "sequence",
-            "dependsOn": [
-                "test: vitest (run once)",
-                "test: dotnet"
-            ]
+            "label": "Run Dev Bash",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-lc",
+                "cd '${workspaceFolder}/tourneyClient' && npm run dev & cd '${workspaceFolder}' && dotnet run --project tourneyAPI --launch-profile http-dummy-users"
+            ],
+            "isBackground": true,
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
         }
     ]
 }
