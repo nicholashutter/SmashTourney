@@ -48,10 +48,30 @@ builder.Services.AddCors(options =>
     options.AddDefaultPolicy(
         policy =>
         {
-            policy.WithOrigins(AppConstants.ClientUrl)
-            .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+            if (builder.Environment.IsDevelopment())
+            {
+                policy
+                    .SetIsOriginAllowed(origin =>
+                    {
+                        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                        {
+                            return false;
+                        }
+
+                        return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                            || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+                    })
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+            }
+            else
+            {
+                policy.WithOrigins(AppConstants.ClientUrl)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+            }
         });
 });
 

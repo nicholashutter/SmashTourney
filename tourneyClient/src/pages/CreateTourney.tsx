@@ -4,7 +4,7 @@ import BasicHeading from "@/components/HeadingOne";
 import BasicInput from "@/components/BasicInput";
 import SubmitButton from "@/components/SubmitButton";
 import { RequestService } from "@/services/RequestService";
-import { validateGameIdResponse, validateTotalPlayers } from "@/services/validationService";
+import { validateGameIdResponse, validateInput, validateTotalPlayers } from "@/services/validationService";
 import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS, SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
 import { useNavigate } from 'react-router';
 import { useGameData } from "@/hooks/useGameData";
@@ -76,6 +76,7 @@ const CreateTourney = () =>
   //gameType false is single elimination
   //will set this with an enum like object
   const [gameType, setGameType] = useState(false);
+  const [displayName, setDisplayName] = useState("");
   const [characters, setCharacters] = useState<Character[]>([]);
   const [currentCharacter, setCurrentCharacter] = useState({} as Character);
 
@@ -94,6 +95,36 @@ const CreateTourney = () =>
     fetchAllCharacters();
   }, []);
 
+  useEffect(() =>
+  {
+    let mounted = true;
+
+    const preloadDisplayName = async () =>
+    {
+      try
+      {
+        const session = await RequestService<"sessionStatus", never, SessionStatusResponse>("sessionStatus");
+        const sessionUserName = (session?.UserName ?? session?.userName ?? "").trim();
+
+        if (mounted && sessionUserName)
+        {
+          setDisplayName((existing) => existing || sessionUserName);
+        }
+      }
+      catch (error)
+      {
+        console.error("Unable to preload player name from session", error);
+      }
+    };
+
+    preloadDisplayName();
+
+    return () =>
+    {
+      mounted = false;
+    };
+  }, []);
+
   //handle max player selection
   const handleMaxPlayers = (e: ChangeEvent<HTMLInputElement>) =>
   {
@@ -108,6 +139,19 @@ const CreateTourney = () =>
       window.alert(INVALID_CHARACTERS("Number of Players"));
     }
 
+  }
+
+  const displayNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
+  {
+    const validateDisplayName = validateInput(e.target.value);
+    if (validateDisplayName.isValid)
+    {
+      setDisplayName(e.target.value);
+    }
+    else
+    {
+      window.alert(INVALID_CHARACTERS("Display Name"));
+    }
   }
 
   //handle select game selection
@@ -186,7 +230,13 @@ const CreateTourney = () =>
 
         if (!hostDisplayName)
         {
-          hostDisplayName = "Host";
+          hostDisplayName = displayName.trim();
+        }
+
+        if (!hostDisplayName)
+        {
+          window.alert(INVALID_CHARACTERS("Display Name"));
+          return;
         }
 
         const hostPlayerId = uuidv4();
@@ -264,6 +314,7 @@ const CreateTourney = () =>
           <HeadingTwo headingText={`Mode: ${gameType ? "Double Elimination" : "Single Elimination"}`} />
           <HeadingTwo headingText={`Enter Total Players (Up to ${MAX_SUPPORTED_PLAYERS})`} />
           <BasicInput labelText="" htmlFor="maxPlayers" name="maxPlayers" id="maxPlayers" value={numPlayers} onChange={handleMaxPlayers} />
+          <BasicInput labelText="Enter Player Name:" htmlFor="playerName" id="displayName" name="displayName" value={displayName} onChange={displayNameHandler} />
           <DropdownMenu>
             <DropdownMenuTrigger className="shrink p-2 m-2 bg-white hover:ring-2 hover:ring-green-400 text-black  font-bold rounded shadow-md 
       transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">{currentCharacter.characterName || "Choose Your Fighter"}</DropdownMenuTrigger>

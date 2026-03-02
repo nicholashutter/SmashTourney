@@ -21,8 +21,8 @@ class SignalRService
     }
     /**
    * Establishes a SignalR connection and sets up event listeners.
-   * - "Successfully Joined" triggers updateOthers(gameId)
-   * - "PlayersUpdated" invokes the registered callback with updated player data
+   * "Successfully Joined" triggers updateOthers(gameId)
+   * "PlayersUpdated" invokes the registered callback with updated player data
    */
     public async createPlayerConnection(gameId?: string)
     {

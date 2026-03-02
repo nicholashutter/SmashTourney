@@ -31,6 +31,11 @@ import
 
 const JoinTourney = () =>
 {
+  type SessionStatusResponse = {
+    userName?: string;
+    UserName?: string;
+  };
+
   type BackendCharacterPayload = {
     id: string;
     characterName: keyof typeof CharacterName;
@@ -101,6 +106,36 @@ const JoinTourney = () =>
 
     //Run the async loader function
     fetchAllCharacters();
+  }, []);
+
+  useEffect(() =>
+  {
+    let mounted = true;
+
+    const preloadDisplayName = async () =>
+    {
+      try
+      {
+        const session = await RequestService<"sessionStatus", never, SessionStatusResponse>("sessionStatus");
+        const sessionUserName = (session?.UserName ?? session?.userName ?? "").trim();
+
+        if (mounted && sessionUserName)
+        {
+          setDisplayName((existing) => existing || sessionUserName);
+        }
+      }
+      catch (error)
+      {
+        console.error("Unable to preload player name from session", error);
+      }
+    };
+
+    preloadDisplayName();
+
+    return () =>
+    {
+      mounted = false;
+    };
   }, []);
 
   const gameIdHandler = (e: ChangeEvent<HTMLInputElement>) =>
