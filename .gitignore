@@ -26,9 +26,8 @@ Migrations/
 .idea/
 
 # Visual Studio Code settings
-.vscode/
+**/.vscode/*
 !.vscode/
-.vscode/*
 !.vscode/launch.json
 !.vscode/tasks.json
 
