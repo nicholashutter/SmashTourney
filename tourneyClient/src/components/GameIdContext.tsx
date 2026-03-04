@@ -1,24 +1,24 @@
 import { useEffect, useState, ReactNode } from "react";
 import { GameDataContext } from "@/components/GameDataContext";
 
-
-//define and export the provider component for the gameDataContext object
-export const GameDataProvider = ({ children }: { children: ReactNode }) => 
+// Provides persisted game session values to child routes.
+export const GameDataProvider = ({ children }: { children: ReactNode }) =>
 {
-    const [gameId, setGameId] = useState<string | null>(() => localStorage.getItem("gameId"));
-    const [playerId, setPlayerId] = useState<string | null>(() => localStorage.getItem("playerId"));
-    const [gameStarted, setGameStarted] = useState<boolean>(() => localStorage.getItem("gameStarted") === "true");
-    const [currentRoute, setCurrentRoute] = useState<string | null>(() => localStorage.getItem("currentRoute"));
+    const [gameId, setGameId] = useState<string | null>(sessionStorage.getItem("gameId"));
+    const [playerId, setPlayerId] = useState<string | null>(sessionStorage.getItem("playerId"));
+    const [isHost, setIsHost] = useState<boolean>(sessionStorage.getItem("isHost") === "true");
+    const [gameStarted, setGameStarted] = useState<boolean>(sessionStorage.getItem("gameStarted") === "true");
+    const [currentRoute, setCurrentRoute] = useState<string | null>(sessionStorage.getItem("currentRoute"));
 
     useEffect(() =>
     {
         if (gameId)
         {
-            localStorage.setItem("gameId", gameId);
+            sessionStorage.setItem("gameId", gameId);
         }
         else
         {
-            localStorage.removeItem("gameId");
+            sessionStorage.removeItem("gameId");
         }
     }, [gameId]);
 
@@ -26,45 +26,50 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) =>
     {
         if (playerId)
         {
-            localStorage.setItem("playerId", playerId);
+            sessionStorage.setItem("playerId", playerId);
         }
         else
         {
-            localStorage.removeItem("playerId");
+            sessionStorage.removeItem("playerId");
         }
     }, [playerId]);
 
     useEffect(() =>
     {
-        localStorage.setItem("gameStarted", gameStarted ? "true" : "false");
+        sessionStorage.setItem("isHost", isHost ? "true" : "false");
+    }, [isHost]);
+
+    useEffect(() =>
+    {
+        sessionStorage.setItem("gameStarted", gameStarted ? "true" : "false");
     }, [gameStarted]);
 
     useEffect(() =>
     {
         if (currentRoute)
         {
-            localStorage.setItem("currentRoute", currentRoute);
+            sessionStorage.setItem("currentRoute", currentRoute);
         }
         else
         {
-            localStorage.removeItem("currentRoute");
+            sessionStorage.removeItem("currentRoute");
         }
     }, [currentRoute]);
 
     return (
-        <GameDataContext.Provider value=
-            {
-                {
-                    gameId: gameId,
-                    playerId: playerId,
-                    gameStarted: gameStarted,
-                    currentRoute: currentRoute,
-                    setGameId: setGameId,
-                    setPlayerId: setPlayerId,
-                    setGameStarted: setGameStarted,
-                    setCurrentRoute: setCurrentRoute,
-                }
-            }
+        <GameDataContext.Provider
+            value={{
+                gameId,
+                playerId,
+                isHost,
+                gameStarted,
+                currentRoute,
+                setGameId,
+                setPlayerId,
+                setIsHost,
+                setGameStarted,
+                setCurrentRoute,
+            }}
         >
             {children}
         </GameDataContext.Provider>

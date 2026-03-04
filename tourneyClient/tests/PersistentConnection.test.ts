@@ -7,12 +7,14 @@ import Marth from '../src/models/entities/Characters/Marth';
 // Mock HubConnection and its methods
 // Create a reusable mock connection object
 const mockOn = vi.fn();
+const mockOnReconnected = vi.fn();
 const mockStart = vi.fn().mockResolvedValue(undefined);
 const mockInvoke = vi.fn().mockResolvedValue(undefined);
 const mockStop = vi.fn().mockResolvedValue(undefined);
 
 const mockConnection = {
   on: mockOn,
+  onreconnected: mockOnReconnected,
   start: mockStart,
   invoke: mockInvoke,
   stop: mockStop,

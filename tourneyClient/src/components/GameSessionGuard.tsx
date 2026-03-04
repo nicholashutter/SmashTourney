@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useGameData } from "@/hooks/useGameData";
 
+// Keeps players on their active game route once a tournament has started.
 const GameSessionGuard = () =>
 {
     const location = useLocation();
@@ -15,27 +16,7 @@ const GameSessionGuard = () =>
         setCurrentRoute,
     } = useGameData();
 
-    const hasRestoredRoute = useRef(false);
-
     const shouldLockNavigation = gameStarted && Boolean(gameId) && Boolean(playerId);
-
-    useEffect(() =>
-    {
-        if (!shouldLockNavigation)
-        {
-            hasRestoredRoute.current = false;
-            return;
-        }
-
-        if (!hasRestoredRoute.current && currentRoute && location.pathname !== currentRoute)
-        {
-            hasRestoredRoute.current = true;
-            navigate(currentRoute, { replace: true });
-            return;
-        }
-
-        hasRestoredRoute.current = true;
-    }, [shouldLockNavigation, currentRoute, location.pathname, navigate]);
 
     useEffect(() =>
     {
@@ -46,6 +27,20 @@ const GameSessionGuard = () =>
 
         setCurrentRoute(location.pathname);
     }, [shouldLockNavigation, location.pathname, setCurrentRoute]);
+
+    useEffect(() =>
+    {
+        if (!shouldLockNavigation)
+        {
+            return;
+        }
+
+        if (location.pathname === "/")
+        {
+            const routeToStayOn = currentRoute || "/showBracket";
+            navigate(routeToStayOn, { replace: true });
+        }
+    }, [shouldLockNavigation, currentRoute, location.pathname, navigate]);
 
     useEffect(() =>
     {

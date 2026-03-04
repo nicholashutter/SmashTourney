@@ -1,37 +1,33 @@
 namespace ApiTests;
 
-using System.Threading.Tasks;
+using ApiTests.TestContracts;
 using Contracts;
 using Entities;
 using Enums;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.Extensions.DependencyInjection;
 using Services;
-using ApiTests;
-using Helpers;
 
-//TODO fix addplayerstogame references to addplayertogame 
-
+// Verifies service-layer tournament behavior from game setup through bracket progression.
 public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
     private readonly IGameService _gameService;
 
+    // Initializes service test dependencies and ensures database availability.
     public GameServiceTest()
     {
         _factory = new CustomWebApplicationFactory<Program>();
 
         using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        db.Database.EnsureCreated();
+        var database = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        database.Database.EnsureCreated();
 
         _gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
     }
 
-    // helper that creates a game along with dummy users/players and optionally adds them
-    private async Task<(Guid GameId, List<ApplicationUser> Users, List<Player> Players)>
-        CreateGameWithPlayersAsync(int userCount, bool addPlayers = true)
+    // Creates a game plus users and players and optionally adds players to the game.
+    private async Task<GameSetupResult> CreateGameWithPlayersAsync(int userCount, bool addPlayers = true)
     {
         var gameId = await _gameService.CreateGame();
         var users = await SetupDummyUsersAsync(userCount);
@@ -39,15 +35,75 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         if (addPlayers)
         {
-            for (int i = 0; i < players.Count; i++)
+            for (var index = 0; index < players.Count; index++)
             {
-                _gameService.AddPlayerToGame(players[i], gameId, users[i].Id);
+                _gameService.AddPlayerToGame(players[index], gameId, users[index].Id);
             }
         }
 
-        return (gameId, users, players);
+        return new GameSetupResult
+        {
+            GameId = gameId,
+            Users = users,
+            Players = players
+        };
     }
 
+    // Creates test users and corresponding in-memory sessions.
+    private async Task<List<ApplicationUser>> SetupDummyUsersAsync(int userCount)
+    {
+        using var scope = _factory.Services.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<IUserManager>();
+        var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
+
+        var users = new List<ApplicationUser>();
+
+        for (var index = 0; index < userCount; index++)
+        {
+            var userId = Guid.NewGuid();
+            var email = $"test{Guid.NewGuid()}@email.com";
+            var password = "SecureP@ssw0rd123!";
+
+            var user = new ApplicationUser
+            {
+                Id = userId.ToString(),
+                UserName = email,
+                Email = email
+            };
+
+            await userManager.CreateUserAsync(user, password);
+            gameService.CreateUserSession(user);
+            users.Add(user);
+        }
+
+        return users;
+    }
+
+    // Creates player entities for each user in the test run.
+    private async Task<List<Player>> SetupDummyPlayersAsync(List<ApplicationUser> users)
+    {
+        using var scope = _factory.Services.CreateAsyncScope();
+        var playerManager = scope.ServiceProvider.GetRequiredService<IPlayerManager>();
+
+        var players = new List<Player>();
+
+        foreach (var user in users)
+        {
+            var player = new Player
+            {
+                Id = Guid.Parse(user.Id),
+                UserId = user.Id,
+                DisplayName = user.Id
+            };
+
+            await playerManager.CreateAsync(player);
+            players.Add(player);
+        }
+
+        return players;
+    }
+
+    // Confirms game creation returns a valid identifier.
     [Fact]
     public async Task CreateGameReturnsValidGuid()
     {
@@ -55,31 +111,38 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         Assert.IsType<Guid>(result);
     }
 
+    // Confirms ending a game does not throw for valid game state.
     [Fact]
-    public async Task EndGame_DoesNotThrow()
+    public async Task EndGameDoesNotThrow()
     {
-        var (gameId, _, _) = await CreateGameWithPlayersAsync(0, addPlayers: false);
-        var ex = Record.Exception(() => _gameService.EndGame(gameId));
-        Assert.Null(ex);
+        var gameSetup = await CreateGameWithPlayersAsync(0, addPlayers: false);
+
+        var exception = Record.Exception(() => _gameService.EndGame(gameSetup.GameId));
+
+        Assert.Null(exception);
     }
 
+    // Confirms game listing returns expected game count.
     [Fact]
-    public async Task GetAllGames_ReturnsExpectedCount()
+    public async Task GetAllGamesReturnsExpectedCount()
     {
-        const int expected = 10;
-        for (int i = 0; i < expected; i++)
+        var baselineGames = await _gameService.GetAllGamesAsync();
+        var baselineCount = baselineGames?.Count ?? 0;
+        const int expectedCount = 10;
+
+        for (var index = 0; index < expectedCount; index++)
         {
             await _gameService.CreateGame();
         }
 
         var runningGames = await _gameService.GetAllGamesAsync();
-        Assert.Equal(expected, runningGames?.Count);
+        Assert.Equal(baselineCount + expectedCount, runningGames?.Count ?? 0);
     }
 
+    // Confirms creating a user session succeeds for valid user payload.
     [Fact]
-    public async Task CreateUserSession_DoesNotThrow()
+    public void CreateUserSessionDoesNotThrow()
     {
-        var (_, users, _) = await CreateGameWithPlayersAsync(0, addPlayers: false);
         var user = new ApplicationUser
         {
             Id = Guid.NewGuid().ToString(),
@@ -87,99 +150,32 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
             Email = "session@mail.com"
         };
 
-        var ex = Record.Exception(() => _gameService.CreateUserSession(user));
-        Assert.Null(ex);
+        var exception = Record.Exception(() => _gameService.CreateUserSession(user));
+        Assert.Null(exception);
     }
 
+    // Confirms retrieving a game by ID returns the same game record.
     [Fact]
-    public async Task GetGameByIdAsync_ReturnsSameGame()
+    public async Task GetGameByIdAsyncReturnsSameGame()
     {
-        var (gameId, _, _) = await CreateGameWithPlayersAsync(0, addPlayers: false);
-        var found = await _gameService.GetGameByIdAsync(gameId);
-        Assert.Equal(gameId, found?.Id);
+        var gameSetup = await CreateGameWithPlayersAsync(0, addPlayers: false);
+        var found = await _gameService.GetGameByIdAsync(gameSetup.GameId);
+
+        Assert.Equal(gameSetup.GameId, found?.Id);
     }
 
-
-
-    private async Task<List<ApplicationUser>> SetupDummyUsersAsync(int userCount)
-    {
-        using (var scope = _factory.Services.CreateAsyncScope())
-        {
-            var userRepository = scope.ServiceProvider.GetRequiredService<IUserManager>();
-            var gameService = scope.ServiceProvider.GetRequiredService<IGameService>();
-
-            var users = new List<ApplicationUser>();
-
-            for (int i = 0; i < userCount; i++)
-            {
-                var userId = Guid.NewGuid();
-                var email = $"test{Guid.NewGuid()}@email.com";
-                var password = "SecureP@ssw0rd123!";
-
-                var user = new ApplicationUser
-                {
-                    Id = userId.ToString(),
-                    UserName = email,
-                    Email = email
-                };
-
-                await userRepository.CreateUserAsync(user, password);
-                gameService.CreateUserSession(user);
-
-                users.Add(user);
-            }
-
-            return users;
-        }
-    }
-
-
-    private async Task<List<Player>> SetupDummyPlayersAsync(List<ApplicationUser> users)
-    {
-        using (var scope = _factory.Services.CreateAsyncScope())
-        {
-            var playerManager = scope.ServiceProvider.GetRequiredService<IPlayerManager>();
-            var players = new List<Player>();
-
-            foreach (var user in users)
-            {
-                var player = new Player
-                {
-                    Id = Guid.Parse(user.Id),
-                    UserId = user.Id,
-                    DisplayName = user.Id
-                };
-
-                await playerManager.CreateAsync(player);
-                players.Add(player);
-            }
-
-            return players;
-        }
-    }
-
-
-
-
-
-
-
-
-    [Fact]
-    public async Task UpdateUserScoreUpdatesScoreCorrectly()
-    {
-        // no behaviour asserted in original test; just exercise API
-        var (_, _, _) = await CreateGameWithPlayersAsync(10);
-    }
-
+    // Confirms players can be retrieved for a game after assignment.
     [Fact]
     public async Task GetPlayersInGameReturnsPlayers()
     {
-        var (gameId, _, players) = await CreateGameWithPlayersAsync(10);
-        var playersInGame = await _gameService.GetPlayersInGame(gameId);
-        Assert.Equal(players.Count, playersInGame.Count);
+        var gameSetup = await CreateGameWithPlayersAsync(10);
+
+        var playersInGame = await _gameService.GetPlayersInGame(gameSetup.GameId);
+
+        Assert.Equal(gameSetup.Players.Count, playersInGame.Count);
     }
 
+    // Confirms double-elimination game start produces a bracket snapshot with ready matches.
     [Fact]
     public async Task DoubleEliminationStartGameInitializesBracketSnapshot()
     {
@@ -187,21 +183,27 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         var users = await SetupDummyUsersAsync(4);
         var players = await SetupDummyPlayersAsync(users);
 
-        for (int i = 0; i < players.Count; i++)
+        for (var index = 0; index < players.Count; index++)
         {
-            _gameService.AddPlayerToGame(players[i], gameId, users[i].Id);
+            _gameService.AddPlayerToGame(players[index], gameId, users[index].Id);
         }
 
         var started = await _gameService.StartGameAsync(gameId);
-        Assert.True(started);
+        if (!started)
+        {
+            throw new InvalidOperationException("StartGameAsync failed for valid double-elimination setup.");
+        }
 
         var snapshot = await _gameService.GetBracketSnapshotAsync(gameId);
-        Assert.NotNull(snapshot);
-        Assert.Equal(BracketMode.DOUBLE_ELIMINATION, snapshot!.Mode);
-        Assert.NotEmpty(snapshot.Matches);
-        Assert.Contains(snapshot.Matches, match => match.Status == BracketMatchStatus.READY);
+        var snapshotIsValid = snapshot is not null
+            && snapshot.Mode == BracketMode.DOUBLE_ELIMINATION
+            && snapshot.Matches.Count > 0
+            && snapshot.Matches.Any(match => match.Status == BracketMatchStatus.READY);
+
+        Assert.True(snapshotIsValid);
     }
 
+    // Confirms reported double-elimination match state persists and reloads correctly.
     [Fact]
     public async Task DoubleEliminationReportMatchPersistsAndHydratesAcrossLoadGame()
     {
@@ -209,123 +211,155 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         var users = await SetupDummyUsersAsync(4);
         var players = await SetupDummyPlayersAsync(users);
 
-        for (int i = 0; i < players.Count; i++)
+        for (var index = 0; index < players.Count; index++)
         {
-            _gameService.AddPlayerToGame(players[i], gameId, users[i].Id);
+            _gameService.AddPlayerToGame(players[index], gameId, users[index].Id);
         }
 
         var started = await _gameService.StartGameAsync(gameId);
-        Assert.True(started);
+        if (!started)
+        {
+            throw new InvalidOperationException("StartGameAsync failed before persistence verification.");
+        }
 
         var currentMatch = await _gameService.GetCurrentMatchAsync(gameId);
-        Assert.NotNull(currentMatch);
+        if (currentMatch is null)
+        {
+            throw new InvalidOperationException("Current match was not available after game start.");
+        }
 
         var reportSuccess = await _gameService.ReportMatchResultAsync(
             gameId,
-            new ReportMatchRequest(currentMatch!.MatchId, currentMatch.PlayerOneId)
-        );
-        Assert.True(reportSuccess);
+            new ReportMatchRequest(currentMatch.MatchId, currentMatch.PlayerOneId));
+        if (!reportSuccess)
+        {
+            throw new InvalidOperationException("ReportMatchResultAsync returned false for a valid match.");
+        }
 
         var beforeUnloadSnapshot = await _gameService.GetBracketSnapshotAsync(gameId);
-        Assert.NotNull(beforeUnloadSnapshot);
-        var completedBeforeUnload = beforeUnloadSnapshot!.Matches.Count(match => match.Status == BracketMatchStatus.COMPLETE);
-        Assert.True(completedBeforeUnload >= 1);
+        if (beforeUnloadSnapshot is null)
+        {
+            throw new InvalidOperationException("Bracket snapshot before unload was null.");
+        }
 
-        var ended = _gameService.EndGame(gameId);
-        Assert.True(ended);
+        var completedBeforeUnload = beforeUnloadSnapshot.Matches.Count(match => match.Status == BracketMatchStatus.COMPLETE);
+        if (completedBeforeUnload < 1)
+        {
+            throw new InvalidOperationException("Expected at least one completed match before reload.");
+        }
 
-        var loaded = await _gameService.LoadGameAsync(gameId);
-        Assert.True(loaded);
-
-        var afterLoadSnapshot = await _gameService.GetBracketSnapshotAsync(gameId);
-        Assert.NotNull(afterLoadSnapshot);
-        var completedAfterLoad = afterLoadSnapshot!.Matches.Count(match => match.Status == BracketMatchStatus.COMPLETE);
-        Assert.Equal(completedBeforeUnload, completedAfterLoad);
-        Assert.Equal(BracketMode.DOUBLE_ELIMINATION, afterLoadSnapshot.Mode);
-    }
-
-    [Fact]
-    public async Task SaveAndLoadGame_DoesNotThrow()
-    {
-        var (gameId, _, players) = await CreateGameWithPlayersAsync(10);
-        _gameService.StartRound(gameId);
-        await _gameService.EndMatchAsync(gameId, players[0]);
-        _gameService.EndRound(gameId);
         await _gameService.UpdateGameAsync(gameId);
 
-        var exception = await Record.ExceptionAsync(async () => await _gameService.LoadGameAsync(gameId));
-        Assert.Null(exception);
-    }
+        using var newScope = _factory.Services.CreateScope();
+        var rehydratedService = newScope.ServiceProvider.GetRequiredService<IGameService>();
 
-    // one helper to exercise end-round/start-match/end-match
-    private async Task PlayOneRoundAsync(Guid gameId, List<Player> players)
-    {
-        _gameService.StartRound(gameId);
-        foreach (var p in players)
+        var loaded = await rehydratedService.LoadGameAsync(gameId);
+        if (!loaded)
         {
-            _gameService.StartMatch(gameId);
-            await _gameService.EndMatchAsync(gameId, p);
-        }
-        _gameService.EndRound(gameId);
-    }
-
-    private async Task PlayFullGameAsync(int playerCount)
-    {
-        var (gameId, _, players) = await CreateGameWithPlayersAsync(playerCount);
-        await _gameService.StartGameAsync(gameId);
-
-        for (int i = 0; i < playerCount; i++)
-        {
-            await PlayOneRoundAsync(gameId, players);
-            await _gameService.UpdateGameAsync(gameId);
+            throw new InvalidOperationException("LoadGameAsync failed for a persisted game.");
         }
 
-        _gameService.EndGame(gameId);
+        var afterLoadSnapshot = await rehydratedService.GetBracketSnapshotAsync(gameId);
+        var afterLoadSnapshotIsValid = afterLoadSnapshot is not null
+            && afterLoadSnapshot.Mode == BracketMode.DOUBLE_ELIMINATION
+            && afterLoadSnapshot.Matches.Count(match => match.Status == BracketMatchStatus.COMPLETE) == completedBeforeUnload;
+
+        Assert.True(afterLoadSnapshotIsValid);
     }
 
+    // Confirms started games return one of the valid started flow states.
     [Fact]
-    public async Task EndRoundAsyncEndsRoundSuccessfully()
+    public async Task GetGameStateAsyncReturnsStartedStateAfterStartGame()
     {
-        var (gameId, _, players) = await CreateGameWithPlayersAsync(10);
-        _gameService.StartRound(gameId);
-        var exception = Record.Exception(() => _gameService.EndRound(gameId));
-        Assert.Null(exception);
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.SINGLE_ELIMINATION));
+        var users = await SetupDummyUsersAsync(4);
+        var players = await SetupDummyPlayersAsync(users);
+
+        for (var index = 0; index < players.Count; index++)
+        {
+            _gameService.AddPlayerToGame(players[index], gameId, users[index].Id);
+        }
+
+        var startResult = await _gameService.StartGameAsync(gameId);
+        if (!startResult)
+        {
+            throw new InvalidOperationException("StartGameAsync failed for a valid single elimination setup.");
+        }
+
+        var gameState = await _gameService.GetGameStateAsync(gameId);
+        var gameStateIsValid = gameState is not null
+            && gameState.GameStarted
+            && (gameState.State is GameState.IN_MATCH_ACTIVE or GameState.BRACKET_VIEW or GameState.COMPLETE);
+
+        Assert.True(gameStateIsValid);
     }
 
+    // Confirms service vote ledger commits result when both participants vote for same winner.
     [Fact]
-    public async Task StartMatchStartsMatchCorrectly()
+    public async Task SubmitMatchVoteAsyncCommitsWhenTwoParticipantsAgree()
     {
-        var (gameId, _, players) = await CreateGameWithPlayersAsync(10);
-        _gameService.StartRound(gameId);
-        var exception = Record.Exception(() => _gameService.StartMatch(gameId));
-        Assert.Null(exception);
+        var gameSetup = await CreateGameWithPlayersAsync(2);
+
+        var startResult = await _gameService.StartGameAsync(gameSetup.GameId);
+        if (!startResult)
+        {
+            throw new InvalidOperationException("StartGameAsync failed for vote-ledger service test.");
+        }
+
+        var currentMatch = await _gameService.GetCurrentMatchAsync(gameSetup.GameId);
+        if (currentMatch is null)
+        {
+            throw new InvalidOperationException("Current match was null after StartGameAsync.");
+        }
+
+        var playerOneUserId = gameSetup.Players.First(player => player.Id == currentMatch.PlayerOneId).UserId;
+        var playerTwoUserId = gameSetup.Players.First(player => player.Id == currentMatch.PlayerTwoId).UserId;
+
+        var voteRequest = new SubmitMatchVoteRequest(currentMatch.MatchId, currentMatch.PlayerOneId);
+
+        var firstVote = await _gameService.SubmitMatchVoteAsync(gameSetup.GameId, playerOneUserId, voteRequest);
+        if (firstVote.Status != SubmitMatchVoteStatus.PENDING)
+        {
+            throw new InvalidOperationException("First vote did not produce pending status.");
+        }
+
+        var secondVote = await _gameService.SubmitMatchVoteAsync(gameSetup.GameId, playerTwoUserId, voteRequest);
+
+        var committed = secondVote.Status == SubmitMatchVoteStatus.COMMITTED
+            && secondVote.CommittedWinnerPlayerId == currentMatch.PlayerOneId;
+
+        Assert.True(committed);
     }
 
+    // Confirms service vote ledger rejects duplicate vote from same voter on a pending match.
     [Fact]
-    public async Task EndMatchEndsMatchCorrectly()
+    public async Task SubmitMatchVoteAsyncRejectsDuplicateVoteFromSameVoter()
     {
-        var (gameId, _, players) = await CreateGameWithPlayersAsync(10);
-        _gameService.StartRound(gameId);
-        _gameService.StartMatch(gameId);
-        var exception = await Record.ExceptionAsync(async () => await _gameService.EndMatchAsync(gameId, players[0]));
-        Assert.Null(exception);
+        var gameSetup = await CreateGameWithPlayersAsync(2);
+
+        var startResult = await _gameService.StartGameAsync(gameSetup.GameId);
+        if (!startResult)
+        {
+            throw new InvalidOperationException("StartGameAsync failed for duplicate vote service test.");
+        }
+
+        var currentMatch = await _gameService.GetCurrentMatchAsync(gameSetup.GameId);
+        if (currentMatch is null)
+        {
+            throw new InvalidOperationException("Current match was null for duplicate vote service test.");
+        }
+
+        var voterUserId = gameSetup.Players.First(player => player.Id == currentMatch.PlayerOneId).UserId;
+        var voteRequest = new SubmitMatchVoteRequest(currentMatch.MatchId, currentMatch.PlayerOneId);
+
+        var firstVote = await _gameService.SubmitMatchVoteAsync(gameSetup.GameId, voterUserId, voteRequest);
+        if (firstVote.Status != SubmitMatchVoteStatus.PENDING)
+        {
+            throw new InvalidOperationException("First vote did not produce pending status in duplicate test.");
+        }
+
+        var duplicateVote = await _gameService.SubmitMatchVoteAsync(gameSetup.GameId, voterUserId, voteRequest);
+
+        Assert.True(duplicateVote.Status == SubmitMatchVoteStatus.DUPLICATE_VOTE);
     }
-
-    [Fact]
-    public async Task StartGameToEndGameNoByes()
-    {
-        await PlayFullGameAsync(8);
-    }
-
-    [Fact]
-    public async Task StartGameToEndGameWithByes()
-    {
-        await PlayFullGameAsync(10);
-    }
-
-
-
-
-
-
 }

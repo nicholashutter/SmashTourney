@@ -54,4 +54,7 @@ public interface IGameService
 
     // Applies one match result to the bracket engine.
     Task<bool> ReportMatchResultAsync(Guid gameId, ReportMatchRequest request);
+
+    // Submits one authenticated player's vote for the current active match winner.
+    Task<SubmitMatchVoteResponse> SubmitMatchVoteAsync(Guid gameId, string voterUserId, SubmitMatchVoteRequest request);
 }

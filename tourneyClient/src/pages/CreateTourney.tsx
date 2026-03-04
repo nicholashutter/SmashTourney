@@ -5,7 +5,7 @@ import BasicInput from "@/components/BasicInput";
 import SubmitButton from "@/components/SubmitButton";
 import { RequestService } from "@/services/RequestService";
 import { validateGameIdResponse, validateInput, validateTotalPlayers } from "@/services/validationService";
-import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS, SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
+import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS } from "@/constants/AppConstants";
 import { useNavigate } from 'react-router';
 import { useGameData } from "@/hooks/useGameData";
 import HeadingTwo from "@/components/HeadingTwo";
@@ -18,6 +18,7 @@ import { TierPlacement } from "@/models/Enums/TierPlacement";
 import { WeightClass } from "@/models/Enums/WeightClass";
 import { v4 as uuidv4 } from "uuid";
 import PersistentConnection from "@/services/PersistentConnection";
+import { getSessionIdentity, resolveCharacterMappings } from "@/services/playerSetupService";
 import
 {
   DropdownMenu,
@@ -26,17 +27,9 @@ import
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-/*Ready for E2E testing */
-
+// Renders host setup flow to create a tournament and join its lobby.
 const CreateTourney = () =>
 {
-  type SessionStatusResponse = {
-    userId?: string;
-    userName?: string;
-    UserId?: string;
-    UserName?: string;
-  };
-
   type AddPlayerPayload = {
     Id: string;
     displayName: string;
@@ -53,20 +46,11 @@ const CreateTourney = () =>
     currentGameID: string;
   };
 
-  const getEnumKeyByValue = <TMap extends Record<string, string>>(
-    enumMap: TMap,
-    value: string
-  ): keyof TMap | null =>
-  {
-    const foundPair = Object.entries(enumMap).find(([, enumValue]) => enumValue === value);
-    return (foundPair?.[0] as keyof TMap) ?? null;
-  };
-
   //dynamic import react router useNavigate
   const navigate = useNavigate();
 
   //setup store for gameId after creation
-  const { setGameId: setId, setPlayerId: setPlayerId } = useGameData();
+  const { setGameId: setId, setPlayerId: setPlayerId, setIsHost } = useGameData();
 
   //variables for users selections
   //will set this with dropdown component with preset values
@@ -80,6 +64,7 @@ const CreateTourney = () =>
   const [characters, setCharacters] = useState<Character[]>([]);
   const [currentCharacter, setCurrentCharacter] = useState({} as Character);
 
+  // Loads all selectable character definitions for host setup.
   useEffect(() =>
   {
     const characterModuleMap = import.meta.glob("../models/entities/Characters/*.ts");
@@ -95,37 +80,7 @@ const CreateTourney = () =>
     fetchAllCharacters();
   }, []);
 
-  useEffect(() =>
-  {
-    let mounted = true;
-
-    const preloadDisplayName = async () =>
-    {
-      try
-      {
-        const session = await RequestService<"sessionStatus", never, SessionStatusResponse>("sessionStatus");
-        const sessionUserName = (session?.UserName ?? session?.userName ?? "").trim();
-
-        if (mounted && sessionUserName)
-        {
-          setDisplayName((existing) => existing || sessionUserName);
-        }
-      }
-      catch (error)
-      {
-        console.error("Unable to preload player name from session", error);
-      }
-    };
-
-    preloadDisplayName();
-
-    return () =>
-    {
-      mounted = false;
-    };
-  }, []);
-
-  //handle max player selection
+  // Stores validated maximum player count input.
   const handleMaxPlayers = (e: ChangeEvent<HTMLInputElement>) =>
   {
     const numplayers = parseInt(e.target.value);
@@ -141,6 +96,7 @@ const CreateTourney = () =>
 
   }
 
+  // Stores validated display name input.
   const displayNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
     const validateDisplayName = validateInput(e.target.value);
@@ -154,8 +110,8 @@ const CreateTourney = () =>
     }
   }
 
-  //handle select game selection
-  const handleSelectGameType = async (e: ChangeEvent<HTMLSelectElement>) =>
+  // Sets selected tournament mode from the ruleset dropdown.
+  const handleSelectGameType = (e: ChangeEvent<HTMLSelectElement>) =>
   {
     //get value of event from select element
     const selected = e.target.value;
@@ -165,7 +121,6 @@ const CreateTourney = () =>
     {
       case "Single Elimination":
         setGameType(false);
-        console.log("Single Elimination implementation under construction");
         break;
       case "Double Elimination":
         setGameType(true);
@@ -176,16 +131,25 @@ const CreateTourney = () =>
     }
   }
 
-  //handle submit selection
+  // Creates the game, adds the host player, and opens the lobby.
   const handleSubmit = async () =>
   {
-    const mappedCharacterName = getEnumKeyByValue(CharacterName, currentCharacter.characterName);
-    const mappedArchetype = getEnumKeyByValue(Archetype, currentCharacter.archetype);
-    const mappedFallSpeed = getEnumKeyByValue(FallSpeed, currentCharacter.fallSpeed);
-    const mappedTierPlacement = getEnumKeyByValue(TierPlacement, currentCharacter.tierPlacement);
-    const mappedWeightClass = getEnumKeyByValue(WeightClass, currentCharacter.weightClass);
+    const requestedTotalPlayers = Number.parseInt(numPlayers, 10);
+    if (!validateTotalPlayers(requestedTotalPlayers))
+    {
+      window.alert(INVALID_CHARACTERS("Number of Players"));
+      return;
+    }
 
-    if (!mappedCharacterName || !mappedArchetype || !mappedFallSpeed || !mappedTierPlacement || !mappedWeightClass)
+    const mappedCharacter = resolveCharacterMappings(currentCharacter, {
+      CharacterName,
+      Archetype,
+      FallSpeed,
+      TierPlacement,
+      WeightClass,
+    });
+
+    if (!mappedCharacter)
     {
       window.alert(INVALID_CHARACTERS("Character Selection"));
       return;
@@ -193,28 +157,39 @@ const CreateTourney = () =>
 
     try
     {
-      //call request service and provide no body object since our api does not need a body for createGame
-      const selectedMode = gameType ? "DOUBLE_ELIMINATION" : "SINGLE_ELIMINATION";
+      let selectedMode: "DOUBLE_ELIMINATION" | "SINGLE_ELIMINATION" = "SINGLE_ELIMINATION";
+      if (gameType)
+      {
+        selectedMode = "DOUBLE_ELIMINATION";
+      }
+
       const response = await RequestService<"createGameWithMode", CreateGameWithModeRequest, CreateGameWithModeResponse>(
         "createGameWithMode",
         {
           body: {
-            bracketMode: selectedMode
+            bracketMode: selectedMode,
+            totalPlayers: requestedTotalPlayers
           }
         }
       );
-      const gameId = response?.gameId ?? response?.GameId;
+      let resolvedGameId = "";
+      if (response && response.gameId)
+      {
+        resolvedGameId = response.gameId;
+      }
+      else if (response && response.GameId)
+      {
+        resolvedGameId = response.GameId;
+      }
 
-      if (validateGameIdResponse(gameId ?? ""))
+      if (validateGameIdResponse(resolvedGameId))
       {
         let hostUserId = "";
-        let hostDisplayName = "";
 
         try
         {
-          const session = await RequestService<"sessionStatus", never, SessionStatusResponse>("sessionStatus");
-          hostUserId = (session?.UserId ?? session?.userId ?? "").trim();
-          hostDisplayName = (session?.UserName ?? session?.userName ?? "").trim();
+          const sessionIdentity = await getSessionIdentity();
+          hostUserId = sessionIdentity.userId;
         }
         catch (error)
         {
@@ -228,10 +203,7 @@ const CreateTourney = () =>
           return;
         }
 
-        if (!hostDisplayName)
-        {
-          hostDisplayName = displayName.trim();
-        }
+        const hostDisplayName = displayName.trim();
 
         if (!hostDisplayName)
         {
@@ -247,27 +219,27 @@ const CreateTourney = () =>
           currentRound: 0,
           currentCharacter: {
             id: uuidv4(),
-            characterName: mappedCharacterName,
-            archetype: mappedArchetype,
-            fallSpeed: mappedFallSpeed,
-            tierPlacement: mappedTierPlacement,
-            weightClass: mappedWeightClass,
+            characterName: mappedCharacter.characterName as keyof typeof CharacterName,
+            archetype: mappedCharacter.archetype as keyof typeof Archetype,
+            fallSpeed: mappedCharacter.fallSpeed as keyof typeof FallSpeed,
+            tierPlacement: mappedCharacter.tierPlacement as keyof typeof TierPlacement,
+            weightClass: mappedCharacter.weightClass as keyof typeof WeightClass,
           },
-          currentGameID: gameId!,
+          currentGameID: resolvedGameId,
         };
 
         await RequestService("addPlayers", {
           body: hostPlayerPayload,
           routeParams: {
-            gameId: gameId!
+            gameId: resolvedGameId
           }
         });
 
         const lobbyConnection = new PersistentConnection();
         try
         {
-          await lobbyConnection.createPlayerConnection(gameId!);
-          await lobbyConnection.updateOthers(gameId!);
+          await lobbyConnection.createPlayerConnection(resolvedGameId);
+          await lobbyConnection.updateOthers(resolvedGameId);
         }
         catch (error)
         {
@@ -279,22 +251,23 @@ const CreateTourney = () =>
         }
 
         //use setId useContext function
-        setId(gameId!);
+        setId(resolvedGameId);
         setPlayerId(hostPlayerId);
+        setIsHost(true);
 
-        window.alert(SUBMIT_SUCCESS("Create Tourney"));
+        window.alert("Tournament created successfully. You are now moving to the lobby as the host.");
         //force navigation without user intervention upon request completion and alert dismissal
         navigate("/lobby");
       }
       else
       {
-        window.alert(SERVER_ERROR("Create Tourney"));
+        window.alert("We could not create the tournament. You will stay on the create page so you can try again.");
       }
     }
     catch (error)
     {
       console.error("Create Tourney submit failed", error);
-      window.alert(SERVER_ERROR("Create Tourney"));
+      window.alert("We could not create the tournament. You will stay on the create page so you can try again.");
     }
 
   }

@@ -7,30 +7,25 @@ import { RequestService } from '@/services/RequestService';
 import PersistentConnection from "@/services/PersistentConnection";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameData } from '@/hooks/useGameData';
-import { SERVER_ERROR, SUBMIT_SUCCESS } from '@/constants/AppConstants';
 import { useNavigate } from 'react-router';
+import { normalizePlayers, resolvePlayerId } from '@/lib/normalizePlayer';
+import { fetchGameState, fetchPlayersInGame } from '@/services/gameFlowService';
 
 
-
+// Renders the lobby and handles realtime player updates before game start.
 const Lobby = () =>
 {
-    type GetPlayersInGameResponse = {
-        currentPlayers?: Player[];
-    };
+    const JOIN_NOTICE_DURATION_MS = 2500;
 
-    const resolvePlayerId = useCallback((player: Player): string =>
+    const resolvePlayerIdCallback = useCallback((player: Player): string =>
     {
-        return player.Id ?? player.id ?? "";
+        return resolvePlayerId(player);
     }, []);
 
-    const normalizePlayers = useCallback((incomingPlayers: Player[]): Player[] =>
+    const normalizePlayersCallback = useCallback((incomingPlayers: Player[]): Player[] =>
     {
-        return incomingPlayers.map((player) => ({
-            ...player,
-            Id: resolvePlayerId(player),
-            currentGameId: player.currentGameId ?? player.currentGameID ?? ""
-        }));
-    }, [resolvePlayerId]);
+        return normalizePlayers(incomingPlayers);
+    }, []);
 
     const [players, setPlayers] = useState<Player[]>([]);
     const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
@@ -39,11 +34,7 @@ const Lobby = () =>
 
     //get playerId, gameId and setter functions from useContext wrapper
     //should have either been loaded from joinTourney or createTourney pages
-    const { gameId: gameId, playerId: playerId, setGameStarted } = useGameData();
-
-
-    //explicitly typing as boolean because this type of conditional check confuses me 
-    const firstInLobby: boolean = players.length > 0 && resolvePlayerId(players[0]) === playerId;
+    const { gameId, isHost, setGameStarted } = useGameData();
 
     const navigate = useNavigate();
 
@@ -58,30 +49,26 @@ const Lobby = () =>
         const lobbyConnection = new PersistentConnection();
         lobbyConnectionRef.current = lobbyConnection;
         let isDisposed = false;
+        let gameStartedPollId: number | null = null;
+        let joinNoticeTimeoutId: number | null = null;
 
-        //sync wrapper for useEffect over async call to api
+        const clearJoinNoticeTimer = () =>
+        {
+            if (joinNoticeTimeoutId)
+            {
+                window.clearTimeout(joinNoticeTimeoutId);
+                joinNoticeTimeoutId = null;
+            }
+        };
 
-        //variable shadowing here which should satisfy typescript string|null type error
-        const asyncRequest = async (gameId: string) =>
+        const loadLobbyPlayers = async (targetGameId: string) =>
         {
             try
             {
-                const result = await RequestService<"getPlayersInGame", Record<string, never>, GetPlayersInGameResponse>("getPlayersInGame",
-                    {
-                        body:
-                        {
-                        },
-                        routeParams:
-                        {
-                            gameId
-                        }
-                    }
-                )
-                //setPlayers array to result from api
-                //this should load players already in game on page load
+                const playersInGame = await fetchPlayersInGame(targetGameId);
                 if (!isDisposed)
                 {
-                    setPlayers(normalizePlayers(result.currentPlayers ?? []));
+                    setPlayers(playersInGame);
                 }
             }
             catch (err)
@@ -101,49 +88,106 @@ const Lobby = () =>
             }
         };
 
-        const initializeLobby = async () =>
+        const checkStartedState = async (targetGameId: string): Promise<boolean> =>
         {
-            lobbyConnection.setOnPlayersUpdated((updatedPlayers) =>
+            try
+            {
+                const flowState = await fetchGameState(targetGameId);
+
+                if (!isDisposed && flowState && flowState.state !== "LOBBY_WAITING")
+                {
+                    setGameStarted(true);
+                    navigate("/showBracket", { replace: true });
+                    return true;
+                }
+            }
+            catch (error)
+            {
+                console.warn("Lobby start-state check failed", error);
+            }
+
+            return false;
+        };
+
+        const buildJoinNoticeText = (newPlayers: Player[]): string =>
+        {
+            const newNames = newPlayers.map((player) => player.displayName || "A player");
+            return newNames.length === 1
+                ? `${newNames[0]} joined the lobby.`
+                : `${newNames.join(", ")} joined the lobby.`;
+        };
+
+        const scheduleJoinNoticeClear = () =>
+        {
+            clearJoinNoticeTimer();
+            joinNoticeTimeoutId = window.setTimeout(() =>
             {
                 if (!isDisposed)
                 {
-                    setPlayers((previousPlayers) =>
-                    {
-                        const normalizedUpdatedPlayers = normalizePlayers(updatedPlayers);
-                        const previousIds = new Set(previousPlayers.map((player) => resolvePlayerId(player)));
-                        const newPlayers = normalizedUpdatedPlayers.filter((player) => !previousIds.has(resolvePlayerId(player)));
-
-                        if (newPlayers.length > 0)
-                        {
-                            const newNames = newPlayers.map((player) => player.displayName || "A player");
-                            const noticeText = newNames.length === 1
-                                ? `${newNames[0]} joined the lobby.`
-                                : `${newNames.join(", ")} joined the lobby.`;
-
-                            setJoinNotice(noticeText);
-                            setTimeout(() =>
-                            {
-                                if (!isDisposed)
-                                {
-                                    setJoinNotice(null);
-                                }
-                            }, 2500);
-                        }
-
-                        return normalizedUpdatedPlayers;
-                    });
+                    setJoinNotice(null);
                 }
-            });
-            lobbyConnection.setOnGameStarted((startedGameId) =>
+            }, JOIN_NOTICE_DURATION_MS);
+        };
+
+        const calculateNewPlayers = (previousPlayers: Player[], updatedPlayers: Player[]): Player[] =>
+        {
+            const previousIds = new Set(previousPlayers.map((player) => resolvePlayerIdCallback(player)));
+            return updatedPlayers.filter((player) => !previousIds.has(resolvePlayerIdCallback(player)));
+        };
+
+        const handlePlayersUpdated = (updatedPlayers: Player[]) =>
+        {
+            if (isDisposed)
             {
-                if (!isDisposed && startedGameId === gameId)
+                return;
+            }
+
+            setPlayers((previousPlayers) =>
+            {
+                const normalizedUpdatedPlayers = normalizePlayersCallback(updatedPlayers);
+                const newPlayers = calculateNewPlayers(previousPlayers, normalizedUpdatedPlayers);
+
+                if (newPlayers.length > 0)
                 {
-                    setGameStarted(true);
-                    navigate("/showBracket");
+                    setJoinNotice(buildJoinNoticeText(newPlayers));
+                    scheduleJoinNoticeClear();
                 }
+
+                return normalizedUpdatedPlayers;
             });
+        };
+
+        const handleGameStarted = (startedGameId: string) =>
+        {
+            if (isDisposed || startedGameId !== gameId)
+            {
+                return;
+            }
+
+            setGameStarted(true);
+            navigate("/showBracket", { replace: true });
+        };
+
+        const initializeLobby = async () =>
+        {
+            lobbyConnection.setOnPlayersUpdated(handlePlayersUpdated);
+            lobbyConnection.setOnGameStarted(handleGameStarted);
             await lobbyConnection.createPlayerConnection(gameId);
-            await asyncRequest(gameId);
+            await loadLobbyPlayers(gameId);
+
+            const started = await checkStartedState(gameId);
+            if (!started)
+            {
+                gameStartedPollId = window.setInterval(async () =>
+                {
+                    const hasStarted = await checkStartedState(gameId);
+                    if (hasStarted && gameStartedPollId)
+                    {
+                        window.clearInterval(gameStartedPollId);
+                        gameStartedPollId = null;
+                    }
+                }, 1500);
+            }
         };
 
         initializeLobby();
@@ -151,6 +195,12 @@ const Lobby = () =>
         return () =>
         {
             isDisposed = true;
+            clearJoinNoticeTimer();
+            if (gameStartedPollId)
+            {
+                window.clearInterval(gameStartedPollId);
+                gameStartedPollId = null;
+            }
             lobbyConnection.disconnect();
             if (lobbyConnectionRef.current === lobbyConnection)
             {
@@ -158,15 +208,16 @@ const Lobby = () =>
             }
         };
 
-    }, [gameId, navigate, normalizePlayers, resolvePlayerId, setGameStarted]);
+    }, [gameId, navigate, normalizePlayersCallback, resolvePlayerIdCallback, setGameStarted]);
 
+    // Starts the game and notifies all connected lobby participants.
     const handleSubmit = async () =>
     {
         try
         {
             if (!gameId)
             {
-                window.alert(SERVER_ERROR("Start Game"));
+                window.alert("Start game failed because this lobby does not have a session code. You will stay in the lobby.");
                 return;
             }
 
@@ -175,14 +226,17 @@ const Lobby = () =>
             });
 
             setGameStarted(true);
-            await lobbyConnectionRef.current?.notifyGameStarted(gameId);
+            if (lobbyConnectionRef.current)
+            {
+                await lobbyConnectionRef.current.notifyGameStarted(gameId);
+            }
 
-            window.alert(SUBMIT_SUCCESS("Join Game"));
+            window.alert("All players are in. Starting the tournament now and moving everyone to the bracket view.");
             navigate("/showBracket");
         }
         catch (err)
         {
-            window.alert(SERVER_ERROR("Start Game"));
+            window.alert("We could not start the game. You will stay in the lobby so you can try again.");
             console.log(err);
         }
 
@@ -211,7 +265,7 @@ const Lobby = () =>
                         </p>
                     </div>
                     <HeadingTwo headingText="Waiting for players to join..." />
-                    {firstInLobby &&
+                    {isHost &&
                         <SubmitButton buttonLabel="All Players In" onSubmit={
                             handleSubmit
                         } />

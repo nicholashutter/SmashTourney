@@ -1,8 +1,9 @@
 import { BASE_URL } from "@/ServerConstants";
-// define interface for http methods used below
+
+// Defines supported HTTP verbs for API requests.
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
-// define interface for object that provides centralized wrapper for endpoint urls and http methods
+// Defines a single API endpoint mapping.
 export interface ApiEndpoint
 {
   method: HttpMethod;
@@ -10,7 +11,7 @@ export interface ApiEndpoint
   params?: string[];
 }
 
-// define enum-like object with all URL paths, HTTP methods, and route parameters
+// Stores API endpoint metadata used by request helpers.
 const RequestBuilder = {
   getAllGames: { method: "GET", path: "/Games/getAllGames" },
   createGame: { method: "POST", path: "/Games/CreateGame" },
@@ -30,9 +31,14 @@ const RequestBuilder = {
     path: "/Games/GetCurrentMatch/{gameId}",
     params: ["gameId"]
   },
-  reportMatch: {
+  getFlowState: {
+    method: "GET",
+    path: "/Games/GetFlowState/{gameId}",
+    params: ["gameId"]
+  },
+  submitMatchVote: {
     method: "POST",
-    path: "/Games/ReportMatch/{gameId}",
+    path: "/Games/SubmitMatchVote/{gameId}",
     params: ["gameId"]
   },
   endGame: {
@@ -66,17 +72,6 @@ const RequestBuilder = {
     path: "/Games/SaveGame/{gameId}",
     params: ["gameId"]
   },
-  startRound: {
-    method: "POST",
-    path: "/Games/StartRound/{gameId}",
-    params: ["gameId"]
-  },
-  startMatch: {
-    method: "POST",
-    path: "/Games/StartMatch/{gameId}",
-    params: ["gameId"]
-  },
-  endMatch: { method: "POST", path: "/Games/EndMatch" },
 
   register: { method: "POST", path: "/Users/Register" },
   login: { method: "POST", path: "/users/login" },
@@ -108,7 +103,7 @@ const RequestBuilder = {
   }
 } as const satisfies Record<string, ApiEndpoint>;
 
-// Generate Request object with full URLs
+// Builds request definitions with fully qualified URLs.
 export const Request = Object.fromEntries(
   Object.entries(RequestBuilder).map(([key, { method, path }]) => [
     key,
@@ -122,7 +117,7 @@ export const Request = Object.fromEntries(
     [K in keyof typeof RequestBuilder]: ApiEndpoint & { url: string }
   };
 
-//Function to wrap fetch api with type safety, expecting Request object
+// Sends a typed API request for the selected endpoint.
 export const RequestService =
   <Key extends keyof typeof Request, Req, Res>(
     endpoint: Key,
@@ -133,58 +128,110 @@ export const RequestService =
   ): Promise<Res> =>
   {
     const { path, method } = Request[endpoint];
-    const interpolatedPath = options?.routeParams
-      ? insertParams(path, options.routeParams)
-      : path;
+    let interpolatedPath = path;
+    if (options && options.routeParams)
+    {
+      interpolatedPath = insertParams(path, options.routeParams);
+    }
 
     const url = `${BASE_URL}${interpolatedPath}`;
+
+    let requestBody: string | undefined = undefined;
+    if (options && options.body)
+    {
+      requestBody = JSON.stringify(options.body);
+    }
 
     return fetch(url, {
       method,
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       ...options,
-      body: options?.body ? JSON.stringify(options.body) : undefined
-    }).then(async (res) =>
-    {
-      if (!res.ok)
-      {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      if (res.status === 204)
-      {
-        return undefined as Res;
-      }
-
-      const contentType = res.headers?.get?.("content-type") ?? "";
-      const textBody = typeof res.text === "function" ? await res.text() : "";
-      if (!textBody)
-      {
-        if (typeof res.json === "function")
-        {
-          return res.json() as Promise<Res>;
-        }
-
-        return undefined as Res;
-      }
-
-      if (contentType.includes("application/json"))
-      {
-        return JSON.parse(textBody) as Res;
-      }
-
-      try
-      {
-        return JSON.parse(textBody) as Res;
-      }
-      catch
-      {
-        return textBody as Res;
-      }
-    });
+      body: requestBody
+    }).then(parseResponse<Res>);
   };
 
+// Parses an HTTP response into a typed result payload.
+const parseResponse = async <Res>(res: Response): Promise<Res> =>
+{
+  if (!res.ok)
+  {
+    const errorBody = await safelyReadResponseBody(res);
+    if (errorBody)
+    {
+      throw new Error(`HTTP ${res.status}: ${errorBody}`);
+    }
+
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  if (res.status === 204)
+  {
+    return undefined as Res;
+  }
+
+  let contentType = "";
+  if (res.headers && typeof res.headers.get === "function")
+  {
+    const contentTypeHeader = res.headers.get("content-type");
+    if (contentTypeHeader)
+    {
+      contentType = contentTypeHeader;
+    }
+  }
+  const textBody = typeof res.text === "function" ? await res.text() : "";
+
+  if (!textBody)
+  {
+    if (typeof res.json === "function")
+    {
+      return res.json() as Promise<Res>;
+    }
+
+    return undefined as Res;
+  }
+
+  return parseResponseBody<Res>(textBody, contentType);
+};
+
+// Reads response text safely for error construction.
+const safelyReadResponseBody = async (res: Response): Promise<string> =>
+{
+  try
+  {
+    if (typeof res.text !== "function")
+    {
+      return "";
+    }
+
+    const body = await res.text();
+    return body || "";
+  }
+  catch
+  {
+    return "";
+  }
+};
+
+// Parses text response content as JSON when possible.
+const parseResponseBody = <Res>(textBody: string, contentType: string): Res =>
+{
+  if (contentType.includes("application/json"))
+  {
+    return JSON.parse(textBody) as Res;
+  }
+
+  try
+  {
+    return JSON.parse(textBody) as Res;
+  }
+  catch
+  {
+    return textBody as Res;
+  }
+};
+
+// Replaces route placeholders with encoded path parameter values.
 const insertParams = (
   path: string,
   params: Record<string, string>
@@ -200,19 +247,3 @@ const insertParams = (
   });
 };
 
-
-/* 
-              EXAMPLE USAGE 
-
-              await RequestService("createGame", {
-                body: { your http Request object },
-                routeParams: { optional route params as key-value pairs }
-              });
-
-              await RequestService("addPlayers", {
-              routeParams: { gameId: "abc123" },
-              body: { players: ["Nick", "Sam"] }
-              });
-
-
-*/ 

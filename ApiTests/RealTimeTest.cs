@@ -1,58 +1,66 @@
-using System.Net;
-using ApiTests;
-using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.DependencyInjection;
-using Services;
-using System.Threading.Tasks;
+namespace ApiTests;
 
+using System.Net;
+using Microsoft.AspNetCore.SignalR.Client;
+
+// Verifies realtime broadcast behavior that keeps clients synchronized during tournament play.
 public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
-    private const string IN_MEMORY_HUB_URL = "wss://localhost/hubs/GameServiceHub";
-    public RealTimeTest(CustomWebApplicationFactory<Program> factory) => _factory = factory;
+    private const string InMemoryHubUrl = "wss://localhost/hubs/GameServiceHub";
 
+    // Initializes realtime test host access.
+    public RealTimeTest(CustomWebApplicationFactory<Program> factory)
+    {
+        _factory = factory;
+    }
+
+    // Creates a SignalR client connected to the in-memory test server.
     private HubConnection CreateClient()
     {
         var server = _factory.Server;
+
         return new HubConnectionBuilder()
-            .WithUrl(IN_MEMORY_HUB_URL, options => options.HttpMessageHandlerFactory = _ => server.CreateHandler())
+            .WithUrl(InMemoryHubUrl, options =>
+            {
+                options.HttpMessageHandlerFactory = _ => server.CreateHandler();
+            })
             .Build();
     }
 
+    // Confirms the hub route is registered and reachable.
     [Fact]
     public async Task HubRouteShouldBeReachable()
     {
         var client = _factory.CreateClient();
-        var response = await client.GetAsync("wss://localhost/hubs/GameServiceHub");
-        Assert.False(response.StatusCode == HttpStatusCode.NotFound, "Hub route is not registered");
+
+        var response = await client.GetAsync(InMemoryHubUrl);
+
+        Assert.NotEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-
+    // Confirms a newly connected client receives the join acknowledgment event.
     [Fact]
     public async Task SuccessMessageOnPlayerConnection()
     {
+        const string expectedResult = "Success";
 
-        const string EXPECTED_RESULT = "Success";
+        var completionSource = new TaskCompletionSource<string>();
+        var connection = CreateClient();
 
-        TaskCompletionSource<string> taskCompletionSource = new TaskCompletionSource<string>();
-
-
-        var _connection = CreateClient();
-
-        _connection.On("Successfully Joined", () =>
+        connection.On("Successfully Joined", () =>
         {
-            taskCompletionSource.TrySetResult(EXPECTED_RESULT);
+            completionSource.TrySetResult(expectedResult);
         });
 
-        await _connection.StartAsync();
+        await connection.StartAsync();
 
-        string result = await taskCompletionSource.Task;
+        var actualResult = await completionSource.Task;
 
-        Assert.Equal(EXPECTED_RESULT, result);
+        Assert.Equal(expectedResult, actualResult);
     }
+
+    // Confirms game-start notifications are broadcast to all clients in the same game group.
     [Fact]
     public async Task NotifyGameStartedBroadcastsToAllClientsInGroup()
     {
@@ -85,14 +93,10 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
         var hostGameStarted = await hostReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var guestGameStarted = await guestReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        Assert.Equal(gameId, hostGameStarted);
-        Assert.Equal(gameId, guestGameStarted);
+        var bothClientsReceivedExpectedGameId = hostGameStarted == gameId && guestGameStarted == gameId;
+        Assert.True(bothClientsReceivedExpectedGameId);
 
         await hostConnection.DisposeAsync();
         await guestConnection.DisposeAsync();
     }
-
-
-
-
 }

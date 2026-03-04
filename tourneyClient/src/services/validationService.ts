@@ -54,45 +54,28 @@ export const validateInput = (input: string): ValidationResult =>
 
 export const validateGameIdResponse = (gameId: string) =>
 {
-    const inputType = typeof (gameId);
-
-    if (inputType === "string")
+    if (typeof gameId !== "string")
     {
-        const validateGameId = validateInput(gameId);
-
-        if (validateGameId.isValid)
-        {
-            return true;
-        }
-
+        return false;
     }
 
-    return false;
-}
+    return validateInput(gameId).isValid;
+};
 
 export const validateTotalPlayers = (userInput: number) =>
 {
-    const inputType = typeof (userInput);
-
-    if (inputType === "number")
+    if (typeof userInput !== "number")
     {
-        if (userInput > 0)
-        {
-            if (userInput < MAX_SUPPORTED_PLAYERS)
-            {
-                const validateNumPlayers = validateInput(userInput.toString());
-
-                if (validateNumPlayers)
-                {
-                    return true;
-                }
-
-            }
-        }
-
+        return false;
     }
-    return false;
-}
+
+    if (userInput <= 0 || userInput >= MAX_SUPPORTED_PLAYERS)
+    {
+        return false;
+    }
+
+    return validateInput(userInput.toString()).isValid;
+};
 
 
 

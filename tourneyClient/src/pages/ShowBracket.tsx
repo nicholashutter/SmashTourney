@@ -1,22 +1,47 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import DrawWinnersBracket from "@/components/brackets/DynamicBracket";
 import { useGameData } from "@/hooks/useGameData";
-import { RequestService } from "@/services/RequestService";
-import { BracketSnapshotResponse } from "@/models/entities/Bracket";
-import { SERVER_ERROR } from "@/constants/AppConstants";
+import { BracketSnapshotResponse, CurrentMatchResponse, GameStateResponse } from "@/models/entities/Bracket";
+import { fetchBracketViewData } from "@/services/gameFlowService";
 
-
+// Renders the live tournament bracket and routes players into active matches.
 const ShowBracket = () =>
 {
     const navigate = useNavigate();
-    const { gameId, setGameStarted } = useGameData();
+    const { gameId, playerId, setGameStarted } = useGameData();
     const [snapshot, setSnapshot] = useState<BracketSnapshotResponse | null>(null);
+    const [currentMatch, setCurrentMatch] = useState<CurrentMatchResponse | null>(null);
+    const [gameState, setGameState] = useState<GameStateResponse | null>(null);
+    const [secondsUntilMatch, setSecondsUntilMatch] = useState<number | null>(null);
+    const activeMatchDeadlineRef = useRef<number | null>(null);
+    const activeCountdownMatchIdRef = useRef<string | null>(null);
 
+    const isPlayerInCurrentMatch = Boolean(
+        playerId &&
+        currentMatch &&
+        (currentMatch.playerOneId === playerId || currentMatch.playerTwoId === playerId)
+    );
+
+    // Builds ordered participant labels for first-round bracket rendering.
+    const bracketPlayerNames = useMemo(() =>
+    {
+        if (!snapshot)
+        {
+            return [] as string[];
+        }
+
+        const orderedPlayers = [...snapshot.players].sort((left, right) => left.seed - right.seed);
+        return orderedPlayers.map((player) => player.displayName);
+    }, [snapshot]);
+
+    // Loads and refreshes bracket, current match, and flow-state view data.
     useEffect(() =>
     {
-        const loadSnapshot = async () =>
+        let mounted = true;
+
+        const loadBracketViewData = async () =>
         {
             if (!gameId)
             {
@@ -25,46 +50,93 @@ const ShowBracket = () =>
 
             try
             {
-                const result = await RequestService<"getBracket", never, BracketSnapshotResponse>("getBracket", {
-                    routeParams: { gameId }
-                });
-                setSnapshot(result);
+                const bracketViewData = await fetchBracketViewData(gameId);
+
+                if (mounted)
+                {
+                    setSnapshot(bracketViewData.snapshot);
+                    setCurrentMatch(bracketViewData.currentMatch);
+                    setGameState(bracketViewData.gameState);
+                }
             }
             catch (error)
             {
                 console.error("Failed to load bracket snapshot", error);
-                window.alert(SERVER_ERROR("Get Bracket"));
+                window.alert("We could not refresh the bracket right now. You will stay on this screen and it will try again.");
             }
         };
 
-        loadSnapshot();
-    }, [gameId]);
-
-    useEffect(() =>
-    {
-        setGameStarted(true);
-
-        const moveToMatch = window.setTimeout(() =>
-        {
-            navigate("/inMatch", { replace: true });
-        }, 3000);
+        loadBracketViewData();
+        const refreshInterval = window.setInterval(loadBracketViewData, 2000);
 
         return () =>
         {
-            window.clearTimeout(moveToMatch);
+            mounted = false;
+            window.clearInterval(refreshInterval);
         };
-    }, [navigate, setGameStarted]);
+    }, [gameId]);
 
+    // Starts a player-facing match countdown and redirects active participants to in-match view.
+    useEffect(() =>
+    {
+        const activeMatchId = currentMatch?.matchId ?? null;
+        const isInMatchActive = gameState?.state === "IN_MATCH_ACTIVE";
 
+        if (!isPlayerInCurrentMatch || !isInMatchActive || !activeMatchId)
+        {
+            setSecondsUntilMatch(null);
+            activeMatchDeadlineRef.current = null;
+            activeCountdownMatchIdRef.current = null;
+            return;
+        }
+
+        setGameStarted(true);
+        const matchDelayMs = 15000;
+        if (activeCountdownMatchIdRef.current !== activeMatchId || !activeMatchDeadlineRef.current)
+        {
+            activeCountdownMatchIdRef.current = activeMatchId;
+            activeMatchDeadlineRef.current = Date.now() + matchDelayMs;
+        }
+
+        const updateTimer = () =>
+        {
+            const deadline = activeMatchDeadlineRef.current ?? Date.now();
+            const msRemaining = Math.max(0, deadline - Date.now());
+            setSecondsUntilMatch(Math.ceil(msRemaining / 1000));
+
+            if (msRemaining === 0)
+            {
+                navigate("/inMatch", { replace: true });
+            }
+        };
+
+        updateTimer();
+        const countdownInterval = window.setInterval(updateTimer, 250);
+
+        return () =>
+        {
+            window.clearInterval(countdownInterval);
+        };
+    }, [currentMatch?.matchId, gameState?.state, isPlayerInCurrentMatch, navigate, setGameStarted]);
 
     return (
 
-        <div className="flex flex-col items-center justify-center h-dvh w-dvw px-2"> {/* center all content and take up entire viewport */}
-            <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white w-[96vw] h-[92dvh]"> {/* explicit size so bracket svg can fill screen */}
+        <div className="flex flex-col items-center justify-center h-dvh w-dvw px-2">
+            <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white w-[96vw] h-[92dvh]">
                 <title>Current Score</title>
                 <div className='flex-1 min-h-0 w-full p-4'>
-                    <DrawWinnersBracket numPlayers={snapshot?.players?.length ?? 16} />
+                    <DrawWinnersBracket
+                        numPlayers={snapshot ? snapshot.players.length : 16}
+                        playerNames={bracketPlayerNames}
+                        mode={snapshot?.mode}
+                    />
                 </div>
+                {isPlayerInCurrentMatch && secondsUntilMatch !== null && (
+                    <p className="text-sm text-white pb-4">Your match is loading in {secondsUntilMatch}s...</p>
+                )}
+                {!isPlayerInCurrentMatch && (
+                    <p className="text-sm text-white pb-4">Waiting for your next match...</p>
+                )}
             </div>
         </div>
 

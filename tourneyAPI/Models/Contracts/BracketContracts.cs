@@ -4,13 +4,44 @@ using Enums;
 
 // Specifies options used when creating a new game.
 public sealed record CreateGameOptions(
-    BracketMode BracketMode = BracketMode.SINGLE_ELIMINATION
+    BracketMode BracketMode = BracketMode.SINGLE_ELIMINATION,
+    int TotalPlayers = 0
 );
 
 // Represents the winner selection for a reported bracket match.
 public sealed record ReportMatchRequest(
     Guid MatchId,
     Guid WinnerPlayerId
+);
+
+// Represents one player's vote for a match winner.
+public sealed record SubmitMatchVoteRequest(
+    Guid MatchId,
+    Guid WinnerPlayerId
+);
+
+// Describes the result of processing a submitted match vote.
+public enum SubmitMatchVoteStatus
+{
+    PENDING,
+    COMMITTED,
+    DUPLICATE_VOTE,
+    CONFLICT,
+    MATCH_NOT_ACTIVE,
+    INVALID_WINNER,
+    VOTER_NOT_PARTICIPANT,
+    GAME_NOT_FOUND,
+    BRACKET_NOT_STARTED,
+    APPLY_FAILED
+}
+
+// Represents the API payload returned after vote submission.
+public sealed record SubmitMatchVoteResponse(
+    Guid GameId,
+    Guid MatchId,
+    SubmitMatchVoteStatus Status,
+    int VoteCount,
+    Guid? CommittedWinnerPlayerId
 );
 
 // Represents a player's bracket state for UI rendering.

@@ -4,6 +4,7 @@ import { RequestService } from "@/services/RequestService";
 
 type AuthState = "loading" | "authenticated" | "unauthenticated";
 
+// Guards protected routes by verifying an active backend session.
 const RequireAuth = () =>
 {
     const [authState, setAuthState] = useState<AuthState>("loading");

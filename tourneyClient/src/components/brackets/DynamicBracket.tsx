@@ -5,6 +5,8 @@ import { useWindowSize } from "@/hooks/useWindowSize";
 
 type Props = {
     numPlayers: number;
+    playerNames?: string[];
+    mode?: "SINGLE_ELIMINATION" | "DOUBLE_ELIMINATION";
 };
 
 type MatchNode = {
@@ -19,6 +21,7 @@ type Region = {
     height: number;
 };
 
+// Normalizes requested player count to the nearest supported power-of-two bracket size.
 const clampToBracketSize = (requestedPlayers: number): number =>
 {
     const sanitized = Math.max(2, Math.floor(requestedPlayers || 2));
@@ -32,6 +35,7 @@ const clampToBracketSize = (requestedPlayers: number): number =>
     return powerOfTwo;
 };
 
+// Builds the number of matches per winners round from the opening match count.
 const getRoundCounts = (startingMatches: number): number[] =>
 {
     const counts: number[] = [];
@@ -52,6 +56,7 @@ const getRoundCounts = (startingMatches: number): number[] =>
     return counts;
 };
 
+// Builds the number of matches per losers round for double-elimination layout.
 const getLosersRoundCounts = (bracketPlayers: number): number[] =>
 {
     const winnersRounds = Math.log2(bracketPlayers);
@@ -72,6 +77,7 @@ const getLosersRoundCounts = (bracketPlayers: number): number[] =>
     return counts;
 };
 
+// Converts round match counts into x/y coordinates for bracket node rendering.
 const buildRoundNodes = (roundCounts: number[], region: Region): MatchNode[][] =>
 {
     const totalRounds = roundCounts.length;
@@ -90,6 +96,7 @@ const buildRoundNodes = (roundCounts: number[], region: Region): MatchNode[][] =
     });
 };
 
+// Draws connector lines between bracket rounds and returns animation cursor progress.
 const renderBracketLines = (
     rounds: MatchNode[][],
     keyPrefix: string,
@@ -99,6 +106,41 @@ const renderBracketLines = (
 {
     const lines: ReactElement[] = [];
     let delayCursor = startDelayIndex;
+    const accentStroke = "#020617";
+    const accentWidth = "6";
+    const mainWidth = "3.2";
+
+    const pushSegment = (key: string, x1: number, y1: number, x2: number, y2: number, delay: number) =>
+    {
+        lines.push(
+            <motion.line
+                key={`${key}-accent`}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={accentStroke}
+                strokeOpacity="0.55"
+                strokeWidth={accentWidth}
+                variants={drawService}
+                custom={delay / 8}
+            />
+        );
+
+        lines.push(
+            <motion.line
+                key={`${key}-main`}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={stroke}
+                strokeWidth={mainWidth}
+                variants={drawService}
+                custom={delay / 8}
+            />
+        );
+    };
 
     for (let roundIndex = 0; roundIndex < rounds.length - 1; roundIndex++)
     {
@@ -122,18 +164,13 @@ const renderBracketLines = (
 
             mappedSources.forEach((source, sourceLocalIndex) =>
             {
-                lines.push(
-                    <motion.line
-                        key={`${keyPrefix}-h1-${roundIndex}-${targetIndex}-${sourceLocalIndex}`}
-                        x1={source.x}
-                        y1={source.y}
-                        x2={elbowX}
-                        y2={source.y}
-                        stroke={stroke}
-                        strokeWidth="2"
-                        variants={drawService}
-                        custom={delayCursor / 8}
-                    />
+                pushSegment(
+                    `${keyPrefix}-h1-${roundIndex}-${targetIndex}-${sourceLocalIndex}`,
+                    source.x,
+                    source.y,
+                    elbowX,
+                    source.y,
+                    delayCursor
                 );
                 delayCursor += 1;
             });
@@ -142,34 +179,24 @@ const renderBracketLines = (
             {
                 const sortedByY = [...mappedSources].sort((a, b) => a.y - b.y);
 
-                lines.push(
-                    <motion.line
-                        key={`${keyPrefix}-v-${roundIndex}-${targetIndex}`}
-                        x1={elbowX}
-                        y1={sortedByY[0].y}
-                        x2={elbowX}
-                        y2={sortedByY[sortedByY.length - 1].y}
-                        stroke={stroke}
-                        strokeWidth="2"
-                        variants={drawService}
-                        custom={delayCursor / 8}
-                    />
+                pushSegment(
+                    `${keyPrefix}-v-${roundIndex}-${targetIndex}`,
+                    elbowX,
+                    sortedByY[0].y,
+                    elbowX,
+                    sortedByY[sortedByY.length - 1].y,
+                    delayCursor
                 );
                 delayCursor += 1;
             }
 
-            lines.push(
-                <motion.line
-                    key={`${keyPrefix}-h2-${roundIndex}-${targetIndex}`}
-                    x1={elbowX}
-                    y1={target.y}
-                    x2={target.x}
-                    y2={target.y}
-                    stroke={stroke}
-                    strokeWidth="2"
-                    variants={drawService}
-                    custom={delayCursor / 8}
-                />
+            pushSegment(
+                `${keyPrefix}-h2-${roundIndex}-${targetIndex}`,
+                elbowX,
+                target.y,
+                target.x,
+                target.y,
+                delayCursor
             );
             delayCursor += 1;
         }
@@ -178,12 +205,87 @@ const renderBracketLines = (
     return { lines, nextDelayIndex: delayCursor };
 };
 
-const DrawDoubleEliminationBracket: FC<Props> = ({ numPlayers }) =>
+// Renders the tournament bracket skeleton and overlays participant names on opening spokes.
+const DrawDoubleEliminationBracket: FC<Props> = ({ numPlayers, playerNames = [], mode = "DOUBLE_ELIMINATION" }) =>
 {
     const { width, height } = useWindowSize();
     const safeWidth = Math.max(900, width);
     const safeHeight = Math.max(700, height);
     const bracketPlayers = clampToBracketSize(numPlayers);
+    const isSingleElimination = mode === "SINGLE_ELIMINATION";
+
+    if (isSingleElimination)
+    {
+        const singleRoundCounts = getRoundCounts(bracketPlayers / 2);
+        const singleRegion: Region = {
+            x: safeWidth * 0.04,
+            y: safeHeight * 0.1,
+            width: safeWidth * 0.92,
+            height: safeHeight * 0.8,
+        };
+
+        const singleRounds = buildRoundNodes(singleRoundCounts, singleRegion);
+        const singleLinesResult = renderBracketLines(singleRounds, "single", "#ffffff", 0);
+
+        const openingRoundNodes = singleRounds[0] ?? [];
+        const openingRoundParticipantLabels = openingRoundNodes.flatMap((matchNode, matchIndex) =>
+        {
+            const firstParticipantIndex = matchIndex * 2;
+            const secondParticipantIndex = firstParticipantIndex + 1;
+
+            const participantOneName = playerNames[firstParticipantIndex] ?? "TBD";
+            const participantTwoName = playerNames[secondParticipantIndex] ?? "TBD";
+
+            return [
+                {
+                    key: `single-opening-participant-top-${matchIndex}`,
+                    x: matchNode.x - 120,
+                    y: matchNode.y - 10,
+                    label: participantOneName,
+                },
+                {
+                    key: `single-opening-participant-bottom-${matchIndex}`,
+                    x: matchNode.x - 120,
+                    y: matchNode.y + 14,
+                    label: participantTwoName,
+                },
+            ];
+        });
+
+        return (
+            <motion.svg
+                width="100%"
+                height="100%"
+                viewBox={`0 0 ${safeWidth} ${safeHeight}`}
+                preserveAspectRatio="xMidYMid meet"
+                initial="hidden"
+                animate="visible"
+                className="overflow-visible"
+            >
+                <text x={safeWidth * 0.04} y={safeHeight * 0.06} fill="#ffffff" fontSize="20" fontWeight="700">
+                    TOURNAMENT BRACKET
+                </text>
+
+                {singleLinesResult.lines}
+                {openingRoundParticipantLabels.map((participantLabel) => (
+                    <text
+                        key={participantLabel.key}
+                        x={participantLabel.x}
+                        y={participantLabel.y}
+                        fill="#ffffff"
+                        stroke="#020617"
+                        strokeOpacity="0.85"
+                        strokeWidth="0.8"
+                        paintOrder="stroke"
+                        fontSize="13"
+                        fontWeight="700"
+                    >
+                        {participantLabel.label}
+                    </text>
+                ))}
+            </motion.svg>
+        );
+    }
 
     const winnersRoundCounts = getRoundCounts(bracketPlayers / 2);
     const losersRoundCounts = getLosersRoundCounts(bracketPlayers);
@@ -204,6 +306,31 @@ const DrawDoubleEliminationBracket: FC<Props> = ({ numPlayers }) =>
 
     const winnersRounds = buildRoundNodes(winnersRoundCounts, winnersRegion);
     const losersRounds = buildRoundNodes(losersRoundCounts, losersRegion);
+
+    const openingRoundNodes = winnersRounds[0] ?? [];
+    const openingRoundParticipantLabels = openingRoundNodes.flatMap((matchNode, matchIndex) =>
+    {
+        const firstParticipantIndex = matchIndex * 2;
+        const secondParticipantIndex = firstParticipantIndex + 1;
+
+        const participantOneName = playerNames[firstParticipantIndex] ?? "TBD";
+        const participantTwoName = playerNames[secondParticipantIndex] ?? "TBD";
+
+        return [
+            {
+                key: `opening-participant-top-${matchIndex}`,
+                x: matchNode.x - 120,
+                y: matchNode.y - 10,
+                label: participantOneName,
+            },
+            {
+                key: `opening-participant-bottom-${matchIndex}`,
+                x: matchNode.x - 120,
+                y: matchNode.y + 14,
+                label: participantTwoName,
+            },
+        ];
+    });
 
     const winnersLinesResult = renderBracketLines(winnersRounds, "winners", "#ffffff", 0);
     const losersLinesResult = renderBracketLines(
@@ -232,7 +359,7 @@ const DrawDoubleEliminationBracket: FC<Props> = ({ numPlayers }) =>
                 x2={elbowX}
                 y2={winnersFinal.y}
                 stroke="#ffffff"
-                strokeWidth="2"
+                strokeWidth="3.2"
                 variants={drawService}
                 custom={grandDelay / 8}
             />
@@ -246,7 +373,7 @@ const DrawDoubleEliminationBracket: FC<Props> = ({ numPlayers }) =>
                 x2={elbowX}
                 y2={grandFinalY}
                 stroke="#ffffff"
-                strokeWidth="2"
+                strokeWidth="3.2"
                 variants={drawService}
                 custom={grandDelay / 8}
             />
@@ -260,7 +387,7 @@ const DrawDoubleEliminationBracket: FC<Props> = ({ numPlayers }) =>
                 x2={grandFinalX}
                 y2={grandFinalY}
                 stroke="#ffffff"
-                strokeWidth="2"
+                strokeWidth="3.2"
                 variants={drawService}
                 custom={grandDelay / 8}
             />
@@ -279,7 +406,7 @@ const DrawDoubleEliminationBracket: FC<Props> = ({ numPlayers }) =>
                 x2={elbowX}
                 y2={losersFinal.y}
                 stroke="#f5f5f5"
-                strokeWidth="2"
+                strokeWidth="3.2"
                 variants={drawService}
                 custom={grandDelay / 8}
             />
@@ -293,7 +420,7 @@ const DrawDoubleEliminationBracket: FC<Props> = ({ numPlayers }) =>
                 x2={elbowX}
                 y2={grandFinalY}
                 stroke="#f5f5f5"
-                strokeWidth="2"
+                strokeWidth="3.2"
                 variants={drawService}
                 custom={grandDelay / 8}
             />
@@ -307,7 +434,7 @@ const DrawDoubleEliminationBracket: FC<Props> = ({ numPlayers }) =>
                 x2={grandFinalX}
                 y2={grandFinalY}
                 stroke="#f5f5f5"
-                strokeWidth="2"
+                strokeWidth="3.2"
                 variants={drawService}
                 custom={grandDelay / 8}
             />
@@ -337,6 +464,22 @@ const DrawDoubleEliminationBracket: FC<Props> = ({ numPlayers }) =>
             {winnersLinesResult.lines}
             {losersLinesResult.lines}
             {grandFinalLines}
+            {openingRoundParticipantLabels.map((participantLabel) => (
+                <text
+                    key={participantLabel.key}
+                    x={participantLabel.x}
+                    y={participantLabel.y}
+                    fill="#ffffff"
+                    stroke="#020617"
+                    strokeOpacity="0.85"
+                    strokeWidth="0.8"
+                    paintOrder="stroke"
+                    fontSize="13"
+                    fontWeight="700"
+                >
+                    {participantLabel.label}
+                </text>
+            ))}
         </motion.svg>
     );
 };

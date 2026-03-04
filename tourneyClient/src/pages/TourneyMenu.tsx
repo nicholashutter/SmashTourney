@@ -2,8 +2,7 @@
 import BasicButton from "@/components/BasicButton";
 import BasicHeading from "@/components/HeadingOne";
 
-/* Ready for E2E testing */
-
+// Renders the authenticated tournament navigation menu.
 const TourneyMenu = () =>
 {
 

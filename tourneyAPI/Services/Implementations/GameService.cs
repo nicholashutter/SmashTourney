@@ -5,6 +5,7 @@ using System.Text.Json;
 using Contracts;
 using Entities;
 using Enums;
+using Helpers;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Services.Brackets;
@@ -15,6 +16,8 @@ public class GameService : IGameService
     private readonly IServiceProvider _serviceProvider;
 
     private readonly Dictionary<Guid, BracketRuntimeState> _bracketStates = new();
+    private readonly Dictionary<Guid, Dictionary<Guid, Dictionary<string, Guid>>> _matchVoteLedger = new();
+    private readonly SemaphoreSlim _voteLedgerGate = new(1, 1);
 
     private readonly Dictionary<BracketMode, IBracketEngine> _bracketEngines = new()
     {
@@ -52,11 +55,13 @@ public class GameService : IGameService
     public async Task<Guid> CreateGame(CreateGameOptions options)
     {
         var requestedMode = options?.BracketMode ?? BracketMode.SINGLE_ELIMINATION;
+        var requestedTotalPlayers = options?.TotalPlayers ?? 0;
 
         var game = new Game
         {
             Id = Guid.NewGuid(),
-            BracketMode = requestedMode
+            BracketMode = requestedMode,
+            byes = requestedTotalPlayers
         };
 
         await InsertGameAsync(game);
@@ -353,7 +358,18 @@ public class GameService : IGameService
 
         var bracketEngine = _bracketEngines[game.BracketMode];
 
-        var initializedState = bracketEngine.Initialize(gameId, game.currentPlayers);
+        var targetBracketSize = NormalizeBracketSize(game.byes, game.currentPlayers.Count);
+        var seededPlayers = BuildSeededPlayersWithByes(game.currentPlayers, gameId, targetBracketSize);
+
+        var initializedState = bracketEngine.Initialize(gameId, seededPlayers);
+        initializedState.ByePlayerIds = seededPlayers
+            .Where(player => player.UserId == AppConstants.ByeUserId)
+            .Select(player => player.Id)
+            .ToHashSet();
+
+        _matchVoteLedger.Remove(gameId);
+
+        await AutoResolveByeMatchesAsync(gameId, initializedState, bracketEngine, persistChanges: false);
         _bracketStates[gameId] = initializedState;
 
         await PersistBracketStateAsync(gameId, initializedState);
@@ -387,6 +403,7 @@ public class GameService : IGameService
         dbContext.SaveChanges();
 
         _bracketStates.Remove(gameId);
+        _matchVoteLedger.Remove(gameId);
         return true;
     }
 
@@ -406,6 +423,8 @@ public class GameService : IGameService
 
         var bracketEngine = _bracketEngines[state.Mode];
 
+        await AutoResolveByeMatchesAsync(gameId, state, bracketEngine, persistChanges: true);
+
         return bracketEngine.BuildSnapshot(state);
     }
 
@@ -424,6 +443,8 @@ public class GameService : IGameService
         }
 
         var bracketEngine = _bracketEngines[state.Mode];
+
+        await AutoResolveByeMatchesAsync(gameId, state, bracketEngine, persistChanges: true);
 
         return bracketEngine.BuildCurrentMatch(state);
     }
@@ -460,7 +481,9 @@ public class GameService : IGameService
                 null);
         }
 
-            var bracketEngine = _bracketEngines[state.Mode];
+        var bracketEngine = _bracketEngines[state.Mode];
+
+        await AutoResolveByeMatchesAsync(gameId, state, bracketEngine, persistChanges: true);
 
         var currentMatch = bracketEngine.BuildCurrentMatch(state);
         var gameState = ResolveGameState(state, currentMatch);
@@ -496,6 +519,10 @@ public class GameService : IGameService
             return false;
         }
 
+        RemoveLedgerForMatch(gameId, request.MatchId);
+
+        await AutoResolveByeMatchesAsync(gameId, state, bracketEngine, persistChanges: false);
+
         await PersistBracketStateAsync(gameId, state);
 
         var currentMatch = bracketEngine.BuildCurrentMatch(state);
@@ -503,6 +530,114 @@ public class GameService : IGameService
         Log.Information("Game {GameId} flow state after report => {FlowState}", gameId, gameState);
 
         return true;
+    }
+
+    // Accepts one authenticated player vote and commits match when both players agree on winner.
+    public async Task<SubmitMatchVoteResponse> SubmitMatchVoteAsync(Guid gameId, string voterUserId, SubmitMatchVoteRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(voterUserId))
+        {
+            return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.VOTER_NOT_PARTICIPANT, 0, null);
+        }
+
+        var state = await GetOrHydrateBracketStateAsync(gameId);
+        if (state is null)
+        {
+            return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.GAME_NOT_FOUND, 0, null);
+        }
+
+        if (!state.GameStarted)
+        {
+            return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.BRACKET_NOT_STARTED, 0, null);
+        }
+
+        if (!_bracketEngines.ContainsKey(state.Mode))
+        {
+            return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.BRACKET_NOT_STARTED, 0, null);
+        }
+
+        var bracketEngine = _bracketEngines[state.Mode];
+
+        await AutoResolveByeMatchesAsync(gameId, state, bracketEngine, persistChanges: true);
+
+        var currentMatch = bracketEngine.BuildCurrentMatch(state);
+        if (currentMatch is null || currentMatch.MatchId != request.MatchId)
+        {
+            return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.MATCH_NOT_ACTIVE, 0, null);
+        }
+
+        var winnerIsPlayerOne = currentMatch.PlayerOneId == request.WinnerPlayerId;
+        var winnerIsPlayerTwo = currentMatch.PlayerTwoId == request.WinnerPlayerId;
+        if (!winnerIsPlayerOne && !winnerIsPlayerTwo)
+        {
+            return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.INVALID_WINNER, 0, null);
+        }
+
+        var participantIds = new[]
+        {
+            currentMatch.PlayerOneId,
+            currentMatch.PlayerTwoId
+        };
+
+        var playerUserIds = await GetPlayerUserIdsAsync(gameId, participantIds);
+
+        var isParticipantVoter = playerUserIds.Values.Any(userId => userId == voterUserId);
+        if (!isParticipantVoter)
+        {
+            return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.VOTER_NOT_PARTICIPANT, 0, null);
+        }
+
+        await _voteLedgerGate.WaitAsync();
+        try
+        {
+            if (!_matchVoteLedger.ContainsKey(gameId))
+            {
+                _matchVoteLedger[gameId] = new Dictionary<Guid, Dictionary<string, Guid>>();
+            }
+
+            var gameVotes = _matchVoteLedger[gameId];
+            if (!gameVotes.ContainsKey(request.MatchId))
+            {
+                gameVotes[request.MatchId] = new Dictionary<string, Guid>();
+            }
+
+            var matchVotes = gameVotes[request.MatchId];
+
+            if (matchVotes.ContainsKey(voterUserId))
+            {
+                return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.DUPLICATE_VOTE, matchVotes.Count, null);
+            }
+
+            matchVotes[voterUserId] = request.WinnerPlayerId;
+
+            var distinctWinners = matchVotes.Values.Distinct().Count();
+            if (distinctWinners > 1)
+            {
+                matchVotes.Clear();
+                return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.CONFLICT, 0, null);
+            }
+
+            if (matchVotes.Count >= 2)
+            {
+                // Vote consensus reached; continue to commit after releasing the ledger lock.
+            }
+            else
+            {
+                return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.PENDING, matchVotes.Count, null);
+            }
+        }
+        finally
+        {
+            _voteLedgerGate.Release();
+        }
+
+        var applied = await ReportMatchResultAsync(gameId, new ReportMatchRequest(request.MatchId, request.WinnerPlayerId));
+        if (!applied)
+        {
+            return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.APPLY_FAILED, 2, null);
+        }
+
+        return new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.COMMITTED, 2, request.WinnerPlayerId);
     }
 
     // Returns in-memory bracket state or hydrates it from persisted JSON.
@@ -599,5 +734,152 @@ public class GameService : IGameService
             tierPlacement = sourceCharacter.tierPlacement,
             weightClass = sourceCharacter.weightClass
         };
+    }
+
+    // Fills missing bracket slots with synthetic bye players for deterministic bracket sizing.
+    private static List<Player> BuildSeededPlayersWithByes(
+        IReadOnlyList<Player> realPlayers,
+        Guid gameId,
+        int targetBracketSize)
+    {
+        var seededPlayers = realPlayers
+            .Where(player => player.Id != Guid.Empty)
+            .DistinctBy(player => player.Id)
+            .ToList();
+
+        var byeSlotsToAdd = Math.Max(0, targetBracketSize - seededPlayers.Count);
+        for (var byeIndex = 0; byeIndex < byeSlotsToAdd; byeIndex++)
+        {
+            seededPlayers.Add(new Player
+            {
+                Id = Guid.NewGuid(),
+                UserId = AppConstants.ByeUserId,
+                DisplayName = $"BYE {byeIndex + 1}",
+                CurrentScore = 0,
+                CurrentRound = 0,
+                CurrentGameID = gameId,
+                CurrentCharacter = new Character()
+            });
+        }
+
+        return seededPlayers;
+    }
+
+    // Resolves bracket size as a power-of-two based on requested and current participants.
+    private static int NormalizeBracketSize(int requestedTotalPlayers, int currentPlayers)
+    {
+        var normalizedRequested = RoundUpToPowerOfTwo(Math.Max(2, requestedTotalPlayers));
+        var normalizedCurrent = RoundUpToPowerOfTwo(Math.Max(2, currentPlayers));
+        return Math.Max(normalizedRequested, normalizedCurrent);
+    }
+
+    // Rounds a positive integer up to the nearest power-of-two.
+    private static int RoundUpToPowerOfTwo(int value)
+    {
+        var result = 1;
+        while (result < value)
+        {
+            result *= 2;
+        }
+
+        return result;
+    }
+
+    // Auto-completes bye matches so real players are advanced without manual voting.
+    private async Task AutoResolveByeMatchesAsync(
+        Guid gameId,
+        BracketRuntimeState state,
+        IBracketEngine bracketEngine,
+        bool persistChanges)
+    {
+        var changed = false;
+
+        while (true)
+        {
+            var currentMatch = bracketEngine.BuildCurrentMatch(state);
+            if (currentMatch is null)
+            {
+                break;
+            }
+
+            var winnerId = ResolveAutomaticWinner(state, currentMatch.PlayerOneId, currentMatch.PlayerTwoId);
+            if (winnerId is null)
+            {
+                break;
+            }
+
+            var applied = bracketEngine.TryReportMatch(state, currentMatch.MatchId, winnerId.Value);
+            if (!applied)
+            {
+                break;
+            }
+
+            changed = true;
+        }
+
+        if (changed && persistChanges)
+        {
+            await PersistBracketStateAsync(gameId, state);
+        }
+    }
+
+    // Returns a forced winner only for bye-involved matches; returns null for real-vs-real matches.
+    private static Guid? ResolveAutomaticWinner(BracketRuntimeState state, Guid playerOneId, Guid playerTwoId)
+    {
+        var playerOneIsBye = state.ByePlayerIds.Contains(playerOneId);
+        var playerTwoIsBye = state.ByePlayerIds.Contains(playerTwoId);
+
+        if (!playerOneIsBye && !playerTwoIsBye)
+        {
+            return null;
+        }
+
+        if (playerOneIsBye && !playerTwoIsBye)
+        {
+            return playerTwoId;
+        }
+
+        if (playerTwoIsBye && !playerOneIsBye)
+        {
+            return playerOneId;
+        }
+
+        return Random.Shared.Next(0, 2) == 0 ? playerOneId : playerTwoId;
+    }
+
+    // Returns a map of participant player ids to user ids for authenticated vote validation.
+    private async Task<Dictionary<Guid, string>> GetPlayerUserIdsAsync(Guid gameId, IEnumerable<Guid> playerIds)
+    {
+        var uniquePlayerIds = playerIds.Distinct().ToList();
+        if (uniquePlayerIds.Count == 0)
+        {
+            return new Dictionary<Guid, string>();
+        }
+
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var players = await dbContext.Players
+            .Where(player => player.CurrentGameID == gameId && uniquePlayerIds.Contains(player.Id))
+            .ToListAsync();
+
+        return players.ToDictionary(player => player.Id, player => player.UserId);
+    }
+
+    // Removes cached votes for one match after resolution.
+    private void RemoveLedgerForMatch(Guid gameId, Guid matchId)
+    {
+        if (!_matchVoteLedger.ContainsKey(gameId))
+        {
+            return;
+        }
+
+        var gameVotes = _matchVoteLedger[gameId];
+        gameVotes.Remove(matchId);
+
+        if (gameVotes.Count == 0)
+        {
+            _matchVoteLedger.Remove(gameId);
+        }
     }
 }

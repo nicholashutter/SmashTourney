@@ -113,14 +113,12 @@ public static class GameRouter
         {
             Log.Information("Request Type: Post \n URL: '/Games/AddPlayer' \n Time:{Timestamp}", DateTime.UtcNow);
 
-            // this should get the userId from the auth token
+            // Resolves the authenticated user id from auth claims.
             var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Results.Unauthorized();
             }
-
-            // PlayerValidator.Validate(player, "AddPlayerRoute");
 
             bool success = gameService.AddPlayerToGame(player, gameId, userId);
             if (!success)
@@ -237,6 +235,34 @@ public static class GameRouter
             }
 
             return Results.Ok();
+        });
+
+        gameRoutes.MapPost("/SubmitMatchVote/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId, SubmitMatchVoteRequest request) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/Games/SubmitMatchVote' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var voteResult = await gameService.SubmitMatchVoteAsync(gameId, userId, request);
+
+            return voteResult.Status switch
+            {
+                SubmitMatchVoteStatus.PENDING => Results.Ok(voteResult),
+                SubmitMatchVoteStatus.COMMITTED => Results.Ok(voteResult),
+                SubmitMatchVoteStatus.GAME_NOT_FOUND => Results.NotFound(voteResult),
+                SubmitMatchVoteStatus.VOTER_NOT_PARTICIPANT => Results.Json(voteResult, statusCode: 403),
+                SubmitMatchVoteStatus.DUPLICATE_VOTE => Results.Conflict(voteResult),
+                SubmitMatchVoteStatus.CONFLICT => Results.Conflict(voteResult),
+                SubmitMatchVoteStatus.MATCH_NOT_ACTIVE => Results.Conflict(voteResult),
+                SubmitMatchVoteStatus.INVALID_WINNER => Results.BadRequest(voteResult),
+                SubmitMatchVoteStatus.BRACKET_NOT_STARTED => Results.BadRequest(voteResult),
+                SubmitMatchVoteStatus.APPLY_FAILED => Results.Problem("Vote consensus reached but match could not be applied", statusCode: 500),
+                _ => Results.BadRequest(voteResult)
+            };
         });
 
     }

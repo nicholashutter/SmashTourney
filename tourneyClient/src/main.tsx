@@ -15,7 +15,15 @@ import { GameDataProvider } from './components/GameIdContext.tsx';
 import RequireAuth from './components/RequireAuth.tsx';
 import GameSessionGuard from './components/GameSessionGuard.tsx';
 
-createRoot(document.getElementById('root')!).render(
+// Boots the React application and registers all client routes.
+const rootElement = document.getElementById('root');
+
+if (!rootElement)
+{
+  throw new Error('Root element not found');
+}
+
+createRoot(rootElement).render(
   <GameDataProvider>
     <BrowserRouter>
       <GameSessionGuard />

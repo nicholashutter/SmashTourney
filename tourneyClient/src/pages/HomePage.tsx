@@ -3,69 +3,67 @@ import { useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { ApplicationUser } from '@/models/entities/ApplicationUser';
 import { validateInput } from "@/services/validationService";
-import { SERVER_ERROR, SUBMIT_SUCCESS, INVALID_CHARACTERS } from "@/constants/AppConstants";
+import { INVALID_CHARACTERS } from "@/constants/AppConstants";
 import HeadingTwo from "@/components/HeadingTwo";
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
 
-/*Ready for E2E testing */
-
+// Renders the sign-in page and starts the authenticated user flow.
 const HomePage = () =>
 {
-  //dynamic import react router useNavigate
   const navigate = useNavigate();
 
-  //user input values
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
 
-  //setup user object RequestService expects
-  const user: ApplicationUser =
-  {
-    UserName: userName,
-    Password: password
-  }
-
+  // Stores username input from the sign-in form.
   const userNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setUserName(e.target.value);
   }
 
+  // Stores password input from the sign-in form.
   const passwordHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setPassword(e.target.value);
   }
 
+  // Submits login request and routes to the tournament menu on success.
   const onSubmit = async () =>
   {
-    const validateUserName = validateInput(userName).isValid;
-    const validatePassword = validateInput(password).isValid;
+    const isUserNameValid = validateInput(userName).isValid;
+    const isPasswordValid = validateInput(password).isValid;
 
-    if (validateUserName && validatePassword)
-    {
-      try
-      {
-        await RequestService(
-          "login",
-          {
-            body: user
-          }
-        )
-
-        window.alert(SUBMIT_SUCCESS("Login"));
-        navigate("/tourneyMenu");
-      }
-      catch (err)
-      {
-        window.alert(SERVER_ERROR("Login"));
-        console.error(err);
-      }
-    }
-    else
+    if (!isUserNameValid || !isPasswordValid)
     {
       window.alert(INVALID_CHARACTERS("Login"));
+      return;
+    }
+
+    const user: ApplicationUser =
+    {
+      UserName: userName,
+      Password: password
+    };
+
+    try
+    {
+      await RequestService(
+        "login",
+        {
+          body: user
+        }
+      )
+
+      window.alert("Signed in successfully. You are now moving to the tournament menu.");
+      navigate("/tourneyMenu");
+    }
+    catch (err)
+    {
+      window.alert("Sign in failed. You will stay on this page so you can try again.");
+      console.error(err);
     }
   }
 
@@ -83,11 +81,11 @@ const HomePage = () =>
           <BasicButton buttonLabel="Sign Up" href="/signUp" />
           {
             /* 
-          <SubmitButton buttonLabel="Continue As Guest" onSubmit={() =>
-          {
-            navigate("/guestSignUp");
-          }
-          } />*/
+        <SubmitButton buttonLabel="Continue As Guest" onSubmit={() =>
+        {
+          navigate("/guestSignUp");
+        }
+        } />*/
           }
 
         </div>

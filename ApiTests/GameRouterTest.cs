@@ -1,102 +1,330 @@
 namespace ApiTests;
 
-using System.Threading.Tasks;
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using ApiTests.TestContracts;
 using Contracts;
 using Entities;
 using Enums;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.Extensions.DependencyInjection;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Services;
-using System.Security.Cryptography.X509Certificates;
-using System.Runtime.CompilerServices;
-using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
-using System.Net.Http.Json;
-using System.Net;
 
+// Verifies business-facing game route behavior for authentication, tournament progression, and completion.
 public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
 
-    class CreateGameRes { public Guid gameId { get; set; } }
-    class CreateGameWithModeRes { public Guid gameId { get; set; } public BracketMode bracketMode { get; set; } }
-    class GetByIdRes { public Game game { get; set; } }
-    class GetAllGamesRes { public List<Game> games { get; set; } }
+    private static readonly JsonSerializerOptions SerializerOptions = CreateSerializerOptions();
 
-    private static readonly JsonSerializerOptions SerializerOptions = new()
+    // Builds JSON options that deserialize enum values from API responses consistently.
+    private static JsonSerializerOptions CreateSerializerOptions()
     {
-        PropertyNameCaseInsensitive = true,
-        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
-    };
+        var options = new JsonSerializerOptions();
+        options.PropertyNameCaseInsensitive = true;
+        options.Converters.Add(new JsonStringEnumConverter());
+        return options;
+    }
 
+    // Initializes test host resources required by route integration tests.
     public GameRouterTest()
     {
         _factory = new CustomWebApplicationFactory<Program>();
         using var scope = _factory.Services.CreateScope();
-        scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
+        var database = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        database.Database.EnsureCreated();
     }
 
-    public class RegisterRequest { public string Email { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; }
+    // Creates a client that can optionally persist cookies between requests.
+    private HttpClient NewClient(bool handleCookies = false)
+    {
+        var clientOptions = new WebApplicationFactoryClientOptions
+        {
+            HandleCookies = handleCookies
+        };
 
-    private HttpClient NewClient(bool handleCookies = false) =>
-        _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = handleCookies });
+        return _factory.CreateClient(clientOptions);
+    }
 
+    // Creates a game through the public route and returns its identifier.
     private async Task<Guid> CreateGameAsync(HttpClient client)
     {
-        var resp = await client.PostAsync("/Games/CreateGame", null);
-        resp.EnsureSuccessStatusCode();
-        var data = await resp.Content.ReadFromJsonAsync<CreateGameRes>();
-        return data?.gameId ?? Guid.Empty;
+        var response = await client.PostAsync("/Games/CreateGame", null);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response.Content.ReadFromJsonAsync<CreateGameResponse>(SerializerOptions);
+        if (payload is null)
+        {
+            return Guid.Empty;
+        }
+
+        return payload.GameId;
     }
 
-    private async Task<CreateGameWithModeRes> CreateGameWithModeAsync(HttpClient client, BracketMode bracketMode)
+    // Creates a game in a selected bracket mode and returns route response data.
+    private async Task<CreateGameWithModeResponse> CreateGameWithModeAsync(HttpClient client, BracketMode bracketMode)
     {
-        var resp = await client.PostAsJsonAsync("/Games/CreateGameWithMode", new { bracketMode = bracketMode.ToString() });
-        resp.EnsureSuccessStatusCode();
-        var data = await resp.Content.ReadFromJsonAsync<CreateGameWithModeRes>(SerializerOptions);
-        Assert.NotNull(data);
-        return data!;
+        var requestBody = new
+        {
+            bracketMode = bracketMode.ToString()
+        };
+
+        var response = await client.PostAsJsonAsync("/Games/CreateGameWithMode", requestBody);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response.Content.ReadFromJsonAsync<CreateGameWithModeResponse>(SerializerOptions);
+        Assert.NotNull(payload);
+
+        return payload!;
     }
 
-    private async Task<List<(HttpClient client, Player player)>> CreateDummyEntitiesWithAuthentication(Guid gameId, int numberOfPlayers)
+    // Creates authenticated users and corresponding player payloads for a specific game.
+    private async Task<List<AuthenticatedPlayerSession>> CreateDummyEntitiesWithAuthenticationAsync(Guid gameId, int numberOfPlayers)
     {
-        var list = new List<(HttpClient, Player)>();
-        for (int i = 0; i < numberOfPlayers; i++)
+        var sessions = new List<AuthenticatedPlayerSession>();
+
+        for (var index = 0; index < numberOfPlayers; index++)
         {
             var client = NewClient(handleCookies: true);
-            var email = $"test{i}_{Guid.NewGuid()}@example.com";
-            var password = "SecureP@ssw0rd123!";
-            var userName = $"Player{i}";
+            var registerRequest = new RegisterRequest
+            {
+                Email = $"test{index}_{Guid.NewGuid()}@example.com",
+                Password = "SecureP@ssw0rd123!"
+            };
 
-            var registerRequest = new RegisterRequest { Email = email, Password = password };
-            (await client.PostAsJsonAsync("/register?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
-            (await client.PostAsJsonAsync("/login?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+            var registerResponse = await client.PostAsJsonAsync("/register?useCookies=true", registerRequest);
+            registerResponse.EnsureSuccessStatusCode();
 
-            list.Add((client, new Player { UserId = "", DisplayName = userName, CurrentCharacter = new Mario(), CurrentGameID = gameId }));
+            var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", registerRequest);
+            loginResponse.EnsureSuccessStatusCode();
+
+            var player = new Player
+            {
+                Id = Guid.NewGuid(),
+                UserId = string.Empty,
+                DisplayName = $"Player{index}",
+                CurrentCharacter = new Mario(),
+                CurrentGameID = gameId
+            };
+
+            var session = new AuthenticatedPlayerSession
+            {
+                Client = client,
+                Player = player
+            };
+
+            sessions.Add(session);
         }
-        return list;
+
+        return sessions;
     }
 
-    private static object CreateAddPlayerPayload(Guid gameId, string displayName) => new
+    // Creates an authenticated client session that can call protected routes.
+    private async Task<HttpClient> CreateAuthenticatedClientAsync(string emailPrefix)
     {
-        id = Guid.NewGuid(),
-        displayName,
-        currentScore = 0,
-        currentRound = 0,
-        currentCharacter = new
+        var client = NewClient(handleCookies: true);
+        var registerRequest = new RegisterRequest
+        {
+            Email = $"{emailPrefix}_{Guid.NewGuid()}@example.com",
+            Password = "SecureP@ssw0rd123!"
+        };
+
+        var registerResponse = await client.PostAsJsonAsync("/register?useCookies=true", registerRequest);
+        registerResponse.EnsureSuccessStatusCode();
+
+        var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", registerRequest);
+        loginResponse.EnsureSuccessStatusCode();
+
+        return client;
+    }
+
+    // Builds a started two-player match and returns sessions mapped to current match participants.
+    private async Task<(Guid GameId, CurrentMatchResponse Match, AuthenticatedPlayerSession PlayerOneSession, AuthenticatedPlayerSession PlayerTwoSession)>
+        SetupStartedTwoPlayerMatchAsync()
+    {
+        var hostClient = NewClient();
+        var gameId = await CreateGameAsync(hostClient);
+
+        var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 2);
+        foreach (var session in playerSessions)
+        {
+            var addPlayerResponse = await session.Client.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", session.Player);
+            addPlayerResponse.EnsureSuccessStatusCode();
+        }
+
+        var startResponse = await hostClient.PostAsync($"/Games/StartGame/{gameId}", null);
+        startResponse.EnsureSuccessStatusCode();
+
+        var currentMatchResponse = await hostClient.GetAsync($"/Games/GetCurrentMatch/{gameId}");
+        currentMatchResponse.EnsureSuccessStatusCode();
+
+        var currentMatch = await currentMatchResponse.Content.ReadFromJsonAsync<CurrentMatchResponse>(SerializerOptions);
+        if (currentMatch is null)
+        {
+            throw new InvalidOperationException("Current match payload was null for two-player setup.");
+        }
+
+        var playerOneSession = playerSessions.FirstOrDefault(session => session.Player.Id == currentMatch.PlayerOneId);
+        var playerTwoSession = playerSessions.FirstOrDefault(session => session.Player.Id == currentMatch.PlayerTwoId);
+        if (playerOneSession is null || playerTwoSession is null)
+        {
+            throw new InvalidOperationException("Failed to map player sessions to current match participants.");
+        }
+
+        return (gameId, currentMatch, playerOneSession, playerTwoSession);
+    }
+
+    // Builds a client payload that mirrors frontend add-player requests.
+    private static object CreateAddPlayerPayload(Guid gameId, string displayName)
+    {
+        return new
         {
             id = Guid.NewGuid(),
-            characterName = "MARIO",
-            archetype = "ALL_ROUNDER",
-            fallSpeed = "FAST_FALLERS",
-            tierPlacement = "A",
-            weightClass = "MIDDLEWEIGHT"
-        },
-        currentGameID = gameId
-    };
+            displayName,
+            currentScore = 0,
+            currentRound = 0,
+            currentCharacter = new
+            {
+                id = Guid.NewGuid(),
+                characterName = "MARIO",
+                archetype = "ALL_ROUNDER",
+                fallSpeed = "FAST_FALLERS",
+                tierPlacement = "A",
+                weightClass = "MIDDLEWEIGHT"
+            },
+            currentGameID = gameId
+        };
+    }
 
+    // Executes an authenticated tournament from lobby to completion and returns match-report totals.
+    private async Task<TournamentRunResult> RunAuthenticatedTournamentToCompletionAsync(
+        BracketMode bracketMode,
+        int playerCount,
+        int maxIterations)
+    {
+        var hostClient = NewClient();
+        var gameResponse = await CreateGameWithModeAsync(hostClient, bracketMode);
+        var gameId = gameResponse.GameId;
+
+        var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, playerCount);
+
+        foreach (var session in playerSessions)
+        {
+            var sessionStatusResponse = await session.Client.GetAsync("/users/session");
+            sessionStatusResponse.EnsureSuccessStatusCode();
+
+            var addPlayerResponse = await session.Client.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", session.Player);
+            addPlayerResponse.EnsureSuccessStatusCode();
+        }
+
+        var lobbyFlowResponse = await hostClient.GetAsync($"/Games/GetFlowState/{gameId}");
+        lobbyFlowResponse.EnsureSuccessStatusCode();
+
+        var lobbyFlow = await lobbyFlowResponse.Content.ReadFromJsonAsync<GameStateResponse>(SerializerOptions);
+        if (lobbyFlow is null || lobbyFlow.State != GameState.LOBBY_WAITING)
+        {
+            throw new InvalidOperationException("Lobby flow state was not available before game start.");
+        }
+
+        var startGameResponse = await hostClient.PostAsync($"/Games/StartGame/{gameId}", null);
+        startGameResponse.EnsureSuccessStatusCode();
+
+        var reportedMatchIds = new HashSet<Guid>();
+        var reportCount = 0;
+
+        for (var iteration = 0; iteration < maxIterations; iteration++)
+        {
+            var flowResponse = await hostClient.GetAsync($"/Games/GetFlowState/{gameId}");
+            flowResponse.EnsureSuccessStatusCode();
+
+            var flowState = await flowResponse.Content.ReadFromJsonAsync<GameStateResponse>(SerializerOptions);
+            if (flowState is null || !flowState.GameStarted)
+            {
+                throw new InvalidOperationException("Flow state was null or game was not marked started during progression.");
+            }
+
+            if (flowState.State == GameState.COMPLETE)
+            {
+                break;
+            }
+
+            var currentMatchResponse = await hostClient.GetAsync($"/Games/GetCurrentMatch/{gameId}");
+            if (currentMatchResponse.StatusCode == HttpStatusCode.NotFound)
+            {
+                continue;
+            }
+
+            currentMatchResponse.EnsureSuccessStatusCode();
+
+            var currentMatch = await currentMatchResponse.Content.ReadFromJsonAsync<CurrentMatchResponse>(SerializerOptions);
+            if (currentMatch is null)
+            {
+                throw new InvalidOperationException("Current match payload was null during progression.");
+            }
+
+            var currentMatchId = currentMatch.MatchId;
+            if (reportedMatchIds.Contains(currentMatchId))
+            {
+                throw new InvalidOperationException("Current match repeated while tournament was still in progress.");
+            }
+            reportedMatchIds.Add(currentMatchId);
+
+            var reportRequest = new ReportMatchRequest(currentMatchId, currentMatch.PlayerOneId);
+            var reportResponse = await hostClient.PostAsJsonAsync($"/Games/ReportMatch/{gameId}", reportRequest);
+            reportResponse.EnsureSuccessStatusCode();
+
+            reportCount++;
+        }
+
+        var finalFlowResponse = await hostClient.GetAsync($"/Games/GetFlowState/{gameId}");
+        finalFlowResponse.EnsureSuccessStatusCode();
+
+        var finalFlow = await finalFlowResponse.Content.ReadFromJsonAsync<GameStateResponse>(SerializerOptions);
+        if (finalFlow is null || finalFlow.State != GameState.COMPLETE)
+        {
+            throw new InvalidOperationException("Tournament did not reach COMPLETE flow state.");
+        }
+
+        var finalSnapshotResponse = await hostClient.GetAsync($"/Games/GetBracket/{gameId}");
+        finalSnapshotResponse.EnsureSuccessStatusCode();
+
+        var finalSnapshot = await finalSnapshotResponse.Content.ReadFromJsonAsync<BracketSnapshotResponse>(SerializerOptions);
+        if (finalSnapshot is null || finalSnapshot.Mode != bracketMode)
+        {
+            throw new InvalidOperationException("Final bracket snapshot was invalid for tournament mode.");
+        }
+
+        if (!finalSnapshot.Matches.Any(match => match.Status == BracketMatchStatus.COMPLETE))
+        {
+            throw new InvalidOperationException("Final snapshot did not contain completed matches.");
+        }
+
+        if (reportCount <= 0)
+        {
+            throw new InvalidOperationException("Tournament progression reported no completed matches.");
+        }
+
+        return new TournamentRunResult
+        {
+            GameId = gameId,
+            ReportedMatches = reportCount
+        };
+    }
+
+    // Calculates a safety bound for report-loop iterations by bracket mode and player count.
+    private static int GetMaxIterations(BracketMode bracketMode, int playerCount)
+    {
+        if (bracketMode == BracketMode.SINGLE_ELIMINATION)
+        {
+            return playerCount * 8;
+        }
+
+        return playerCount * 16;
+    }
+
+    // Confirms that game creation route returns a valid game identifier.
     [Fact]
     public async Task CreateGameReturnsSuccess()
     {
@@ -105,70 +333,97 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         Assert.NotEqual(Guid.Empty, gameId);
     }
 
+    // Confirms that creating a user session through game routes succeeds for valid users.
     [Fact]
     public async Task CreateUserSessionTakesValidUserReturnsSuccess()
     {
         var client = NewClient();
-        var user = new ApplicationUser { Id = Guid.NewGuid().ToString(), UserName = "TestUser", Email = Guid.NewGuid() + "@example.com" };
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid().ToString(),
+            UserName = "TestUser",
+            Email = $"{Guid.NewGuid()}@example.com"
+        };
+
         var response = await client.PostAsJsonAsync("/Games/CreateUserSession", user);
-        response.EnsureSuccessStatusCode();
+        Assert.True(response.IsSuccessStatusCode);
     }
 
-
-
-
-
+    // Confirms that listing games returns all newly created sessions.
     [Fact]
     public async Task GetAllGamesReturnsAllValidGames()
     {
         var client = NewClient();
-        const int expected = 10;
-        for (int i = 0; i < expected; i++) await CreateGameAsync(client);
-        var getResponse = await client.GetAsync("/Games/getAllGames");
-        getResponse.EnsureSuccessStatusCode();
-        var responseData = await getResponse.Content.ReadFromJsonAsync<GetAllGamesRes>(SerializerOptions);
-        Assert.Equal(expected, responseData?.games?.Count);
+        var baselineResponse = await client.GetAsync("/Games/getAllGames");
+        var baselineCount = 0;
+        if (baselineResponse.IsSuccessStatusCode)
+        {
+            var baselinePayload = await baselineResponse.Content.ReadFromJsonAsync<GetAllGamesResponse>(SerializerOptions);
+            baselineCount = baselinePayload?.Games?.Count ?? 0;
+        }
+
+        const int expectedCount = 10;
+
+        for (var index = 0; index < expectedCount; index++)
+        {
+            await CreateGameAsync(client);
+        }
+
+        var response = await client.GetAsync("/Games/getAllGames");
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response.Content.ReadFromJsonAsync<GetAllGamesResponse>(SerializerOptions);
+        Assert.Equal(baselineCount + expectedCount, payload?.Games?.Count ?? 0);
     }
 
-
+    // Confirms that fetching one game returns the same identifier created earlier.
     [Fact]
     public async Task GetGameByIdReturnsValidGame()
     {
         var client = NewClient();
         var gameId = await CreateGameAsync(client);
-        var nextResponse = await client.GetAsync($"/Games/GetGameById/{gameId}");
-        nextResponse.EnsureSuccessStatusCode();
-        var nextResponseData = await nextResponse.Content.ReadFromJsonAsync<GetByIdRes>(
-            SerializerOptions);
-        Assert.Equal(gameId, nextResponseData?.game?.Id);
+
+        var response = await client.GetAsync($"/Games/GetGameById/{gameId}");
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response.Content.ReadFromJsonAsync<GetGameByIdResponse>(SerializerOptions);
+        Assert.Equal(gameId, payload?.Game?.Id);
     }
 
+    // Confirms that ending a game through the route succeeds.
     [Fact]
     public async Task EndGameEndsRunningGame()
     {
         var client = NewClient();
         var gameId = await CreateGameAsync(client);
-        var endResponse = await client.GetAsync($"/Games/EndGame/{gameId}");
-        endResponse.EnsureSuccessStatusCode();
+
+        var response = await client.GetAsync($"/Games/EndGame/{gameId}");
+        Assert.True(response.IsSuccessStatusCode);
     }
 
-
-
-
+    // Confirms that authenticated players can join a game through AddPlayer route.
     [Fact]
     public async Task AddPlayersReturnsSuccess()
     {
         var client = NewClient();
         var gameId = await CreateGameAsync(client);
-        const int NUM_PLAYERS = 10;
-        var playerSessions = await CreateDummyEntitiesWithAuthentication(gameId, NUM_PLAYERS);
-        foreach (var (playerClient, player) in playerSessions)
+        var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 10);
+
+        var allAddPlayerCallsSucceeded = true;
+
+        foreach (var session in playerSessions)
         {
-            var playerResponse = await playerClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", player);
-            playerResponse.EnsureSuccessStatusCode();
+            var playerResponse = await session.Client.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", session.Player);
+            if (!playerResponse.IsSuccessStatusCode)
+            {
+                allAddPlayerCallsSucceeded = false;
+            }
         }
+
+        Assert.True(allAddPlayerCallsSucceeded);
     }
 
+    // Confirms that unauthenticated clients cannot add players to a game.
     [Fact]
     public async Task AddPlayerWithoutAuthentication_ReturnsUnauthorized()
     {
@@ -182,6 +437,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    // Confirms that session status route requires a signed-in user context.
     [Fact]
     public async Task SessionStatusWithoutAuthentication_ReturnsUnauthorized()
     {
@@ -192,6 +448,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    // Confirms that authenticated create-tournament flow supports session and add-player steps.
     [Fact]
     public async Task AuthenticatedCreateTourneyFlow_AllowsSessionAndAddPlayer()
     {
@@ -204,8 +461,11 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
             Password = "SecureP@ssw0rd123!"
         };
 
-        (await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
-        (await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+        var registerResponse = await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest);
+        registerResponse.EnsureSuccessStatusCode();
+
+        var loginResponse = await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest);
+        loginResponse.EnsureSuccessStatusCode();
 
         var sessionResponse = await authenticatedClient.GetAsync("/users/session");
         sessionResponse.EnsureSuccessStatusCode();
@@ -214,9 +474,10 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
             $"/Games/AddPlayer/{gameId}",
             CreateAddPlayerPayload(gameId, "AuthFlowUser"));
 
-        addPlayerResponse.EnsureSuccessStatusCode();
+        Assert.True(addPlayerResponse.IsSuccessStatusCode);
     }
 
+    // Confirms that AddPlayer can derive user identity from auth claims when payload omits UserId.
     [Fact]
     public async Task AddPlayerWithoutUserIdInBody_UsesClaimUserIdAndReturnsSuccess()
     {
@@ -229,8 +490,11 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
             Password = "SecureP@ssw0rd123!"
         };
 
-        (await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
-        (await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+        var registerResponse = await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest);
+        registerResponse.EnsureSuccessStatusCode();
+
+        var loginResponse = await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest);
+        loginResponse.EnsureSuccessStatusCode();
 
         var addPlayerPayload = new
         {
@@ -256,14 +520,15 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         var gameResponse = await authenticatedClient.GetAsync($"/Games/GetGameById/{gameId}");
         gameResponse.EnsureSuccessStatusCode();
 
-        var gameData = await gameResponse.Content.ReadFromJsonAsync<GetByIdRes>(
-            SerializerOptions);
+        var gamePayload = await gameResponse.Content.ReadFromJsonAsync<GetGameByIdResponse>(SerializerOptions);
+        var hasResolvedUserId = gamePayload is not null
+            && gamePayload.Game.currentPlayers.Count > 0
+            && !string.IsNullOrWhiteSpace(gamePayload.Game.currentPlayers[0].UserId);
 
-        Assert.NotNull(gameData?.game);
-        Assert.NotEmpty(gameData!.game.currentPlayers);
-        Assert.False(string.IsNullOrWhiteSpace(gameData.game.currentPlayers[0].UserId));
+        Assert.True(hasResolvedUserId);
     }
 
+    // Confirms that AddPlayer accepts enum string payloads used by frontend join flows.
     [Fact]
     public async Task AddPlayerAcceptsStringEnumPayloadFromJoinTourney()
     {
@@ -276,8 +541,11 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
             Password = "SecureP@ssw0rd123!"
         };
 
-        (await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
-        (await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest)).EnsureSuccessStatusCode();
+        var registerResponse = await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest);
+        registerResponse.EnsureSuccessStatusCode();
+
+        var loginResponse = await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest);
+        loginResponse.EnsureSuccessStatusCode();
 
         var addPlayerPayload = new
         {
@@ -298,48 +566,38 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         };
 
         var addPlayerResponse = await authenticatedClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", addPlayerPayload);
-        addPlayerResponse.EnsureSuccessStatusCode();
+        Assert.True(addPlayerResponse.IsSuccessStatusCode);
     }
 
-
-
+    // Confirms that starting a game succeeds after enough players have joined.
     [Fact]
     public async Task StartGameStartsGameSuccessfully()
     {
         var client = NewClient();
         var gameId = await CreateGameAsync(client);
-        const int NUM_PLAYERS = 10;
-        var playerSessions = await CreateDummyEntitiesWithAuthentication(gameId, NUM_PLAYERS);
-        foreach (var (playerClient, player) in playerSessions)
+        var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 10);
+
+        foreach (var session in playerSessions)
         {
-            var playerResponse = await playerClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", player);
+            var playerResponse = await session.Client.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", session.Player);
             playerResponse.EnsureSuccessStatusCode();
         }
+
         var startGameResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
-        startGameResponse.EnsureSuccessStatusCode();
+        Assert.True(startGameResponse.IsSuccessStatusCode);
     }
 
+    // Confirms that single-elimination routes expose a snapshot and active current match.
     [Fact]
-    public async Task CreateGameWithModeReturnsRequestedBracketMode()
+    public async Task SingleEliminationBracketEndpointsReturnSnapshotAndCurrentMatch()
     {
         var client = NewClient();
-        var response = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
+        var gameId = await CreateGameAsync(client);
 
-        Assert.NotEqual(Guid.Empty, response.gameId);
-        Assert.Equal(BracketMode.DOUBLE_ELIMINATION, response.bracketMode);
-    }
-
-    [Fact]
-    public async Task DoubleEliminationBracketEndpointsReturnSnapshotAndSupportCurrentMatchRoute()
-    {
-        var client = NewClient();
-        var gameResponse = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
-        var gameId = gameResponse.gameId;
-
-        var playerSessions = await CreateDummyEntitiesWithAuthentication(gameId, 4);
-        foreach (var (playerClient, player) in playerSessions)
+        var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 4);
+        foreach (var session in playerSessions)
         {
-            var addPlayerResponse = await playerClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", player);
+            var addPlayerResponse = await session.Client.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", session.Player);
             addPlayerResponse.EnsureSuccessStatusCode();
         }
 
@@ -348,45 +606,347 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
 
         var bracketResponse = await client.GetAsync($"/Games/GetBracket/{gameId}");
         bracketResponse.EnsureSuccessStatusCode();
+
         var snapshot = await bracketResponse.Content.ReadFromJsonAsync<BracketSnapshotResponse>(SerializerOptions);
-        Assert.NotNull(snapshot);
-        Assert.Equal(BracketMode.DOUBLE_ELIMINATION, snapshot!.Mode);
+        if (snapshot is null || snapshot.Mode != BracketMode.SINGLE_ELIMINATION || snapshot.Matches.Count == 0)
+        {
+            throw new InvalidOperationException("Single elimination bracket snapshot was not valid.");
+        }
+
+        var currentMatchResponse = await client.GetAsync($"/Games/GetCurrentMatch/{gameId}");
+        currentMatchResponse.EnsureSuccessStatusCode();
+
+        var currentMatch = await currentMatchResponse.Content.ReadFromJsonAsync<CurrentMatchResponse>(SerializerOptions);
+        Assert.True(currentMatch is not null);
+    }
+
+    // Confirms that explicit mode creation route returns the requested bracket mode.
+    [Fact]
+    public async Task CreateGameWithModeReturnsRequestedBracketMode()
+    {
+        var client = NewClient();
+        var response = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
+
+        Assert.True(response.GameId != Guid.Empty && response.BracketMode == BracketMode.DOUBLE_ELIMINATION);
+    }
+
+    // Confirms that double-elimination routes return snapshot and support current-match reporting.
+    [Fact]
+    public async Task DoubleEliminationBracketEndpointsReturnSnapshotAndSupportCurrentMatchRoute()
+    {
+        var client = NewClient();
+        var gameResponse = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
+        var gameId = gameResponse.GameId;
+
+        var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 4);
+        foreach (var session in playerSessions)
+        {
+            var addPlayerResponse = await session.Client.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", session.Player);
+            addPlayerResponse.EnsureSuccessStatusCode();
+        }
+
+        var startGameResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
+        startGameResponse.EnsureSuccessStatusCode();
+
+        var bracketResponse = await client.GetAsync($"/Games/GetBracket/{gameId}");
+        bracketResponse.EnsureSuccessStatusCode();
+
+        var snapshot = await bracketResponse.Content.ReadFromJsonAsync<BracketSnapshotResponse>(SerializerOptions);
+        if (snapshot is null || snapshot.Mode != BracketMode.DOUBLE_ELIMINATION)
+        {
+            throw new InvalidOperationException("Double elimination bracket snapshot was not valid.");
+        }
 
         var currentMatchResponse = await client.GetAsync($"/Games/GetCurrentMatch/{gameId}");
         if (currentMatchResponse.StatusCode == HttpStatusCode.NotFound)
         {
-            Assert.Equal(HttpStatusCode.NotFound, currentMatchResponse.StatusCode);
+            Assert.True(currentMatchResponse.StatusCode == HttpStatusCode.NotFound);
             return;
         }
 
         currentMatchResponse.EnsureSuccessStatusCode();
-        var currentMatch = await currentMatchResponse.Content.ReadFromJsonAsync<CurrentMatchResponse>(SerializerOptions);
-        Assert.NotNull(currentMatch);
 
-        var reportRequest = new ReportMatchRequest(currentMatch!.MatchId, currentMatch.PlayerOneId);
+        var currentMatch = await currentMatchResponse.Content.ReadFromJsonAsync<CurrentMatchResponse>(SerializerOptions);
+        if (currentMatch is null)
+        {
+            throw new InvalidOperationException("Current match should be present when route did not return NotFound.");
+        }
+
+        var reportRequest = new ReportMatchRequest(currentMatch.MatchId, currentMatch.PlayerOneId);
         var reportResponse = await client.PostAsJsonAsync($"/Games/ReportMatch/{gameId}", reportRequest);
-        reportResponse.EnsureSuccessStatusCode();
+        Assert.True(reportResponse.IsSuccessStatusCode);
     }
 
+    // Confirms that flow-state route returns authoritative started-game state values.
+    [Fact]
+    public async Task GetFlowStateReturnsAuthoritativeStateForStartedGame()
+    {
+        var client = NewClient();
+        var gameResponse = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
+        var gameId = gameResponse.GameId;
 
+        var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 4);
+        foreach (var session in playerSessions)
+        {
+            var addPlayerResponse = await session.Client.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", session.Player);
+            addPlayerResponse.EnsureSuccessStatusCode();
+        }
 
+        var startGameResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
+        startGameResponse.EnsureSuccessStatusCode();
 
+        var flowResponse = await client.GetAsync($"/Games/GetFlowState/{gameId}");
+        flowResponse.EnsureSuccessStatusCode();
+
+        var flowState = await flowResponse.Content.ReadFromJsonAsync<GameStateResponse>(SerializerOptions);
+        var flowStateIsValid = flowState is not null
+            && flowState.GameId == gameId
+            && flowState.GameStarted
+            && (flowState.State is GameState.IN_MATCH_ACTIVE or GameState.BRACKET_VIEW or GameState.COMPLETE);
+
+        Assert.True(flowStateIsValid);
+    }
+
+    // Confirms that double-elimination progression continues until no active match remains.
+    [Fact]
+    public async Task DoubleEliminationApiEndToEndFlowProgressesUntilNoCurrentMatch()
+    {
+        var client = NewClient();
+        var gameResponse = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
+        var gameId = gameResponse.GameId;
+
+        var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 8);
+        foreach (var session in playerSessions)
+        {
+            var addPlayerResponse = await session.Client.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", session.Player);
+            addPlayerResponse.EnsureSuccessStatusCode();
+        }
+
+        var startGameResponse = await client.PostAsync($"/Games/StartGame/{gameId}", null);
+        startGameResponse.EnsureSuccessStatusCode();
+
+        var reportedMatchIds = new HashSet<Guid>();
+        var reportCount = 0;
+        var tournamentFinished = false;
+
+        for (var iteration = 0; iteration < 64; iteration++)
+        {
+            var currentMatchResponse = await client.GetAsync($"/Games/GetCurrentMatch/{gameId}");
+            if (currentMatchResponse.StatusCode == HttpStatusCode.NotFound)
+            {
+                tournamentFinished = true;
+                break;
+            }
+
+            currentMatchResponse.EnsureSuccessStatusCode();
+
+            var currentMatch = await currentMatchResponse.Content.ReadFromJsonAsync<CurrentMatchResponse>(SerializerOptions);
+            if (currentMatch is null)
+            {
+                throw new InvalidOperationException("Current match was null during end-to-end double elimination flow.");
+            }
+
+            var matchId = currentMatch.MatchId;
+            if (reportedMatchIds.Contains(matchId))
+            {
+                throw new InvalidOperationException("Received duplicate match id during progression loop.");
+            }
+            reportedMatchIds.Add(matchId);
+
+            var reportResponse = await client.PostAsJsonAsync(
+                $"/Games/ReportMatch/{gameId}",
+                new ReportMatchRequest(currentMatch.MatchId, currentMatch.PlayerOneId));
+
+            reportResponse.EnsureSuccessStatusCode();
+            reportCount++;
+        }
+
+        var snapshotResponse = await client.GetAsync($"/Games/GetBracket/{gameId}");
+        snapshotResponse.EnsureSuccessStatusCode();
+
+        var finalSnapshot = await snapshotResponse.Content.ReadFromJsonAsync<BracketSnapshotResponse>(SerializerOptions);
+        var finalStateIsValid = finalSnapshot is not null
+            && reportCount > 0
+            && tournamentFinished
+            && finalSnapshot.Matches.Any(match => match.Status == BracketMatchStatus.COMPLETE);
+
+        Assert.True(finalStateIsValid);
+    }
+
+    // Confirms submit-vote route commits match when both participants vote for same winner.
+    [Fact]
+    public async Task SubmitMatchVoteCommitsWhenBothParticipantsAgree()
+    {
+        var setup = await SetupStartedTwoPlayerMatchAsync();
+        var request = new SubmitMatchVoteRequest(setup.Match.MatchId, setup.Match.PlayerOneId);
+
+        var firstVoteResponse = await setup.PlayerOneSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{setup.GameId}", request);
+        firstVoteResponse.EnsureSuccessStatusCode();
+
+        var firstVotePayload = await firstVoteResponse.Content.ReadFromJsonAsync<SubmitMatchVoteResponse>(SerializerOptions);
+        var firstVoteIsPending = firstVotePayload is not null
+            && firstVotePayload.Status == SubmitMatchVoteStatus.PENDING
+            && firstVotePayload.VoteCount == 1;
+        if (!firstVoteIsPending)
+        {
+            throw new InvalidOperationException("First vote did not return expected pending state.");
+        }
+
+        var secondVoteResponse = await setup.PlayerTwoSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{setup.GameId}", request);
+        secondVoteResponse.EnsureSuccessStatusCode();
+
+        var secondVotePayload = await secondVoteResponse.Content.ReadFromJsonAsync<SubmitMatchVoteResponse>(SerializerOptions);
+        var secondVoteCommitted = secondVotePayload is not null
+            && secondVotePayload.Status == SubmitMatchVoteStatus.COMMITTED
+            && secondVotePayload.CommittedWinnerPlayerId == setup.Match.PlayerOneId;
+
+        Assert.True(secondVoteCommitted);
+    }
+
+    // Confirms duplicate vote from same participant is rejected.
+    [Fact]
+    public async Task SubmitMatchVoteRejectsDuplicateVoteBySameParticipant()
+    {
+        var setup = await SetupStartedTwoPlayerMatchAsync();
+        var request = new SubmitMatchVoteRequest(setup.Match.MatchId, setup.Match.PlayerOneId);
+
+        var firstVoteResponse = await setup.PlayerOneSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{setup.GameId}", request);
+        firstVoteResponse.EnsureSuccessStatusCode();
+
+        var duplicateVoteResponse = await setup.PlayerOneSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{setup.GameId}", request);
+        if (duplicateVoteResponse.StatusCode != HttpStatusCode.Conflict)
+        {
+            throw new InvalidOperationException("Duplicate vote did not return conflict status.");
+        }
+
+        var duplicateVotePayload = await duplicateVoteResponse.Content.ReadFromJsonAsync<SubmitMatchVoteResponse>(SerializerOptions);
+        var duplicateVoteRejected = duplicateVotePayload is not null
+            && duplicateVotePayload.Status == SubmitMatchVoteStatus.DUPLICATE_VOTE;
+
+        Assert.True(duplicateVoteRejected);
+    }
+
+    // Confirms unaffiliated authenticated users cannot vote in active match.
+    [Fact]
+    public async Task SubmitMatchVoteRejectsNonParticipant()
+    {
+        var setup = await SetupStartedTwoPlayerMatchAsync();
+        var nonParticipantClient = await CreateAuthenticatedClientAsync("nonparticipant_vote");
+
+        var request = new SubmitMatchVoteRequest(setup.Match.MatchId, setup.Match.PlayerOneId);
+        var response = await nonParticipantClient.PostAsJsonAsync($"/Games/SubmitMatchVote/{setup.GameId}", request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // Confirms conflicting winner votes reset pending tally and return conflict.
+    [Fact]
+    public async Task SubmitMatchVoteReturnsConflictWhenParticipantsDisagree()
+    {
+        var setup = await SetupStartedTwoPlayerMatchAsync();
+
+        var playerOneVote = new SubmitMatchVoteRequest(setup.Match.MatchId, setup.Match.PlayerOneId);
+        var playerTwoVote = new SubmitMatchVoteRequest(setup.Match.MatchId, setup.Match.PlayerTwoId);
+
+        var firstVoteResponse = await setup.PlayerOneSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{setup.GameId}", playerOneVote);
+        firstVoteResponse.EnsureSuccessStatusCode();
+
+        var conflictingVoteResponse = await setup.PlayerTwoSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{setup.GameId}", playerTwoVote);
+        if (conflictingVoteResponse.StatusCode != HttpStatusCode.Conflict)
+        {
+            throw new InvalidOperationException("Conflicting vote did not return conflict status.");
+        }
+
+        var conflictingPayload = await conflictingVoteResponse.Content.ReadFromJsonAsync<SubmitMatchVoteResponse>(SerializerOptions);
+        var conflictWasReturned = conflictingPayload is not null
+            && conflictingPayload.Status == SubmitMatchVoteStatus.CONFLICT
+            && conflictingPayload.VoteCount == 0;
+
+        Assert.True(conflictWasReturned);
+    }
+
+    // Confirms completed-match votes are rejected as no longer active.
+    [Fact]
+    public async Task SubmitMatchVoteRejectsVotesForCompletedMatch()
+    {
+        var setup = await SetupStartedTwoPlayerMatchAsync();
+        var request = new SubmitMatchVoteRequest(setup.Match.MatchId, setup.Match.PlayerOneId);
+
+        var firstVoteResponse = await setup.PlayerOneSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{setup.GameId}", request);
+        firstVoteResponse.EnsureSuccessStatusCode();
+
+        var secondVoteResponse = await setup.PlayerTwoSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{setup.GameId}", request);
+        secondVoteResponse.EnsureSuccessStatusCode();
+
+        var staleVoteResponse = await setup.PlayerOneSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{setup.GameId}", request);
+        if (staleVoteResponse.StatusCode != HttpStatusCode.Conflict)
+        {
+            throw new InvalidOperationException("Stale vote did not return conflict status.");
+        }
+
+        var staleVotePayload = await staleVoteResponse.Content.ReadFromJsonAsync<SubmitMatchVoteResponse>(SerializerOptions);
+        var staleVoteRejected = staleVotePayload is not null
+            && staleVotePayload.Status == SubmitMatchVoteStatus.MATCH_NOT_ACTIVE;
+
+        Assert.True(staleVoteRejected);
+    }
+
+    // Confirms that ending a game works after players were added.
     [Fact]
     public async Task EndGameEndsGameSuccessfully()
     {
         var client = NewClient();
         var gameId = await CreateGameAsync(client);
-        const int NUM_PLAYERS = 10;
-        var playerSessions = await CreateDummyEntitiesWithAuthentication(gameId, NUM_PLAYERS);
-        foreach (var (playerClient, player) in playerSessions)
+        var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 10);
+
+        foreach (var session in playerSessions)
         {
-            var playerResponse = await playerClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", player);
+            var playerResponse = await session.Client.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", session.Player);
             playerResponse.EnsureSuccessStatusCode();
         }
-        var finalResponse = await client.GetAsync($"/Games/EndGame/{gameId}");
-        finalResponse.EnsureSuccessStatusCode();
+
+        var response = await client.GetAsync($"/Games/EndGame/{gameId}");
+        Assert.True(response.IsSuccessStatusCode);
     }
 
+    // Confirms full auth-to-completion flow for single-elimination power-of-two tournaments.
+    [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(16)]
+    [InlineData(32)]
+    [InlineData(64)]
+    [InlineData(128)]
+    public async Task AuthToCompletionStateMachineFlow_WorksForSingleEliminationPowerOfTwoBrackets(int playerCount)
+    {
+        var runResult = await RunAuthenticatedTournamentToCompletionAsync(
+            BracketMode.SINGLE_ELIMINATION,
+            playerCount,
+            GetMaxIterations(BracketMode.SINGLE_ELIMINATION, playerCount));
 
+        Assert.True(runResult.GameId != Guid.Empty && runResult.ReportedMatches == playerCount - 1);
+    }
 
+    // Confirms full auth-to-completion flow for double-elimination power-of-two tournaments.
+    [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(16)]
+    [InlineData(32)]
+    [InlineData(64)]
+    [InlineData(128)]
+    public async Task AuthToCompletionStateMachineFlow_WorksForDoubleEliminationPowerOfTwoBrackets(int playerCount)
+    {
+        var runResult = await RunAuthenticatedTournamentToCompletionAsync(
+            BracketMode.DOUBLE_ELIMINATION,
+            playerCount,
+            GetMaxIterations(BracketMode.DOUBLE_ELIMINATION, playerCount));
+
+        var hasValidRange = runResult.ReportedMatches >= playerCount - 1
+            && runResult.ReportedMatches <= (playerCount * 2) - 1;
+
+        Assert.True(runResult.GameId != Guid.Empty && hasValidRange);
+    }
 }

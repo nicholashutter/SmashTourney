@@ -36,6 +36,7 @@ internal sealed class BracketRuntimeState
 
     public List<BracketPlayerRuntime> Players { get; set; } = new();
     public List<BracketMatchRuntime> Matches { get; set; } = new();
+    public HashSet<Guid> ByePlayerIds { get; set; } = new();
 
     public Dictionary<int, List<Guid>> WinnersPools { get; } = new();
     public Dictionary<int, List<Guid>> LosersPools { get; } = new();

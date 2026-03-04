@@ -3,67 +3,72 @@ import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
 import { useState, type ChangeEvent } from "react";
 import { RequestService } from "@/services/RequestService";
-import { SERVER_ERROR, SUBMIT_SUCCESS } from "@/constants/AppConstants";
+import { SERVER_ERROR } from "@/constants/AppConstants";
 import { ApplicationUser } from "@/models/entities/ApplicationUser";
 import { validateInput } from "@/services/validationService";
 import { useNavigate } from 'react-router';
 
-/*Ready for E2E testing */
-
+// Renders account registration form and submits new user signup.
 const SignUp = () =>
 {
   const [userName, setUserName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [applicationUser, setApplicationUser] = useState({} as ApplicationUser);
   const navigate = useNavigate();
 
+  // Stores username input for registration.
   const handleUserNameChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setUserName(e.target.value);
   };
+
+  // Stores email input for registration.
   const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setEmail(e.target.value);
   };
+
+  // Stores password input for registration.
   const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setPassword(e.target.value);
   };
 
+  // Submits registration request and returns to sign-in page on success.
   const handleSubmit = async (e: React.MouseEvent<HTMLAnchorElement>) =>
   {
     e.preventDefault();
 
-    const validateUserName = validateInput(userName);
-    const validatePassword = validateInput(password);
+    const isUserNameValid = validateInput(userName).isValid;
+    const isPasswordValid = validateInput(password).isValid;
 
-    if (validateUserName && validatePassword)
-    {
-      setApplicationUser({
-        UserName: userName, Password: password
-      });
-
-      try
-      {
-        await RequestService("register",
-          {
-            body: applicationUser
-          }
-        );
-
-        window.alert(SUBMIT_SUCCESS("Sign Up"));
-
-        navigate("/");
-      }
-      catch (err)
-      {
-        console.error(err);
-      }
-    }
-    else
+    if (!isUserNameValid || !isPasswordValid)
     {
       window.alert(SERVER_ERROR("Invalid Characters"));
+      return;
+    }
+
+    const applicationUser: ApplicationUser = {
+      UserName: userName,
+      Password: password
+    };
+
+    try
+    {
+      await RequestService("register",
+        {
+          body: applicationUser
+        }
+      );
+
+      window.alert("Account created successfully. You are now moving to the sign-in page.");
+
+      navigate("/");
+    }
+    catch (err)
+    {
+      window.alert("We could not create your account. You will stay on this page so you can try again.");
+      console.error(err);
     }
 
 

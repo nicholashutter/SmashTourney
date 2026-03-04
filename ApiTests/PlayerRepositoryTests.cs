@@ -1,22 +1,17 @@
 namespace ApiTests;
 
-using Xunit;
 using Entities;
-using Services;
 using Helpers;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.Sqlite;
-using System.Data.Common;
-using System;
-using System.IO;
-using System.Linq;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Services;
 
+// Verifies player repository behavior for player creation and retrieval outcomes.
 public class PlayerRepositoryTest : IClassFixture<CustomWebApplicationFactory<Program>>
-
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
+
+    // Initializes test host resources required by player repository tests.
     public PlayerRepositoryTest()
     {
         _factory = new CustomWebApplicationFactory<Program>();
@@ -24,28 +19,35 @@ public class PlayerRepositoryTest : IClassFixture<CustomWebApplicationFactory<Pr
         scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
     }
 
-    private async Task<IPlayerManager> GetManagerAsync()
-        => _factory.Services.CreateAsyncScope().ServiceProvider.GetRequiredService<IPlayerManager>();
+    // Resolves a player manager from the test host service container.
+    private IPlayerManager GetManager()
+    {
+        var scope = _factory.Services.CreateScope();
+        return scope.ServiceProvider.GetRequiredService<IPlayerManager>();
+    }
 
+    // Confirms that creating a player returns a valid player identifier.
     [Fact]
     public async Task CreateAsyncReturnsValidId()
     {
-        var manager = await GetManagerAsync();
+        var manager = GetManager();
         var result = await manager.CreateAsync(new Player { UserId = AppConstants.ByeUserId });
         Assert.IsType<Guid>(result);
     }
 
+    // Confirms that listing players returns all players created in the test run.
     [Fact]
     public async Task GetAllAsyncReturnsAllPlayers()
     {
-        var manager = await GetManagerAsync();
+        var manager = GetManager();
         const int expected = 10;
-        await Task.WhenAll(Enumerable.Range(0, expected)
-            .Select(_ => manager.CreateAsync(new Player { UserId = AppConstants.ByeUserId })));
+
+        for (var index = 0; index < expected; index++)
+        {
+            await manager.CreateAsync(new Player { UserId = AppConstants.ByeUserId });
+        }
 
         var result = await manager.GetAllPlayersAsync();
         Assert.Equal(expected, result?.Count);
     }
-
-
 }

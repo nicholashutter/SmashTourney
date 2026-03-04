@@ -1,112 +1,149 @@
 namespace ApiTests;
 
-using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;
 using System.Net.Http.Json;
-using Services;
-using Entities;
-using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
+using ApiTests.TestContracts;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using ApiTests;
+using Services;
 
+// Verifies business-facing authentication and session behavior for signed-in and signed-out users.
 public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
 
-        public AuthServiceTest()
+    // Initializes test host resources required by authentication route tests.
+    public AuthServiceTest()
+    {
+        _factory = new CustomWebApplicationFactory<Program>();
+        using var scope = _factory.Services.CreateScope();
+        var database = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        database.Database.EnsureCreated();
+    }
+
+    // Creates a test client and optionally preserves auth cookies.
+    private HttpClient NewClient(bool handleCookies = false)
+    {
+        var options = new WebApplicationFactoryClientOptions
         {
-            _factory = new CustomWebApplicationFactory<Program>();
-            using var scope = _factory.Services.CreateScope();
-            scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreated();
+            HandleCookies = handleCookies
+        };
+
+        return _factory.CreateClient(options);
+    }
+
+    // Generates one unique credential pair for isolated test users.
+    private RegisterRequest CreateRandomCredentials()
+    {
+        return new RegisterRequest
+        {
+            Email = $"test{Guid.NewGuid()}@email.com",
+            Password = "SecureP@ssw0rd123!"
+        };
+    }
+
+    // Registers and logs in one user and returns the authenticated client.
+    private async Task<HttpClient> RegisterAndLoginAsync(RegisterRequest credentials, bool useCookies)
+    {
+        var client = NewClient(handleCookies: useCookies);
+
+        var registerUrl = "/register";
+        if (useCookies)
+        {
+            registerUrl = "/register?useCookies=true";
         }
 
-        public class RegisterRequest { public string Email { get; set; } = string.Empty; 
-        public string Password { get; set; } = string.Empty; }
-
-        private HttpClient NewClient(bool handleCookies = false) =>
-            _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = handleCookies });
-
-        private RegisterRequest RandomCredentials() =>
-            new() { Email = $"test{Guid.NewGuid()}@email.com", Password = "SecureP@ssw0rd123!" };
-
-        private async Task<HttpClient> RegisterAndLoginAsync(AuthServiceTest.RegisterRequest creds, bool useCookies)
+        var loginUrl = "/login";
+        if (useCookies)
         {
-            var client = NewClient(handleCookies: useCookies);
-            await client.PostAsJsonAsync($"/register{(useCookies ? "?useCookies=true" : string.Empty)}", creds);
-            await client.PostAsJsonAsync($"/login{(useCookies ? "?useCookies=true" : string.Empty)}", creds);
-            return client;
+            loginUrl = "/login?useCookies=true";
         }
 
+        var registerResponse = await client.PostAsJsonAsync(registerUrl, credentials);
+        registerResponse.EnsureSuccessStatusCode();
+
+        var loginResponse = await client.PostAsJsonAsync(loginUrl, credentials);
+        loginResponse.EnsureSuccessStatusCode();
+
+        return client;
+    }
+
+    // Confirms that register endpoint creates a new user account successfully.
     [Theory]
     [InlineData("/register")]
-    public async Task registerNewUser(string url)
+    public async Task RegisterNewUser(string url)
     {
         var client = NewClient();
-        var req = RandomCredentials();
-        var response = await client.PostAsJsonAsync(url, req);
-        response.EnsureSuccessStatusCode();
+        var credentials = CreateRandomCredentials();
+
+        var response = await client.PostAsJsonAsync(url, credentials);
+
+        Assert.True(response.IsSuccessStatusCode);
     }
 
+    // Confirms that login flow succeeds after a user is registered.
     [Fact]
-    public async Task loginNewUser()
+    public async Task LoginNewUser()
     {
-        var creds = RandomCredentials();
-        var client = await RegisterAndLoginAsync(creds, useCookies: true);
-        // just ensure login completed
+        var credentials = CreateRandomCredentials();
+        var client = await RegisterAndLoginAsync(credentials, useCookies: true);
+        Assert.NotNull(client);
     }
 
-
-
+    // Confirms that authenticated users can access secure endpoints requiring cookies.
     [Fact]
-    public async Task testSecureEndpointWithCookie()
+    public async Task SecureEndpointWithCookieReturnsOk()
     {
-        var creds = RandomCredentials();
-        var client = await RegisterAndLoginAsync(creds, useCookies: true);
-        var afterLoginResponse = await client.GetAsync("/");
-        Assert.Equal(HttpStatusCode.OK, afterLoginResponse.StatusCode);
+        var credentials = CreateRandomCredentials();
+        var client = await RegisterAndLoginAsync(credentials, useCookies: true);
+
+        var response = await client.GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-
+    // Confirms that secure endpoints reject users without an authenticated session.
     [Fact]
-    public async Task testSecureEndpointNoCookie()
+    public async Task SecureEndpointWithoutCookieReturnsUnauthorized()
     {
         var client = NewClient(handleCookies: true);
-        var request = await client.GetAsync("/users/GetAllUsers");
-        Assert.Equal(HttpStatusCode.Unauthorized, request.StatusCode);
+
+        var response = await client.GetAsync("/users/GetAllUsers");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-
+    // Confirms that authenticated users can end their session via logout route.
     [Fact]
-    public async Task testLogout()
+    public async Task LogoutEndsSessionSuccessfully()
     {
-        var creds = RandomCredentials();
-        var client = await RegisterAndLoginAsync(creds, useCookies: true);
-        var afterLoginResponse = await client.GetAsync("/");
-        afterLoginResponse.EnsureSuccessStatusCode();
+        var credentials = CreateRandomCredentials();
+        var client = await RegisterAndLoginAsync(credentials, useCookies: true);
+
         var logoutResponse = await client.PostAsync("/users/logout", null);
-        logoutResponse.EnsureSuccessStatusCode();
+        Assert.True(logoutResponse.IsSuccessStatusCode);
     }
 
+    // Confirms that session route requires authentication.
     [Fact]
     public async Task SessionEndpointRequiresAuthentication()
     {
         var client = NewClient(handleCookies: true);
+
         var response = await client.GetAsync("/users/session");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    // Confirms that session route returns success for authenticated users.
     [Fact]
     public async Task SessionEndpointReturnsOkWhenAuthenticated()
     {
-        var creds = RandomCredentials();
-        var client = await RegisterAndLoginAsync(creds, useCookies: true);
+        var credentials = CreateRandomCredentials();
+        var client = await RegisterAndLoginAsync(credentials, useCookies: true);
 
         var response = await client.GetAsync("/users/session");
 
-        response.EnsureSuccessStatusCode();
+        Assert.True(response.IsSuccessStatusCode);
     }
-
-
 }

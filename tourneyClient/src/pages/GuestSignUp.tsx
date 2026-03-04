@@ -33,16 +33,24 @@ const GuestSignUp = () =>
     setUserName(e.target.value);
   }
 
-  const onSubmit = () =>
+  const onSubmit = async () =>
   {
-    window.alert("submission success");
-    RequestService(
-      "createUserSession",
-      {
-        body: guestUser
-      }
-    )
-    navigate("/tourneyMenu");
+    try
+    {
+      await RequestService(
+        "createUserSession",
+        {
+          body: guestUser
+        }
+      );
+
+      window.alert("submission success");
+      navigate("/tourneyMenu");
+    }
+    catch (error)
+    {
+      console.error("Guest session creation failed", error);
+    }
   }
 
   return (

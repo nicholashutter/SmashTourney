@@ -1,17 +1,18 @@
 namespace ApiTests;
 
-using Services;
+using Microsoft.Data.Sqlite;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
+using Services;
 using System.Data.Common;
-using Microsoft.AspNetCore.Builder;
 
+// Creates a test web host that uses an isolated in-memory database for API integration tests.
 public class CustomWebApplicationFactory<TProgram>
     : WebApplicationFactory<TProgram> where TProgram : class
 {
+    // Configures test-only service overrides for database isolation.
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
