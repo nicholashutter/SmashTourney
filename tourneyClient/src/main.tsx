@@ -35,10 +35,6 @@ createRoot(rootElement).render(
           <Route path="/createTourney" element={<CreateTourney />} />
           <Route path="/joinTourney" element={<JoinTourney />} />
           <Route path="/tourneyMenu" element={<TourneyMenu />} />
-          {
-            //commenting out guestSignUp because page is finished but api endpoints not written yet
-            //<Route path="/guestSignUp" element={<GuestSignIn />} />
-          }
           <Route path="/lobby" element={<Lobby />} />
           <Route path="/inMatch" element={<InMatch />} />
           <Route path="/showBracket" element={<ShowBracket />} />

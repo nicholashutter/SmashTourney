@@ -4,10 +4,12 @@ using Contracts;
 using Entities;
 using Enums;
 
+// Runs double-elimination bracket progression across winners, losers, and finals lanes.
 internal sealed class DoubleEliminationEngine : IBracketEngine
 {
     public BracketMode Mode => BracketMode.DOUBLE_ELIMINATION;
 
+    // Builds the initial double-elimination runtime state from registered players.
     public BracketRuntimeState Initialize(Guid gameId, IReadOnlyList<Player> players)
     {
         var seededPlayers = players
@@ -34,6 +36,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         return state;
     }
 
+    // Applies a completed match result and routes players through double-elimination lanes.
     public bool TryReportMatch(BracketRuntimeState state, Guid matchId, Guid winnerPlayerId)
     {
         var match = state.Matches.FirstOrDefault(existingMatch => existingMatch.MatchId == matchId);
@@ -84,6 +87,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         return true;
     }
 
+    // Creates a read model snapshot of the current double-elimination bracket state.
     public BracketSnapshotResponse BuildSnapshot(BracketRuntimeState state)
     {
         return new BracketSnapshotResponse(
@@ -113,6 +117,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         );
     }
 
+    // Returns the next ready bracket match based on lane and round priority.
     public CurrentMatchResponse? BuildCurrentMatch(BracketRuntimeState state)
     {
         var currentMatch = state.Matches
@@ -138,6 +143,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         );
     }
 
+    // Seeds first-round winners-bracket matches from the ordered player list.
     private static void SeedInitialWinnersRound(BracketRuntimeState state, List<Guid> initialPlayers)
     {
         for (int index = 0; index < initialPlayers.Count; index += 2)
@@ -164,6 +170,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         }
     }
 
+    // Queues winners-lane players and materializes matches when pairs are available.
     private static void AddToWinnersPool(BracketRuntimeState state, int round, Guid playerId)
     {
         if (!state.WinnersPools.ContainsKey(round))
@@ -194,6 +201,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         }
     }
 
+    // Queues losers-lane players and materializes matches when pairs are available.
     private static void AddToLosersPool(BracketRuntimeState state, int round, Guid playerId)
     {
         if (!state.LosersPools.ContainsKey(round))
@@ -224,6 +232,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         }
     }
 
+    // Tracks player losses and drops eligible competitors into the losers bracket.
     private static void RegisterLossAndDrop(BracketRuntimeState state, Guid playerId, int round, bool isLosersMatch = false)
     {
         var player = state.Players.FirstOrDefault(candidate => candidate.PlayerId == playerId);
@@ -243,6 +252,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         AddToLosersPool(state, losersRound, playerId);
     }
 
+    // Resolves lane champions and creates grand finals matches when ready.
     private static void EvaluateChampionTransitions(BracketRuntimeState state)
     {
         if (state.WinnersChampionId is null && !HasOpenMatches(state, BracketLane.WINNERS))
@@ -276,6 +286,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         }
     }
 
+    // Processes grand finals results and schedules reset finals when required.
     private static void HandleGrandFinalResult(BracketRuntimeState state, Guid winnerPlayerId, Guid loserPlayerId)
     {
         if (winnerPlayerId == state.WinnersChampionId)
@@ -298,11 +309,13 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         });
     }
 
+    // Processes grand finals reset results to finalize elimination outcomes.
     private static void HandleGrandFinalResetResult(BracketRuntimeState state, Guid loserPlayerId)
     {
         MarkPlayerEliminated(state, loserPlayerId);
     }
 
+    // Marks a player as eliminated once bracket loss conditions are met.
     private static void MarkPlayerEliminated(BracketRuntimeState state, Guid playerId)
     {
         var player = state.Players.FirstOrDefault(candidate => candidate.PlayerId == playerId);
@@ -315,6 +328,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         player.Eliminated = true;
     }
 
+    // Checks whether a lane still has ready, active, or pending matches.
     private static bool HasOpenMatches(BracketRuntimeState state, BracketLane lane)
     {
         return state.Matches.Any(match =>
@@ -324,6 +338,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
              match.Status == BracketMatchStatus.PENDING));
     }
 
+    // Resolves a lane champion from the latest completed match outcomes.
     private static Guid? TryResolveLaneChampion(BracketRuntimeState state, BracketLane lane)
     {
         var completedMatches = state.Matches
@@ -335,6 +350,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         return completedMatches.FirstOrDefault()?.WinnerId;
     }
 
+    // Resolves the losers-lane champion from active eligibility and outcomes.
     private static Guid? TryResolveLosersChampion(BracketRuntimeState state)
     {
         var eligible = state.Players
@@ -356,6 +372,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
         return lastLosersWinner?.WinnerId;
     }
 
+    // Defines lane ordering used to choose the next playable bracket match.
     private static int MatchLanePriority(BracketLane lane)
     {
         return lane switch

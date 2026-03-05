@@ -58,7 +58,7 @@ Business outcomes:
 - return active match
 - return high-level game state (`LOBBY_WAITING`, `BRACKET_VIEW`, `IN_MATCH_ACTIVE`, `COMPLETE`)
 
-## 5) Match Voting and Reporting Capability
+## 5) Match Voting Capability
 
 The API collects participant votes for active matches and commits bracket progression on consensus.
 
@@ -68,14 +68,10 @@ Business outcomes:
 - return pending status until both participants agree
 - reject duplicate, stale, invalid, or non-participant votes
 - commit winner and advance bracket when consensus is reached
-- retain direct match-report route for service/testing fallback usage
 
 ## API Route Catalog
 
 ## Game Lifecycle Routes
-
-- `POST /Games/CreateGame`
-  - Creates a new game with default settings.
 
 - `POST /Games/CreateGameWithMode`
   - Creates a new game in single or double elimination.
@@ -95,39 +91,25 @@ Business outcomes:
 - `GET /Games/GetFlowState/{gameId}`
   - Returns high-level game state used by frontend routing.
 
-- `POST /Games/ReportMatch/{gameId}`
-  - Applies a winner report directly to the current bracket state (service/testing fallback).
-
 - `POST /Games/SubmitMatchVote/{gameId}`
   - Accepts one authenticated participant vote and commits the match when participant votes agree.
 
-- `GET /Games/EndGame/{gameId}`
-  - Ends and removes the game.
-
 ## Supporting Game Routes
-
-- `GET /Games/getAllGames`
-  - Returns all games.
-
-- `GET /Games/GetGameById/{gameId}`
-  - Returns one game by ID.
 
 - `POST /Games/GetPlayersInGame/{gameId}`
   - Returns players assigned to one game.
 
-- `POST /Games/LoadGame/{gameId}`
-  - Hydrates game state from persistence.
-
-- `POST /Games/SaveGame/{gameId}`
-  - Saves runtime game state.
-
 ## User Routes
 
-- Identity routes from ASP.NET Identity are mapped for register/login/logout and session checks.
-- Extended user routes are mapped under `/users`.
+- Identity routes from ASP.NET Identity are mapped for register and login.
+- Extended user routes under `/users` include:
+  - `POST /users/login`
+  - `GET /users/demo-credentials` (development only)
+  - `GET /users/session` (authenticated)
+  - `POST /users/logout` (authenticated)
 
 ## Reliability Notes
 
 - The API game state endpoint is authoritative for UI decisions.
 - SignalR events improve realtime responsiveness, while polling endpoints preserve reliability.
-- Match progression is event-driven from participant vote consensus (or fallback direct reports), not manual round toggles.
+- Match progression is event-driven from participant vote consensus, not manual round toggles.

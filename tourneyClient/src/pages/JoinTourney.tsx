@@ -45,17 +45,17 @@ const JoinTourney = () =>
   };
 
 
-  //from react router for navigation without reloading
+  // Handles route navigation after join flow events.
   const navigate = useNavigate();
 
   const { setGameId, gameId, setPlayerId, playerId, setIsHost } = useGameData();
-  //player should enter
+  // Stores joining player's display name.
   const [displayName, setDisplayName] = useState("");
 
-  //array will be loaded with characters using dynamic import.meta.glob provided by vite
+  // Stores characters available in the selection dropdown.
   const [characters, setCharacters] = useState<Character[]>([]);
 
-  //player will choose through dropdown components
+  // Stores the joining player's selected character.
   const [currentCharacter, setCurrentCharacter] = useState({} as Character);
   const [joinStatus, setJoinStatus] = useState("Idle");
   const [isJoining, setIsJoining] = useState(false);
@@ -65,28 +65,16 @@ const JoinTourney = () =>
   // Loads all selectable character definitions for join flow setup.
   useEffect(() =>
   {
-    //Get all matching character module paths and their import functions
-    //vite docs detail this behavior 
-    //characterModuleMap will be an object of import urls and callback functions
     const characterModuleMap = import.meta.glob("../models/entities/Characters/*.ts");
 
-    //define an async function to load all character modules
     const fetchAllCharacters = async () =>
     {
-      //call each import function to dynamically load the module
       const modulePromises = Object.values(characterModuleMap).map((dynamicImport) => dynamicImport());
-
-      //wait for all modules to finish loading
       const resolvedModules = await Promise.all(modulePromises);
-
-      //extract the default export (the character object) from each module
       const characterObjects = resolvedModules.map((module) => (module as { default: Character }).default);
-
-      //save the array of character objects to state
       setCharacters(characterObjects);
     };
 
-    //Run the async loader function
     fetchAllCharacters();
   }, []);
 
@@ -97,7 +85,6 @@ const JoinTourney = () =>
     const validateGameId = validateInput(normalizedGameId);
     if (validateGameId.isValid)
     {
-      //custom useContext for gameId
       setGameId(normalizedGameId);
     }
     else
@@ -229,7 +216,7 @@ const JoinTourney = () =>
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}
+    <div className="flex flex-col items-center justify-center h-dvh w-dvw">
       <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
         <title>Join Tourney</title>
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
@@ -246,14 +233,6 @@ const JoinTourney = () =>
                 <DropdownMenuItem key={index}
                   onSelect={() => setCurrentCharacter(character)}>
                   {character.characterName}
-                  {/* 
-                  <br />
-                  {Character.archetype}<br />
-                  {Character.fallSpeed}<br />
-                  {Character.tierPlacement}<br />
-                  {Character.weightClass}
-                  
-                  */ }
 
                 </DropdownMenuItem>
               ))}

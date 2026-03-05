@@ -1,56 +1,28 @@
 import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from "react-router";
-import { RequestService } from "@/services/RequestService";
-import { ApplicationUser } from "@/models/entities/ApplicationUser";
 import BasicInput from "@/components/BasicInput";
 import HeadingOne from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
 
-
-//Will need to create api endpoint using a predefined guest object
-//with permissions that keep it from modifying db state
-//or this feature will need to be dropped
-
+// Renders guest signup flow using temporary guest-session credentials.
 const GuestSignUp = () =>
 {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
 
-  const password = "null";
-
-
-
-  const guestUser: ApplicationUser =
-  {
-    UserName: userName,
-    Password: password
-  }
-
+  // Stores guest username input for session creation.
   const userNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setUserName(e.target.value);
   }
 
+  // Submits guest session creation and routes to tournament menu.
   const onSubmit = async () =>
   {
-    try
-    {
-      await RequestService(
-        "createUserSession",
-        {
-          body: guestUser
-        }
-      );
-
-      window.alert("submission success");
-      navigate("/tourneyMenu");
-    }
-    catch (error)
-    {
-      console.error("Guest session creation failed", error);
-    }
+    window.alert("Guest signup is no longer supported. Please sign up or sign in.");
+    navigate("/");
   }
 
   return (

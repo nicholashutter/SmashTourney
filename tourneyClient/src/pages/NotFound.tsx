@@ -2,8 +2,7 @@
 import BasicButton from "@/components/BasicButton";
 import BasicHeading from "@/components/HeadingOne";
 
-/*Ready for E2E testing */
-
+// Renders the fallback route when no client page matches the URL.
 const NotFound = () =>
 {
 

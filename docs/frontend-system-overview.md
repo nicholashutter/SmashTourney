@@ -11,6 +11,7 @@ The frontend provides the user experience for:
 - lobby coordination
 - bracket viewing
 - in-match winner voting with consensus handling
+- automatic bye progression handling for odd-sized brackets
 
 It consumes API responses and game-state signals to decide which screen users should see.
 
@@ -81,6 +82,7 @@ Business purpose:
 - identify active match participants
 - submit winner votes for active match
 - surface vote status outcomes (`PENDING`, `COMMITTED`, conflicts, and validation errors)
+- continue polling while matches are transient or non-votable so players are routed when their next match opens
 
 ## 5) API Integration Layer
 
@@ -103,3 +105,4 @@ Business purpose:
 - Realtime updates improve responsiveness in lobby and game transitions.
 - Polling fallbacks keep pages consistent if events are missed.
 - Frontend uses backend `GameState` as source of truth for route decisions.
+- Odd-sized brackets are supported through backend bye auto-resolution, and frontend flows wait for the next real player-votable match.

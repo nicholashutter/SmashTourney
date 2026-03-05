@@ -51,16 +51,8 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     // Creates a game through the public route and returns its identifier.
     private async Task<Guid> CreateGameAsync(HttpClient client)
     {
-        var response = await client.PostAsync("/Games/CreateGame", null);
-        response.EnsureSuccessStatusCode();
-
-        var payload = await response.Content.ReadFromJsonAsync<CreateGameResponse>(SerializerOptions);
-        if (payload is null)
-        {
-            return Guid.Empty;
-        }
-
-        return payload.GameId;
+        var response = await CreateGameWithModeAsync(client, BracketMode.SINGLE_ELIMINATION);
+        return response.GameId;
     }
 
     // Creates a game in a selected bracket mode and returns route response data.
@@ -271,9 +263,20 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
             }
             reportedMatchIds.Add(currentMatchId);
 
-            var reportRequest = new ReportMatchRequest(currentMatchId, currentMatch.PlayerOneId);
-            var reportResponse = await hostClient.PostAsJsonAsync($"/Games/ReportMatch/{gameId}", reportRequest);
-            reportResponse.EnsureSuccessStatusCode();
+            var playerOneSession = playerSessions.FirstOrDefault(session => session.Player.Id == currentMatch.PlayerOneId);
+            var playerTwoSession = playerSessions.FirstOrDefault(session => session.Player.Id == currentMatch.PlayerTwoId);
+            if (playerOneSession is null || playerTwoSession is null)
+            {
+                throw new InvalidOperationException("Failed to resolve authenticated sessions for current match participants.");
+            }
+
+            var voteRequest = new SubmitMatchVoteRequest(currentMatchId, currentMatch.PlayerOneId);
+
+            var firstVoteResponse = await playerOneSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{gameId}", voteRequest);
+            firstVoteResponse.EnsureSuccessStatusCode();
+
+            var secondVoteResponse = await playerTwoSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{gameId}", voteRequest);
+            secondVoteResponse.EnsureSuccessStatusCode();
 
             reportCount++;
         }
@@ -322,83 +325,6 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         }
 
         return playerCount * 16;
-    }
-
-    // Confirms that game creation route returns a valid game identifier.
-    [Fact]
-    public async Task CreateGameReturnsSuccess()
-    {
-        var client = NewClient();
-        var gameId = await CreateGameAsync(client);
-        Assert.NotEqual(Guid.Empty, gameId);
-    }
-
-    // Confirms that creating a user session through game routes succeeds for valid users.
-    [Fact]
-    public async Task CreateUserSessionTakesValidUserReturnsSuccess()
-    {
-        var client = NewClient();
-        var user = new ApplicationUser
-        {
-            Id = Guid.NewGuid().ToString(),
-            UserName = "TestUser",
-            Email = $"{Guid.NewGuid()}@example.com"
-        };
-
-        var response = await client.PostAsJsonAsync("/Games/CreateUserSession", user);
-        Assert.True(response.IsSuccessStatusCode);
-    }
-
-    // Confirms that listing games returns all newly created sessions.
-    [Fact]
-    public async Task GetAllGamesReturnsAllValidGames()
-    {
-        var client = NewClient();
-        var baselineResponse = await client.GetAsync("/Games/getAllGames");
-        var baselineCount = 0;
-        if (baselineResponse.IsSuccessStatusCode)
-        {
-            var baselinePayload = await baselineResponse.Content.ReadFromJsonAsync<GetAllGamesResponse>(SerializerOptions);
-            baselineCount = baselinePayload?.Games?.Count ?? 0;
-        }
-
-        const int expectedCount = 10;
-
-        for (var index = 0; index < expectedCount; index++)
-        {
-            await CreateGameAsync(client);
-        }
-
-        var response = await client.GetAsync("/Games/getAllGames");
-        response.EnsureSuccessStatusCode();
-
-        var payload = await response.Content.ReadFromJsonAsync<GetAllGamesResponse>(SerializerOptions);
-        Assert.Equal(baselineCount + expectedCount, payload?.Games?.Count ?? 0);
-    }
-
-    // Confirms that fetching one game returns the same identifier created earlier.
-    [Fact]
-    public async Task GetGameByIdReturnsValidGame()
-    {
-        var client = NewClient();
-        var gameId = await CreateGameAsync(client);
-
-        var response = await client.GetAsync($"/Games/GetGameById/{gameId}");
-        response.EnsureSuccessStatusCode();
-
-        var payload = await response.Content.ReadFromJsonAsync<GetGameByIdResponse>(SerializerOptions);
-        Assert.Equal(gameId, payload?.Game?.Id);
-    }
-
-    // Confirms that ending a game through the route succeeds.
-    [Fact]
-    public async Task EndGameEndsRunningGame()
-    {
-        var client = NewClient();
-        var gameId = await CreateGameAsync(client);
-
-        var response = await client.GetAsync($"/Games/EndGame/{gameId}");
-        Assert.True(response.IsSuccessStatusCode);
     }
 
     // Confirms that authenticated players can join a game through AddPlayer route.
@@ -517,13 +443,15 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         var addPlayerResponse = await authenticatedClient.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", addPlayerPayload);
         addPlayerResponse.EnsureSuccessStatusCode();
 
-        var gameResponse = await authenticatedClient.GetAsync($"/Games/GetGameById/{gameId}");
-        gameResponse.EnsureSuccessStatusCode();
+        var gamePlayersResponse = await authenticatedClient.PostAsJsonAsync($"/Games/GetPlayersInGame/{gameId}", new { });
+        gamePlayersResponse.EnsureSuccessStatusCode();
 
-        var gamePayload = await gameResponse.Content.ReadFromJsonAsync<GetGameByIdResponse>(SerializerOptions);
-        var hasResolvedUserId = gamePayload is not null
-            && gamePayload.Game.currentPlayers.Count > 0
-            && !string.IsNullOrWhiteSpace(gamePayload.Game.currentPlayers[0].UserId);
+        using var playersJson = JsonDocument.Parse(await gamePlayersResponse.Content.ReadAsStringAsync());
+        var currentPlayers = playersJson.RootElement.GetProperty("currentPlayers");
+        var firstPlayer = currentPlayers.EnumerateArray().FirstOrDefault();
+        var hasResolvedUserId = firstPlayer.ValueKind == JsonValueKind.Object
+            && firstPlayer.TryGetProperty("userId", out var userIdElement)
+            && !string.IsNullOrWhiteSpace(userIdElement.GetString());
 
         Assert.True(hasResolvedUserId);
     }
@@ -672,9 +600,19 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
             throw new InvalidOperationException("Current match should be present when route did not return NotFound.");
         }
 
-        var reportRequest = new ReportMatchRequest(currentMatch.MatchId, currentMatch.PlayerOneId);
-        var reportResponse = await client.PostAsJsonAsync($"/Games/ReportMatch/{gameId}", reportRequest);
-        Assert.True(reportResponse.IsSuccessStatusCode);
+        var playerOneSession = playerSessions.FirstOrDefault(session => session.Player.Id == currentMatch.PlayerOneId);
+        var playerTwoSession = playerSessions.FirstOrDefault(session => session.Player.Id == currentMatch.PlayerTwoId);
+        if (playerOneSession is null || playerTwoSession is null)
+        {
+            throw new InvalidOperationException("Unable to resolve authenticated participants for vote progression.");
+        }
+
+        var voteRequest = new SubmitMatchVoteRequest(currentMatch.MatchId, currentMatch.PlayerOneId);
+        var firstVoteResponse = await playerOneSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{gameId}", voteRequest);
+        firstVoteResponse.EnsureSuccessStatusCode();
+
+        var secondVoteResponse = await playerTwoSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{gameId}", voteRequest);
+        Assert.True(secondVoteResponse.IsSuccessStatusCode);
     }
 
     // Confirms that flow-state route returns authoritative started-game state values.
@@ -753,11 +691,20 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
             }
             reportedMatchIds.Add(matchId);
 
-            var reportResponse = await client.PostAsJsonAsync(
-                $"/Games/ReportMatch/{gameId}",
-                new ReportMatchRequest(currentMatch.MatchId, currentMatch.PlayerOneId));
+            var playerOneSession = playerSessions.FirstOrDefault(session => session.Player.Id == currentMatch.PlayerOneId);
+            var playerTwoSession = playerSessions.FirstOrDefault(session => session.Player.Id == currentMatch.PlayerTwoId);
+            if (playerOneSession is null || playerTwoSession is null)
+            {
+                throw new InvalidOperationException("Unable to resolve authenticated sessions for vote progression loop.");
+            }
 
-            reportResponse.EnsureSuccessStatusCode();
+            var voteRequest = new SubmitMatchVoteRequest(currentMatch.MatchId, currentMatch.PlayerOneId);
+
+            var firstVoteResponse = await playerOneSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{gameId}", voteRequest);
+            firstVoteResponse.EnsureSuccessStatusCode();
+
+            var secondVoteResponse = await playerTwoSession.Client.PostAsJsonAsync($"/Games/SubmitMatchVote/{gameId}", voteRequest);
+            secondVoteResponse.EnsureSuccessStatusCode();
             reportCount++;
         }
 
@@ -889,24 +836,6 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
             && staleVotePayload.Status == SubmitMatchVoteStatus.MATCH_NOT_ACTIVE;
 
         Assert.True(staleVoteRejected);
-    }
-
-    // Confirms that ending a game works after players were added.
-    [Fact]
-    public async Task EndGameEndsGameSuccessfully()
-    {
-        var client = NewClient();
-        var gameId = await CreateGameAsync(client);
-        var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 10);
-
-        foreach (var session in playerSessions)
-        {
-            var playerResponse = await session.Client.PostAsJsonAsync($"/Games/AddPlayer/{gameId}", session.Player);
-            playerResponse.EnsureSuccessStatusCode();
-        }
-
-        var response = await client.GetAsync($"/Games/EndGame/{gameId}");
-        Assert.True(response.IsSuccessStatusCode);
     }
 
     // Confirms full auth-to-completion flow for single-elimination power-of-two tournaments.

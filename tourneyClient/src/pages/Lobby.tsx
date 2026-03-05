@@ -32,8 +32,7 @@ const Lobby = () =>
     const [joinNotice, setJoinNotice] = useState<string | null>(null);
     const lobbyConnectionRef = useRef<PersistentConnection | null>(null);
 
-    //get playerId, gameId and setter functions from useContext wrapper
-    //should have either been loaded from joinTourney or createTourney pages
+    // Reads game-session values shared by create/join flow pages.
     const { gameId, isHost, setGameStarted } = useGameData();
 
     const navigate = useNavigate();

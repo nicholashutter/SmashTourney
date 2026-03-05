@@ -76,28 +76,3 @@ export const validateTotalPlayers = (userInput: number) =>
 
     return validateInput(userInput.toString()).isValid;
 };
-
-
-
-/**
- * Example usage:
- *
- * import { validationService } from './validationService';
- *
- * const { validateInput } = validationService();
- * const result = validateInput(userInput);
- *
- * if (!result.isValid) {
- *   console.warn("Validation issues:", result.issues);
- *   // Handle invalid input (e.g., show error messages)
- * } else {
- *   // Proceed with safe input
- * }
- *
- * This service checks for:
- * - HTML injection
- * - SQL injection
- * - JavaScript injection
- * - Open redirects
- * - Escape character misuse
- */

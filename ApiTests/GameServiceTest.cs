@@ -4,6 +4,8 @@ using ApiTests.TestContracts;
 using Contracts;
 using Entities;
 using Enums;
+using System.Collections;
+using System.Reflection;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Services;
@@ -361,5 +363,192 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         var duplicateVote = await _gameService.SubmitMatchVoteAsync(gameSetup.GameId, voterUserId, voteRequest);
 
         Assert.True(duplicateVote.Status == SubmitMatchVoteStatus.DUPLICATE_VOTE);
+    }
+
+    // Confirms bye auto-resolution advances odd-sized brackets to a real-vs-real active match.
+    [Fact]
+    public async Task StartGameAsyncWithOddPlayersAutoResolvesByesBeforeFirstRealMatch()
+    {
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.SINGLE_ELIMINATION, TotalPlayers: 8));
+        var users = await SetupDummyUsersAsync(5);
+        var players = await SetupDummyPlayersAsync(users);
+
+        for (var index = 0; index < players.Count; index++)
+        {
+            _gameService.AddPlayerToGame(players[index], gameId, users[index].Id);
+        }
+
+        var started = await _gameService.StartGameAsync(gameId);
+        if (!started)
+        {
+            throw new InvalidOperationException("StartGameAsync failed for odd-player bye progression test.");
+        }
+
+        var currentMatch = await _gameService.GetCurrentMatchAsync(gameId);
+        if (currentMatch is null)
+        {
+            throw new InvalidOperationException("Current match should exist after bye auto-resolution for odd-player setup.");
+        }
+
+        var realPlayerIds = players.Select(player => player.Id).ToHashSet();
+        var isRealVsRealMatch = realPlayerIds.Contains(currentMatch.PlayerOneId)
+            && realPlayerIds.Contains(currentMatch.PlayerTwoId);
+
+        Assert.True(isRealVsRealMatch);
+    }
+
+    // Confirms one real player against one bye is auto-completed without requiring any vote.
+    [Fact]
+    public async Task StartGameAsyncAutoCompletesRealVersusByeWithoutManualVote()
+    {
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.SINGLE_ELIMINATION, TotalPlayers: 2));
+        var users = await SetupDummyUsersAsync(1);
+        var players = await SetupDummyPlayersAsync(users);
+
+        _gameService.AddPlayerToGame(players[0], gameId, users[0].Id);
+
+        var started = await _gameService.StartGameAsync(gameId);
+        if (!started)
+        {
+            throw new InvalidOperationException("StartGameAsync failed for real-vs-bye auto-complete test.");
+        }
+
+        var currentMatch = await _gameService.GetCurrentMatchAsync(gameId);
+        var flowState = await _gameService.GetGameStateAsync(gameId);
+
+        var autoCompleted = currentMatch is null
+            && flowState is not null
+            && flowState.State == GameState.COMPLETE;
+
+        Assert.True(autoCompleted);
+    }
+
+    // Confirms bye-vs-bye matches are auto-resolved and do not stall bracket progression.
+    [Fact]
+    public async Task StartGameAsyncAutoCompletesByeVersusByeWithoutManualVote()
+    {
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.SINGLE_ELIMINATION, TotalPlayers: 2));
+
+        var started = await _gameService.StartGameAsync(gameId);
+        if (!started)
+        {
+            throw new InvalidOperationException("StartGameAsync failed for bye-vs-bye auto-complete test.");
+        }
+
+        var currentMatch = await _gameService.GetCurrentMatchAsync(gameId);
+        var flowState = await _gameService.GetGameStateAsync(gameId);
+        var snapshot = await _gameService.GetBracketSnapshotAsync(gameId);
+
+        var hasCompletedBracket = snapshot is not null
+            && snapshot.Matches.Any(match => match.Status == BracketMatchStatus.COMPLETE);
+
+        var progressionDidNotStall = currentMatch is null
+            && flowState is not null
+            && flowState.State == GameState.COMPLETE
+            && hasCompletedBracket;
+
+        Assert.True(progressionDidNotStall);
+    }
+
+    // Confirms one real participant vote can commit real-vs-bye matches when bye metadata is missing in runtime state.
+    [Fact]
+    public async Task SubmitMatchVoteAsyncCommitsRealVersusByeWhenByeMetadataIsMissing()
+    {
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.SINGLE_ELIMINATION, TotalPlayers: 4));
+        var users = await SetupDummyUsersAsync(3);
+        var players = await SetupDummyPlayersAsync(users);
+
+        for (var index = 0; index < players.Count; index++)
+        {
+            _gameService.AddPlayerToGame(players[index], gameId, users[index].Id);
+        }
+
+        var started = await _gameService.StartGameAsync(gameId);
+        if (!started)
+        {
+            throw new InvalidOperationException("StartGameAsync failed for missing-bye-metadata regression test.");
+        }
+
+        var gameServiceConcrete = _gameService as GameService;
+        if (gameServiceConcrete is null)
+        {
+            throw new InvalidOperationException("Unable to access concrete GameService for regression test setup.");
+        }
+
+        var bracketStatesField = typeof(GameService).GetField("_bracketStates", BindingFlags.Instance | BindingFlags.NonPublic);
+        if (bracketStatesField?.GetValue(gameServiceConcrete) is not IDictionary bracketStates)
+        {
+            throw new InvalidOperationException("Unable to access bracket runtime state dictionary for regression test setup.");
+        }
+
+        if (!bracketStates.Contains(gameId))
+        {
+            throw new InvalidOperationException("Expected in-memory bracket runtime state for regression test setup.");
+        }
+
+        var runtimeState = bracketStates[gameId];
+        if (runtimeState is null)
+        {
+            throw new InvalidOperationException("Runtime bracket state instance was null in regression test setup.");
+        }
+
+        var byePlayerIdsProperty = runtimeState.GetType().GetProperty("ByePlayerIds", BindingFlags.Instance | BindingFlags.Public);
+        var byePlayerIds = byePlayerIdsProperty?.GetValue(runtimeState);
+        var clearMethod = byePlayerIds?.GetType().GetMethod("Clear", Type.EmptyTypes);
+        if (clearMethod is null)
+        {
+            throw new InvalidOperationException("Unable to clear bye metadata in runtime state for regression test setup.");
+        }
+
+        clearMethod.Invoke(byePlayerIds, null);
+
+        var firstMatch = await _gameService.GetCurrentMatchAsync(gameId);
+        if (firstMatch is null)
+        {
+            throw new InvalidOperationException("Current match was null before first vote in regression test.");
+        }
+
+        var firstVoteWinnerId = firstMatch.PlayerOneId;
+        var firstMatchPlayerOneUserId = players.First(player => player.Id == firstMatch.PlayerOneId).UserId;
+        var firstMatchPlayerTwoUserId = players.First(player => player.Id == firstMatch.PlayerTwoId).UserId;
+
+        var firstMatchVoteRequest = new SubmitMatchVoteRequest(firstMatch.MatchId, firstVoteWinnerId);
+        var firstVote = await _gameService.SubmitMatchVoteAsync(gameId, firstMatchPlayerOneUserId, firstMatchVoteRequest);
+        if (firstVote.Status != SubmitMatchVoteStatus.PENDING)
+        {
+            throw new InvalidOperationException("First vote should be pending for first real-vs-real match in regression test.");
+        }
+
+        var secondVote = await _gameService.SubmitMatchVoteAsync(gameId, firstMatchPlayerTwoUserId, firstMatchVoteRequest);
+        if (secondVote.Status != SubmitMatchVoteStatus.COMMITTED)
+        {
+            throw new InvalidOperationException("Second vote should commit first real-vs-real match in regression test.");
+        }
+
+        var secondMatch = await _gameService.GetCurrentMatchAsync(gameId);
+        if (secondMatch is null)
+        {
+            throw new InvalidOperationException("Expected second match after first match commit in regression test.");
+        }
+
+        var secondMatchRealParticipants = players
+            .Where(player => player.Id == secondMatch.PlayerOneId || player.Id == secondMatch.PlayerTwoId)
+            .ToList();
+
+        if (secondMatchRealParticipants.Count != 1)
+        {
+            throw new InvalidOperationException("Expected second match to be real-vs-bye in regression test.");
+        }
+
+        var realParticipant = secondMatchRealParticipants[0];
+        var secondMatchVoteRequest = new SubmitMatchVoteRequest(secondMatch.MatchId, realParticipant.Id);
+
+        var realVersusByeVote = await _gameService.SubmitMatchVoteAsync(gameId, realParticipant.UserId, secondMatchVoteRequest);
+
+        var committedWithSingleVote = realVersusByeVote.Status == SubmitMatchVoteStatus.COMMITTED
+            && realVersusByeVote.VoteCount == 1
+            && realVersusByeVote.CommittedWinnerPlayerId == realParticipant.Id;
+
+        Assert.True(committedWithSingleVote);
     }
 }

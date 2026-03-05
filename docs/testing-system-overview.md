@@ -41,7 +41,8 @@ Business focus:
 
 - service workflows produce correct game, player, and user outcomes
 - bracket mode behavior is initialized correctly
-- reported match state persists and reloads correctly
+- vote-ledger and bracket progression state persists and reloads correctly
+- odd-player brackets auto-resolve bye-involved matches so real-player flow does not stall
 
 ## 3) Realtime Contract Tests
 
@@ -63,13 +64,16 @@ Primary location:
 - `tourneyClient/tests/PersistentConnection.test.ts`
 - `tourneyClient/tests/FrontendLifecycleFlow.test.ts`
 - `tourneyClient/tests/matchVoteFeedback.test.ts`
+- `tourneyClient/tests/ValidationService.test.ts`
 
 Business focus:
 
 - frontend request and response contracts match API routes
 - realtime client behavior matches hub events
-- auth + realtime + rest game flows work for power-of-two tournament sizes
+- auth + realtime + rest game flows work for both power-of-two and odd player counts
+- odd-player matrices verify bye auto-resolution for single and double elimination modes
 - vote-ledger status and error feedback is validated for happy-path and critical outcomes
+- input validation rules consistently reject unsafe or malformed client input
 
 ## Alignment With System Modules
 
@@ -79,7 +83,7 @@ This testing structure maps directly to the modules in `docs/full-stack-system-o
 - Tournament Setup Module → create/join route tests
 - Lobby Module → players-in-game and realtime update tests
 - Bracket Flow Module → flow state, bracket, current match tests
-- Match Reporting Module → submit-match-vote consensus and completion tests
+- Match Voting Module → submit-match-vote consensus and completion tests
 - Realtime + Recovery Module → hub broadcast and state polling tests
 
 ## Operational Quality Gates
@@ -88,7 +92,7 @@ Recommended quality gates before merge:
 
 - all API integration tests pass
 - all frontend tests pass
-- power-of-two tournament matrix tests pass for single and double elimination
+- tournament matrix tests pass for both power-of-two and odd player counts in single and double elimination
 - no unauthorized access regressions in auth/session routes
 
 ## Business Outcome

@@ -1,5 +1,6 @@
 namespace Enums;
 
+// Defines a controlled set of business values used by gameplay and ranking logic.
 public enum CharacterName
 {
     MARIO,

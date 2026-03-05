@@ -25,13 +25,31 @@ type SimulatedMatch = {
 type SimulatorState = {
     gameId: string;
     mode: BracketMode;
-    players: string[];
+    realPlayers: string[];
+    seededPlayers: string[];
+    bracketSize: number;
     gameStarted: boolean;
     authenticated: boolean;
+    resolvedMatches: number;
     reportedMatches: number;
+    autoResolvedByeMatches: number;
     totalMatches: number;
     currentMatch: SimulatedMatch | null;
 };
+
+const roundUpToPowerOfTwo = (value: number): number =>
+{
+    let result = 1;
+    while (result < value)
+    {
+        result *= 2;
+    }
+
+    return result;
+};
+
+// Identifies synthetic bye players in simulated tournament flows.
+const isByePlayerId = (playerId: string): boolean => playerId.startsWith("bye-");
 
 const signalEventHandlers = new Map<string, (...args: any[]) => void>();
 
@@ -90,45 +108,65 @@ const toJsonResponse = (status: number, payload: unknown): MockResponse =>
     };
 };
 
+// Produces the next player-votable match while auto-resolving bye-involved matches.
 const buildCurrentMatch = (state: SimulatorState): SimulatedMatch | null =>
 {
-    if (!state.gameStarted || state.reportedMatches >= state.totalMatches)
+    if (!state.gameStarted || state.resolvedMatches >= state.totalMatches)
     {
         return null;
     }
 
-    const playerCount = state.players.length;
+    const playerCount = state.seededPlayers.length;
     if (playerCount < 2)
     {
         return null;
     }
 
-    const firstIndex = state.reportedMatches % playerCount;
-    const secondIndex = (state.reportedMatches + 1) % playerCount;
-    const playerOneId = state.players[firstIndex];
-    const playerTwoId = state.players[secondIndex];
+    while (state.resolvedMatches < state.totalMatches)
+    {
+        const firstIndex = state.resolvedMatches % playerCount;
+        const secondIndex = (state.resolvedMatches + 1) % playerCount;
+        const playerOneId = state.seededPlayers[firstIndex];
+        const playerTwoId = state.seededPlayers[secondIndex];
 
-    return {
-        matchId: `${state.gameId}-match-${state.reportedMatches + 1}`,
-        playerOneId,
-        playerTwoId
-    };
+        if (isByePlayerId(playerOneId) || isByePlayerId(playerTwoId))
+        {
+            state.autoResolvedByeMatches += 1;
+            state.resolvedMatches += 1;
+            continue;
+        }
+
+        return {
+            matchId: `${state.gameId}-match-${state.resolvedMatches + 1}`,
+            playerOneId,
+            playerTwoId
+        };
+    }
+
+    return null;
 };
 
+// Simulates API behavior for full frontend tournament lifecycle validation.
 const createFlowSimulator = (mode: BracketMode, playerCount: number) =>
 {
     const state: SimulatorState = {
         gameId: `${mode.toLowerCase()}-${playerCount}-game-id`,
         mode,
-        players: [],
+        realPlayers: [],
+        seededPlayers: [],
+        bracketSize: roundUpToPowerOfTwo(Math.max(2, playerCount)),
         gameStarted: false,
         authenticated: false,
+        resolvedMatches: 0,
         reportedMatches: 0,
-        totalMatches: mode === "SINGLE_ELIMINATION" ? playerCount - 1 : (playerCount * 2) - 2,
+        autoResolvedByeMatches: 0,
+        totalMatches: mode === "SINGLE_ELIMINATION"
+            ? roundUpToPowerOfTwo(Math.max(2, playerCount)) - 1
+            : (roundUpToPowerOfTwo(Math.max(2, playerCount)) * 2) - 2,
         currentMatch: null
     };
 
-    return async (input: RequestInfo | URL, init?: RequestInit): Promise<MockResponse> =>
+    const handler = async (input: RequestInfo | URL, init?: RequestInit): Promise<MockResponse> =>
     {
         const urlString = typeof input === "string" ? input : input.toString();
         const url = new URL(urlString);
@@ -167,8 +205,8 @@ const createFlowSimulator = (mode: BracketMode, playerCount: number) =>
         {
             const bodyText = init?.body ? String(init.body) : "{}";
             const parsedBody = JSON.parse(bodyText);
-            const playerId = parsedBody.Id ?? parsedBody.id ?? `player-${state.players.length + 1}`;
-            state.players.push(playerId);
+            const playerId = parsedBody.Id ?? parsedBody.id ?? `player-${state.realPlayers.length + 1}`;
+            state.realPlayers.push(playerId);
 
             return toJsonResponse(200, { added: true, playerId });
         }
@@ -176,6 +214,11 @@ const createFlowSimulator = (mode: BracketMode, playerCount: number) =>
         if (path === `/Games/StartGame/${state.gameId}` && method === "POST")
         {
             state.gameStarted = true;
+            const byeCount = Math.max(0, state.bracketSize - state.realPlayers.length);
+            state.seededPlayers = [
+                ...state.realPlayers,
+                ...Array.from({ length: byeCount }, (_, index) => `bye-${index + 1}`)
+            ];
             state.currentMatch = buildCurrentMatch(state);
             return toJsonResponse(200, { started: true });
         }
@@ -185,7 +228,7 @@ const createFlowSimulator = (mode: BracketMode, playerCount: number) =>
             let currentState = "LOBBY_WAITING";
             if (state.gameStarted)
             {
-                currentState = state.reportedMatches >= state.totalMatches ? "COMPLETE" : "IN_MATCH_ACTIVE";
+                currentState = state.resolvedMatches >= state.totalMatches ? "COMPLETE" : "IN_MATCH_ACTIVE";
             }
 
             return toJsonResponse(200, {
@@ -234,6 +277,7 @@ const createFlowSimulator = (mode: BracketMode, playerCount: number) =>
             }
 
             state.reportedMatches += 1;
+            state.resolvedMatches += 1;
             state.currentMatch = buildCurrentMatch(state);
             return toJsonResponse(200, {
                 gameId: state.gameId,
@@ -246,17 +290,17 @@ const createFlowSimulator = (mode: BracketMode, playerCount: number) =>
 
         if (path === `/Games/GetBracket/${state.gameId}` && method === "GET")
         {
-            const completeCount = state.reportedMatches;
-            const pendingCount = Math.max(0, state.totalMatches - state.reportedMatches);
+            const completeCount = state.resolvedMatches;
+            const pendingCount = Math.max(0, state.totalMatches - state.resolvedMatches);
 
             const completedMatches = Array.from({ length: completeCount }).map((_, index) => ({
                 matchId: `${state.gameId}-complete-${index + 1}`,
                 lane: "WINNERS",
                 round: 1,
                 matchNumber: index + 1,
-                playerOneId: state.players[0] ?? "",
-                playerTwoId: state.players[1] ?? "",
-                winnerId: state.players[0] ?? "",
+                playerOneId: state.seededPlayers[0] ?? "",
+                playerTwoId: state.seededPlayers[1] ?? "",
+                winnerId: state.seededPlayers[0] ?? "",
                 status: "COMPLETE",
                 nextMatchForWinner: undefined,
                 nextMatchForLoser: undefined
@@ -267,8 +311,8 @@ const createFlowSimulator = (mode: BracketMode, playerCount: number) =>
                 lane: "WINNERS",
                 round: 1,
                 matchNumber: completeCount + index + 1,
-                playerOneId: state.players[0] ?? "",
-                playerTwoId: state.players[1] ?? "",
+                playerOneId: state.seededPlayers[0] ?? "",
+                playerTwoId: state.seededPlayers[1] ?? "",
                 winnerId: undefined,
                 status: "READY",
                 nextMatchForWinner: undefined,
@@ -280,9 +324,9 @@ const createFlowSimulator = (mode: BracketMode, playerCount: number) =>
                 mode: state.mode,
                 gameStarted: state.gameStarted,
                 isGrandFinalResetRequired: false,
-                players: state.players.map((playerId, index) => ({
+                players: state.seededPlayers.map((playerId, index) => ({
                     playerId,
-                    displayName: `Player ${index + 1}`,
+                    displayName: isByePlayerId(playerId) ? `BYE ${index + 1}` : `Player ${index + 1}`,
                     seed: index + 1,
                     losses: 0,
                     eliminated: false
@@ -293,11 +337,18 @@ const createFlowSimulator = (mode: BracketMode, playerCount: number) =>
 
         return toJsonResponse(404, { message: `Unhandled route ${method} ${path}` });
     };
+
+    return Object.assign(handler, { __state: state });
 };
 
-const runFrontendLifecycleToCompletion = async (mode: BracketMode, playerCount: number): Promise<number> =>
+// Executes one full frontend lifecycle run and returns progression metrics.
+const runFrontendLifecycleToCompletion = async (
+    mode: BracketMode,
+    playerCount: number
+): Promise<{ reportedMatches: number; autoResolvedByeMatches: number; totalMatches: number }> =>
 {
-    global.fetch = vi.fn(createFlowSimulator(mode, playerCount)) as any;
+    const simulator = createFlowSimulator(mode, playerCount);
+    global.fetch = vi.fn(simulator) as any;
 
     await RequestService("login", {
         body: {
@@ -370,7 +421,7 @@ const runFrontendLifecycleToCompletion = async (mode: BracketMode, playerCount: 
     expect(mockInvoke).toHaveBeenCalledWith("UpdatePlayers", gameId);
     expect(mockInvoke).toHaveBeenCalledWith("NotifyGameStarted", gameId);
 
-    const maxIterations = mode === "SINGLE_ELIMINATION" ? playerCount * 8 : playerCount * 16;
+    const maxIterations = Math.max(32, simulator.__state.totalMatches * 4);
 
     let reportedMatches = 0;
 
@@ -423,7 +474,11 @@ const runFrontendLifecycleToCompletion = async (mode: BracketMode, playerCount: 
 
     await realtimeService.disconnect();
 
-    return reportedMatches;
+    return {
+        reportedMatches,
+        autoResolvedByeMatches: simulator.__state.autoResolvedByeMatches,
+        totalMatches: simulator.__state.totalMatches
+    };
 };
 
 beforeEach(() =>
@@ -434,13 +489,14 @@ beforeEach(() =>
 });
 
 const powerOfTwoPlayerCounts = [2, 4, 8, 16, 32, 64, 128];
+const oddPlayerCounts = [3, 5, 9];
 
 test.each(powerOfTwoPlayerCounts)(
     "Frontend auth/realtime/rest flow completes single-elimination tournament for %i players",
     async (playerCount) =>
     {
-        const reportedMatches = await runFrontendLifecycleToCompletion("SINGLE_ELIMINATION", playerCount);
-        expect(reportedMatches).toBe(playerCount - 1);
+        const flowResult = await runFrontendLifecycleToCompletion("SINGLE_ELIMINATION", playerCount);
+        expect(flowResult.reportedMatches).toBe(playerCount - 1);
     }
 );
 
@@ -448,8 +504,28 @@ test.each(powerOfTwoPlayerCounts)(
     "Frontend auth/realtime/rest flow completes double-elimination tournament for %i players",
     async (playerCount) =>
     {
-        const reportedMatches = await runFrontendLifecycleToCompletion("DOUBLE_ELIMINATION", playerCount);
-        expect(reportedMatches).toBeGreaterThanOrEqual(playerCount - 1);
-        expect(reportedMatches).toBeLessThanOrEqual((playerCount * 2) - 1);
+        const flowResult = await runFrontendLifecycleToCompletion("DOUBLE_ELIMINATION", playerCount);
+        expect(flowResult.reportedMatches).toBeGreaterThanOrEqual(playerCount - 1);
+        expect(flowResult.reportedMatches).toBeLessThanOrEqual((playerCount * 2) - 1);
+    }
+);
+
+test.each(oddPlayerCounts)(
+    "Frontend flow auto-resolves bye matches for single-elimination odd bracket size %i",
+    async (playerCount) =>
+    {
+        const flowResult = await runFrontendLifecycleToCompletion("SINGLE_ELIMINATION", playerCount);
+        expect(flowResult.autoResolvedByeMatches).toBeGreaterThan(0);
+        expect(flowResult.reportedMatches).toBeLessThan(flowResult.totalMatches);
+    }
+);
+
+test.each(oddPlayerCounts)(
+    "Frontend flow auto-resolves bye matches for double-elimination odd bracket size %i",
+    async (playerCount) =>
+    {
+        const flowResult = await runFrontendLifecycleToCompletion("DOUBLE_ELIMINATION", playerCount);
+        expect(flowResult.autoResolvedByeMatches).toBeGreaterThan(0);
+        expect(flowResult.reportedMatches).toBeLessThan(flowResult.totalMatches);
     }
 );

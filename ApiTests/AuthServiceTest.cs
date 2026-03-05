@@ -108,7 +108,7 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     {
         var client = NewClient(handleCookies: true);
 
-        var response = await client.GetAsync("/users/GetAllUsers");
+        var response = await client.GetAsync("/users/session");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

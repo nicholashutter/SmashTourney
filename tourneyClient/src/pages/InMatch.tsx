@@ -5,12 +5,12 @@ import SubmitButton from "@/components/SubmitButton";
 import { useGameData } from "@/hooks/useGameData";
 import { RequestService } from "@/services/RequestService";
 import
-    {
-        BracketSnapshotResponse,
-        CurrentMatchResponse,
-        SubmitMatchVoteRequest,
-        SubmitMatchVoteResponse
-    } from "@/models/entities/Bracket";
+{
+    BracketSnapshotResponse,
+    CurrentMatchResponse,
+    SubmitMatchVoteRequest,
+    SubmitMatchVoteResponse
+} from "@/models/entities/Bracket";
 import { Player } from "@/models/entities/Player";
 import { resolvePlayerId } from "@/lib/normalizePlayer";
 import { fetchInMatchViewData } from "@/services/gameFlowService";
@@ -117,10 +117,15 @@ const InMatch = () =>
         loadMatchData();
     }, [loadMatchData]);
 
-    // Polls for the next active match while no current match is assigned.
+    // Polls while waiting for a votable match (no match yet, or current user is not a participant).
     useEffect(() =>
     {
-        if (!gameId || currentMatch)
+        if (!gameId)
+        {
+            return;
+        }
+
+        if (currentMatch && canCurrentUserVote)
         {
             return;
         }
@@ -134,7 +139,7 @@ const InMatch = () =>
         {
             window.clearInterval(intervalId);
         };
-    }, [currentMatch, gameId, loadMatchData]);
+    }, [canCurrentUserVote, currentMatch, gameId, loadMatchData]);
 
     // Submits the selected winner for the current active match.
     const handleLockVote = async () =>
@@ -209,8 +214,8 @@ const InMatch = () =>
 
     return (
 
-        <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}
-            <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 "> {/* max width is 90 percent of parent (viewport) inner flexbox to center content and text */}
+        <div className="flex flex-col items-center justify-center h-dvh w-dvw">
+            <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
                 <title>{playerOneName}VS. {playerTwoName}</title>
                 <div className='shrink flex flex-col text-2xl p-4 m-4 '>
                     <BasicHeading headingText={`${playerOneName} VS. ${playerTwoName}`} headingColors="white" />

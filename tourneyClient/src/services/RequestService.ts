@@ -13,14 +13,7 @@ export interface ApiEndpoint
 
 // Stores API endpoint metadata used by request helpers.
 const RequestBuilder = {
-  getAllGames: { method: "GET", path: "/Games/getAllGames" },
-  createGame: { method: "POST", path: "/Games/CreateGame" },
   createGameWithMode: { method: "POST", path: "/Games/CreateGameWithMode" },
-  getGameById: {
-    method: "GET",
-    path: "/Games/GetGameById/{gameId}",
-    params: ["gameId"]
-  },
   getBracket: {
     method: "GET",
     path: "/Games/GetBracket/{gameId}",
@@ -41,11 +34,6 @@ const RequestBuilder = {
     path: "/Games/SubmitMatchVote/{gameId}",
     params: ["gameId"]
   },
-  endGame: {
-    method: "GET",
-    path: "/Games/EndGame/{gameId}",
-    params: ["gameId"]
-  },
   addPlayers: {
     method: "POST",
     path: "/Games/AddPlayer/{gameId}",
@@ -56,51 +44,16 @@ const RequestBuilder = {
     path: "/Games/GetPlayersInGame/{gameId}",
     params: ["gameId"]
   },
-  createUserSession: { method: "POST", path: "/Games/CreateUserSession" },
   startGame: {
     method: "POST",
     path: "/Games/StartGame/{gameId}",
-    params: ["gameId"]
-  },
-  loadGame: {
-    method: "POST",
-    path: "/Games/LoadGame/{gameId}",
-    params: ["gameId"]
-  },
-  saveGame: {
-    method: "POST",
-    path: "/Games/SaveGame/{gameId}",
     params: ["gameId"]
   },
 
   register: { method: "POST", path: "/Users/Register" },
   login: { method: "POST", path: "/users/login" },
   sessionStatus: { method: "GET", path: "/users/session" },
-  profile: {
-    method: "GET",
-    path: "/Users/Profile/{userId}",
-    params: ["userId"]
-  },
-  updateProfile: { method: "PUT", path: "/Users/UpdateProfile" },
-  logout: { method: "POST", path: "/Users/logout" },
-
-  getAllUsers: { method: "GET", path: "/users/GetAllUsers" },
-  getUserById: {
-    method: "GET",
-    path: "/users/GetById/{Id}",
-    params: ["Id"]
-  },
-  getUserByUserName: {
-    method: "GET",
-    path: "/users/GetByUserName/{UserName}",
-    params: ["UserName"]
-  },
-  updateUser: { method: "PUT", path: "/users/UpdateUser" },
-  deleteUser: {
-    method: "DELETE",
-    path: "/users/{Id}",
-    params: ["Id"]
-  }
+  logout: { method: "POST", path: "/users/logout" }
 } as const satisfies Record<string, ApiEndpoint>;
 
 // Builds request definitions with fully qualified URLs.

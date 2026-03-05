@@ -20,7 +20,7 @@ The system handles:
 - Account/session entry
 - Lobby management
 - Bracket progression
-- Match reporting
+- Match voting and consensus
 - Tournament completion
 
 ## Main Modules
@@ -68,9 +68,9 @@ System outcomes:
 - Advance bracket on participant vote consensus
 - Expose flow status for clients
 
-## 5) Match Reporting Module
+## 5) Match Voting Module
 
-Responsible for recording match outcomes and moving tournament forward.
+Responsible for collecting participant winner votes and moving tournament forward.
 
 System outcomes:
 
@@ -78,6 +78,7 @@ System outcomes:
 - Commit results when participant votes agree
 - Update bracket state
 - Calculate next active match
+- Auto-resolve bye-involved matches so odd-sized brackets continue without user stall
 
 ## 6) Realtime + Recovery Module
 
@@ -108,9 +109,6 @@ System outcomes:
 
 ## Tournament Lifecycle Routes
 
-- `POST /Games/CreateGame`
-  - Creates a new tournament session.
-
 - `POST /Games/CreateGameWithMode`
   - Creates a session with selected bracket type.
 
@@ -129,25 +127,13 @@ System outcomes:
 - `GET /Games/GetFlowState/{gameId}`
   - Returns authoritative overall `GameState` (`LOBBY_WAITING`, `BRACKET_VIEW`, `IN_MATCH_ACTIVE`, `COMPLETE`).
 
-- `POST /Games/ReportMatch/{gameId}`
-  - Records winner directly for a specific match and advances tournament state (service/testing fallback).
-
 - `POST /Games/SubmitMatchVote/{gameId}`
-  - Records one authenticated participant vote and commits progression only after vote consensus.
-
-- `GET /Games/EndGame/{gameId}`
-  - Closes and removes an active tournament.
+  - Records one authenticated participant vote and commits progression only after participant consensus.
 
 ## Supporting Routes
 
 - `POST /Games/GetPlayersInGame/{gameId}`
   - Returns players currently assigned to a session.
-
-- `GET /Games/GetGameById/{gameId}`
-  - Returns basic game/session data.
-
-- `GET /Games/getAllGames`
-  - Returns all currently known sessions.
 
 ## User/Session Routes
 
@@ -158,3 +144,4 @@ System outcomes:
 - Frontend and backend are designed around one authoritative game state endpoint for route decisions.
 - Realtime updates improve responsiveness, while polling endpoints provide reliability and recovery.
 - Tournament progression is driven by participant-vote consensus and bracket state transitions, not by manual round toggles.
+- Odd-sized tournaments progress through backend bye auto-resolution until the next real player-votable match.

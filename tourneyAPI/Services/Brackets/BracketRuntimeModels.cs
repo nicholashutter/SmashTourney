@@ -2,6 +2,7 @@ namespace Services.Brackets;
 
 using Enums;
 
+// Stores in-memory runtime state used to build and progress tournament brackets.
 internal sealed class BracketPlayerRuntime
 {
     public Guid PlayerId { get; set; }
@@ -11,6 +12,7 @@ internal sealed class BracketPlayerRuntime
     public bool Eliminated { get; set; }
 }
 
+// Stores in-memory runtime state used to build and progress tournament brackets.
 internal sealed class BracketMatchRuntime
 {
     public Guid MatchId { get; set; } = Guid.NewGuid();
@@ -25,6 +27,7 @@ internal sealed class BracketMatchRuntime
     public Guid? NextMatchForLoser { get; set; }
 }
 
+// Stores in-memory runtime state used to build and progress tournament brackets.
 internal sealed class BracketRuntimeState
 {
     public Guid GameId { get; set; }

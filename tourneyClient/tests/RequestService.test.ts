@@ -2,20 +2,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { test, expect, vi, beforeEach } from 'vitest';
-import { ApplicationUser } from '../src/models/entities/ApplicationUser';
 import { RequestService } from '../src/services/RequestService';
 import Marth from '../src/models/entities/Characters/Marth';
 import { CharacterId } from '../src/models/Enums/CharacterId';
 import { Player } from '../src/models/entities/Player';
-
-const UserName = "TestUser";
-const Password = "P@SSW0RD123!"
-
-const User: ApplicationUser =
-{
-    UserName,
-    Password
-}
 
 beforeEach(
     () => 
@@ -23,53 +13,6 @@ beforeEach(
         global.fetch = vi.fn();
     }
 )
-
-/**
- *  Verifies that RequestService formats a basic POST request correctly.
- * - Endpoint: createUserSession
- * - Payload: ApplicationUser
- * - Checks method, headers, body structure, and response parsing.
- */
-test("RequestService submits a properly formatted http request", async () =>
-{
-
-    (fetch as any).mockResolvedValueOnce(
-        {
-            ok: true,
-            json: (async: any) => (
-                {
-                    success: true
-                }
-            )
-        }
-    );
-
-    //RequestService is a custom api to wrap fetch that includes type safety for back end
-    const result = await RequestService("createUserSession",
-        {
-            body:
-            {
-                User
-            }
-        });
-    expect(result).toEqual(
-        {
-            success: true
-        }
-    )
-
-    //Using mock provided fetch test that shape of data is correct and reponse returns success
-    const [url, options] = (fetch as any).mock.calls[0];
-
-    expect(url).toContain("CreateUserSession");
-
-    expect(options.method).toBe("POST");
-    expect(options.headers["Content-Type"]).toBe("application/json");
-
-    const parsedBody = JSON.parse(options.body);
-    expect(parsedBody.User).toEqual(User);
-
-})
 
 /**
  *  Verifies that RequestService formats a POST request with route param and array of Player objects.
@@ -223,7 +166,9 @@ test("CreateTourney flow enforces auth and succeeds when authenticated", async (
             text: async () => ""
         });
 
-    const created = await RequestService<"createGame", never, { GameId: string }>("createGame");
+    const created = await RequestService<"createGameWithMode", { bracketMode: string }, { GameId: string }>("createGameWithMode", {
+        body: { bracketMode: "SINGLE_ELIMINATION" }
+    });
     expect(created.GameId).toBe(gameId);
 
     await expect(
@@ -231,7 +176,7 @@ test("CreateTourney flow enforces auth and succeeds when authenticated", async (
     ).rejects.toThrow("HTTP 401");
 
     expect((fetch as any).mock.calls).toHaveLength(2);
-    expect((fetch as any).mock.calls[0][0]).toContain("/Games/CreateGame");
+    expect((fetch as any).mock.calls[0][0]).toContain("/Games/CreateGameWithMode");
     expect((fetch as any).mock.calls[1][0]).toContain("/users/session");
     expect((fetch as any).mock.calls[0][1].credentials).toBe("include");
     expect((fetch as any).mock.calls[1][1].credentials).toBe("include");
@@ -264,7 +209,9 @@ test("CreateTourney flow enforces auth and succeeds when authenticated", async (
             text: async () => JSON.stringify({ success: true })
         });
 
-    const createdAuthed = await RequestService<"createGame", never, { GameId: string }>("createGame");
+    const createdAuthed = await RequestService<"createGameWithMode", { bracketMode: string }, { GameId: string }>("createGameWithMode", {
+        body: { bracketMode: "SINGLE_ELIMINATION" }
+    });
     expect(createdAuthed.GameId).toBe(gameId);
 
     const session = await RequestService<"sessionStatus", never, { IsAuthenticated: boolean; UserName: string }>("sessionStatus");

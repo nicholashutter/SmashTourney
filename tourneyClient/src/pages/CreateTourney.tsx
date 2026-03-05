@@ -46,19 +46,16 @@ const CreateTourney = () =>
     currentGameID: string;
   };
 
-  //dynamic import react router useNavigate
+  // Handles route navigation after create flow events.
   const navigate = useNavigate();
 
-  //setup store for gameId after creation
+  // Stores created session identity for later pages.
   const { setGameId: setId, setPlayerId: setPlayerId, setIsHost } = useGameData();
 
-  //variables for users selections
-  //will set this with dropdown component with preset values
+  // Stores host-selected maximum player count.
   const [numPlayers, setNumPlayers] = useState("");
 
-  //gameType true is double elimination
-  //gameType false is single elimination
-  //will set this with an enum like object
+  // Stores whether selected bracket mode is double elimination.
   const [gameType, setGameType] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -113,10 +110,8 @@ const CreateTourney = () =>
   // Sets selected tournament mode from the ruleset dropdown.
   const handleSelectGameType = (e: ChangeEvent<HTMLSelectElement>) =>
   {
-    //get value of event from select element
     const selected = e.target.value;
 
-    //set gameType based on selection
     switch (selected)
     {
       case "Single Elimination":
@@ -250,13 +245,11 @@ const CreateTourney = () =>
           await lobbyConnection.disconnect();
         }
 
-        //use setId useContext function
         setId(resolvedGameId);
         setPlayerId(hostPlayerId);
         setIsHost(true);
 
         window.alert("Tournament created successfully. You are now moving to the lobby as the host.");
-        //force navigation without user intervention upon request completion and alert dismissal
         navigate("/lobby");
       }
       else
@@ -273,7 +266,7 @@ const CreateTourney = () =>
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-dvh w-dvw"> {/* center all content and take up entire viewport */}
+    <div className="flex flex-col items-center justify-center h-dvh w-dvw">
       <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
         <title>Create Tourney</title>
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>

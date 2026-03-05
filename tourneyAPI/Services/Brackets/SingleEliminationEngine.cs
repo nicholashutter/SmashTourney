@@ -4,10 +4,12 @@ using Contracts;
 using Entities;
 using Enums;
 
+// Runs single-elimination bracket progression and match state transitions.
 internal sealed class SingleEliminationEngine : IBracketEngine
 {
     public BracketMode Mode => BracketMode.SINGLE_ELIMINATION;
 
+    // Builds the initial single-elimination runtime state from registered players.
     public BracketRuntimeState Initialize(Guid gameId, IReadOnlyList<Player> players)
     {
         var seededPlayers = players
@@ -34,6 +36,7 @@ internal sealed class SingleEliminationEngine : IBracketEngine
         return state;
     }
 
+    // Applies a completed match result and advances winners to the next round.
     public bool TryReportMatch(BracketRuntimeState state, Guid matchId, Guid winnerPlayerId)
     {
         var match = state.Matches.FirstOrDefault(existingMatch => existingMatch.MatchId == matchId);
@@ -68,6 +71,7 @@ internal sealed class SingleEliminationEngine : IBracketEngine
         return true;
     }
 
+    // Creates a read model snapshot of the current single-elimination bracket state.
     public BracketSnapshotResponse BuildSnapshot(BracketRuntimeState state)
     {
         return new BracketSnapshotResponse(
@@ -97,6 +101,7 @@ internal sealed class SingleEliminationEngine : IBracketEngine
         );
     }
 
+    // Returns the next ready winners-bracket match for gameplay orchestration.
     public CurrentMatchResponse? BuildCurrentMatch(BracketRuntimeState state)
     {
         var currentMatch = state.Matches
@@ -121,6 +126,7 @@ internal sealed class SingleEliminationEngine : IBracketEngine
         );
     }
 
+    // Seeds first-round winners-bracket matches from the ordered player list.
     private static void SeedInitialRound(BracketRuntimeState state, List<Guid> initialPlayers)
     {
         for (int index = 0; index < initialPlayers.Count; index += 2)
@@ -147,6 +153,7 @@ internal sealed class SingleEliminationEngine : IBracketEngine
         }
     }
 
+    // Queues winners into the next round and materializes matches when pairs are available.
     private static void AddToWinnersPool(BracketRuntimeState state, int round, Guid playerId)
     {
         if (!state.WinnersPools.ContainsKey(round))
@@ -177,6 +184,7 @@ internal sealed class SingleEliminationEngine : IBracketEngine
         }
     }
 
+    // Marks a player as eliminated after a recorded bracket loss.
     private static void MarkPlayerEliminated(BracketRuntimeState state, Guid playerId)
     {
         var player = state.Players.FirstOrDefault(candidate => candidate.PlayerId == playerId);
@@ -189,6 +197,7 @@ internal sealed class SingleEliminationEngine : IBracketEngine
         player.Eliminated = true;
     }
 
+    // Detects bracket completion and resolves the winners champion identity.
     private static void EvaluateChampionTransition(BracketRuntimeState state)
     {
         var hasOpenMatches = state.Matches.Any(match =>

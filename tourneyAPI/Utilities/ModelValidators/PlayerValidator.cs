@@ -7,8 +7,10 @@ using System;
 namespace Validators;
 
 [ExcludeFromCodeCoverage]
+// Validates domain models before persistence or gameplay processing.
 public class PlayerValidator()
 {
+    // Applies business-rule validation and throws a domain exception when input is invalid.
     public static void Validate(Player validatePlayer, string TAG)
     {
         if (string.IsNullOrWhiteSpace(validatePlayer.DisplayName))

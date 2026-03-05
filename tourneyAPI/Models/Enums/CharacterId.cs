@@ -1,5 +1,6 @@
 namespace Enums;
 
+// Provides stable character identifiers used for persistence and cross-service gameplay mapping.
 public static class CharacterId
 {
     public static readonly Guid Mario = Guid.Parse("f3c9a7e2-4b1d-4e6a-9c2e-1a2b3c4d5e6f");
