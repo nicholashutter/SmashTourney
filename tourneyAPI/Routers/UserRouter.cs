@@ -85,20 +85,20 @@ public static class UserRouter
             });
         }).RequireAuthorization();
 
-    userRoutes.MapPost("/logout", async (HttpContext context, IGameService gameService) =>
-        {
-            await context.SignOutAsync(IdentityConstants.ApplicationScheme);
-
-            Log.Information("Request Type: Post \n URL: '/users/logout' \n Time: {Timestamp}", DateTime.UtcNow);
-
-            bool success = gameService.EndUserSession(context.User);
-
-            if (!success)
+        userRoutes.MapPost("/logout", async (HttpContext context, IGameService gameService) =>
             {
-                return Results.Problem("Internal Server Error");
-            }
+                await context.SignOutAsync(IdentityConstants.ApplicationScheme);
 
-            return Results.Ok();
-        }).RequireAuthorization();
+                Log.Information("Request Type: Post \n URL: '/users/logout' \n Time: {Timestamp}", DateTime.UtcNow);
+
+                bool success = gameService.EndUserSession(context.User);
+
+                if (!success)
+                {
+                    return Results.Problem("Internal Server Error");
+                }
+
+                return Results.Ok();
+            }).RequireAuthorization();
     }
 }

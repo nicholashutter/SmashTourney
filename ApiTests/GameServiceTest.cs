@@ -4,6 +4,7 @@ using ApiTests.TestContracts;
 using Contracts;
 using Entities;
 using Enums;
+using Helpers;
 using System.Collections;
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -541,6 +542,36 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         }
 
         var realParticipant = secondMatchRealParticipants[0];
+        var byeParticipantId = secondMatch.PlayerOneId == realParticipant.Id
+            ? secondMatch.PlayerTwoId
+            : secondMatch.PlayerOneId;
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var persistedByePlayer = await dbContext.Players.FindAsync(byeParticipantId);
+
+            if (persistedByePlayer is null)
+            {
+                dbContext.Players.Add(new Player
+                {
+                    Id = byeParticipantId,
+                    UserId = AppConstants.ByeUserId,
+                    DisplayName = "PersistedBye",
+                    CurrentScore = 0,
+                    CurrentRound = 0,
+                    CurrentGameID = gameId,
+                    CurrentCharacter = new Character()
+                });
+            }
+            else
+            {
+                persistedByePlayer.UserId = AppConstants.ByeUserId;
+            }
+
+            await dbContext.SaveChangesAsync();
+        }
+
         var secondMatchVoteRequest = new SubmitMatchVoteRequest(secondMatch.MatchId, realParticipant.Id);
 
         var realVersusByeVote = await _gameService.SubmitMatchVoteAsync(gameId, realParticipant.UserId, secondMatchVoteRequest);

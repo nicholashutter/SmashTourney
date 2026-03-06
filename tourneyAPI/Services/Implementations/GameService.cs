@@ -693,12 +693,18 @@ public class GameService : IGameService
 
         if (matchParticipantUserIds.TryGetValue(activeMatch.PlayerOneId, out var playerOneUserId) && !string.IsNullOrWhiteSpace(playerOneUserId))
         {
-            participantUserIds.Add(playerOneUserId);
+            if (!playerOneUserId.Equals(AppConstants.ByeUserId, StringComparison.OrdinalIgnoreCase))
+            {
+                participantUserIds.Add(playerOneUserId);
+            }
         }
 
         if (matchParticipantUserIds.TryGetValue(activeMatch.PlayerTwoId, out var playerTwoUserId) && !string.IsNullOrWhiteSpace(playerTwoUserId))
         {
-            participantUserIds.Add(playerTwoUserId);
+            if (!playerTwoUserId.Equals(AppConstants.ByeUserId, StringComparison.OrdinalIgnoreCase))
+            {
+                participantUserIds.Add(playerTwoUserId);
+            }
         }
 
         var uniqueParticipantCount = participantUserIds.Distinct().Count();

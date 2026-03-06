@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import BasicHeading from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
@@ -8,6 +9,7 @@ import
 {
     BracketSnapshotResponse,
     CurrentMatchResponse,
+    GameStateResponse,
     SubmitMatchVoteRequest,
     SubmitMatchVoteResponse
 } from "@/models/entities/Bracket";
@@ -15,13 +17,16 @@ import { Player } from "@/models/entities/Player";
 import { resolvePlayerId } from "@/lib/normalizePlayer";
 import { fetchInMatchViewData } from "@/services/gameFlowService";
 import { getVoteFeedbackFromError, getVoteFeedbackFromResponse } from "@/services/matchVoteFeedback";
+import { resolveInMatchRedirect } from "@/services/inMatchRouting";
 
 // Renders active-match voting and submits selected winners.
 const InMatch = () =>
 {
+    const navigate = useNavigate();
     const { gameId, playerId } = useGameData();
     const [currentMatch, setCurrentMatch] = useState<CurrentMatchResponse | null>(null);
     const [snapshot, setSnapshot] = useState<BracketSnapshotResponse | null>(null);
+    const [gameState, setGameState] = useState<GameStateResponse | null>(null);
     const [gamePlayers, setGamePlayers] = useState<Player[]>([]);
     const [selectedWinnerId, setSelectedWinnerId] = useState<string | null>(null);
     const [voteNotice, setVoteNotice] = useState<string | null>(null);
@@ -106,6 +111,7 @@ const InMatch = () =>
 
             setCurrentMatch(inMatchViewData.currentMatch);
             setSnapshot(inMatchViewData.snapshot);
+            setGameState(inMatchViewData.gameState);
             setGamePlayers(inMatchViewData.gamePlayers);
         }
         catch (error)
@@ -143,6 +149,16 @@ const InMatch = () =>
             window.clearInterval(intervalId);
         };
     }, [canCurrentUserVote, currentMatch, gameId, loadMatchData]);
+
+    // Redirects to the appropriate screen when backend game state indicates in-match is no longer valid.
+    useEffect(() =>
+    {
+        const redirectPath = resolveInMatchRedirect(gameState?.state ?? null, currentMatch, playerId);
+        if (redirectPath)
+        {
+            navigate(redirectPath, { replace: true });
+        }
+    }, [currentMatch, gameState?.state, navigate, playerId]);
 
     // Submits the selected winner for the current active match.
     const handleLockVote = async () =>
