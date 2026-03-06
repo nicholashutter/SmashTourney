@@ -16,4 +16,3 @@ export const BanjoKazooie: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default BanjoKazooie; 

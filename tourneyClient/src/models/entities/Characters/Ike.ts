@@ -16,4 +16,3 @@ export const Ike: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Ike; 

@@ -16,4 +16,3 @@ export const Marth: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Marth; 

@@ -16,4 +16,3 @@ export const KingKRool: Character =
     tierPlacement: TierPlacement.D
 }
 
-export default KingKRool; 

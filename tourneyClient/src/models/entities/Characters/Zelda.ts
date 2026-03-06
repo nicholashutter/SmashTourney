@@ -16,4 +16,3 @@ export const Zelda: Character =
     tierPlacement: TierPlacement.D
 }
 
-export default Zelda; 

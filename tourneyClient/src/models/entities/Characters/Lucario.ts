@@ -16,4 +16,3 @@ export const Lucario: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Lucario; 

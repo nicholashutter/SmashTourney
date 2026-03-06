@@ -16,4 +16,3 @@ export const Roy: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default Roy; 

@@ -16,4 +16,3 @@ export const DarkSamus: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default DarkSamus; 

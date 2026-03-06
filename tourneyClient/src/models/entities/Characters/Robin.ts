@@ -16,4 +16,3 @@ export const Robin: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Robin; 

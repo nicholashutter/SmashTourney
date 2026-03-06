@@ -1,16 +1,16 @@
 
 import './index.css';
 import { createRoot } from 'react-dom/client';
-import HomePage from './pages/HomePage.tsx';
+import { HomePage } from './pages/HomePage.tsx';
 import { BrowserRouter, Routes, Route } from "react-router";
-import NotFound from './pages/NotFound.tsx';
-import CreateTourney from './pages/CreateTourney.tsx';
-import JoinTourney from './pages/JoinTourney.tsx';
-import SignUp from './pages/SignUp.tsx';
-import TourneyMenu from './pages/TourneyMenu.tsx';
-import Lobby from './pages/Lobby.tsx';
-import InMatch from './pages/InMatch.tsx';
-import ShowBracket from './pages/ShowBracket.tsx';
+import { NotFound } from './pages/NotFound.tsx';
+import { CreateTourney } from './pages/CreateTourney.tsx';
+import { JoinTourney } from './pages/JoinTourney.tsx';
+import { SignUp } from './pages/SignUp.tsx';
+import { TourneyMenu } from './pages/TourneyMenu.tsx';
+import { Lobby } from './pages/Lobby.tsx';
+import { InMatch } from './pages/InMatch.tsx';
+import { ShowBracket } from './pages/ShowBracket.tsx';
 import { GameDataProvider } from './components/GameIdContext.tsx';
 import RequireAuth from './components/RequireAuth.tsx';
 import GameSessionGuard from './components/GameSessionGuard.tsx';

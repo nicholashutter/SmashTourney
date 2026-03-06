@@ -16,4 +16,3 @@ export const Falco: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default Falco; 

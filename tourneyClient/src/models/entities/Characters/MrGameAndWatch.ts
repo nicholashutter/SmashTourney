@@ -16,4 +16,3 @@ export const MrGameAndWatch: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default MrGameAndWatch; 

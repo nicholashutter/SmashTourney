@@ -16,4 +16,3 @@ export const Corrin: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default Corrin; 

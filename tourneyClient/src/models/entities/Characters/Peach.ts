@@ -16,4 +16,3 @@ export const Peach: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default Peach; 

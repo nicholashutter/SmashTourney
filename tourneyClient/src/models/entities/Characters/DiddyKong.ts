@@ -16,4 +16,3 @@ export const DiddyKong: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default DiddyKong; 

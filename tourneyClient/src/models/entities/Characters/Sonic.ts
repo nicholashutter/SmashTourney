@@ -16,4 +16,3 @@ export const Sonic: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default Sonic; 

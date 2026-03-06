@@ -16,4 +16,3 @@ export const ToonLink: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default ToonLink; 

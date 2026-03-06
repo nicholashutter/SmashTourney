@@ -16,4 +16,3 @@ export const PyraMythra: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default PyraMythra; 

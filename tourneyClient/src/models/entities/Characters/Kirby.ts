@@ -16,4 +16,3 @@ export const Kirby: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Kirby; 

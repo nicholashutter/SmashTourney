@@ -16,4 +16,3 @@ export const Cloud: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default Cloud; 

@@ -16,4 +16,3 @@ export const LittleMac: Character =
     tierPlacement: TierPlacement.E
 }
 
-export default LittleMac; 

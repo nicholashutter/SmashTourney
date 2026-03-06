@@ -16,4 +16,3 @@ export const Incineroar: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Incineroar; 

@@ -16,4 +16,3 @@ export const Bowser: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Bowser; 

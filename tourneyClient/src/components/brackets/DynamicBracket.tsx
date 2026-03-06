@@ -1,6 +1,6 @@
 import { FC, ReactElement } from "react";
 import { motion } from "framer-motion";
-import drawService from "@/services/drawService";
+import { drawService } from "@/services/drawService";
 import { useWindowSize } from "@/hooks/useWindowSize";
 
 type Props = {

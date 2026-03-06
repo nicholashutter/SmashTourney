@@ -16,4 +16,3 @@ export const RosalinaLuma: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default RosalinaLuma; 

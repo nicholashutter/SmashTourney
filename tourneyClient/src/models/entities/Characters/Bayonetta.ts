@@ -16,4 +16,3 @@ export const Bayonetta: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default Bayonetta; 

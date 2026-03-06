@@ -16,4 +16,3 @@ export const Jigglypuff: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Jigglypuff; 

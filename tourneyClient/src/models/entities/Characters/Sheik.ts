@@ -16,4 +16,3 @@ export const Sheik: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default Sheik; 

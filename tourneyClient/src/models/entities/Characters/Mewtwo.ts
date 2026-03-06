@@ -16,4 +16,3 @@ export const Mewtwo: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Mewtwo; 

@@ -10,11 +10,10 @@ export const MegaMan: Character =
 {
     id: CharacterId.MegaMan,
     characterName: CharacterName.MEGA_MAN,
-    archetype: Archetype.ZONER, 
+    archetype: Archetype.ZONER,
     fallSpeed: FallSpeed.FAST_FALLERS,
     weightClass: WeightClass.MIDDLEWEIGHT,
     tierPlacement: TierPlacement.B
 
 }
 
-export default MegaMan; 

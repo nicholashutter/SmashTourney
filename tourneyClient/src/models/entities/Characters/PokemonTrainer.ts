@@ -16,4 +16,3 @@ export const PokemonTrainer: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default PokemonTrainer; 

@@ -16,4 +16,3 @@ export const Wario: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default Wario; 

@@ -37,7 +37,7 @@ export default defineConfig({
   },
   test:
   {
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.{ts,tsx}'],
     exclude: [...configDefaults.exclude],
   },
 })

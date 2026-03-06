@@ -16,4 +16,3 @@ export const Snake: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default Snake; 

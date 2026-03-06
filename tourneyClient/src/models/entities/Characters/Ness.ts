@@ -16,4 +16,3 @@ export const Ness: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default Ness; 

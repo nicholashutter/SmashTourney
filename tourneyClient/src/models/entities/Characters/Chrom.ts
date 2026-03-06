@@ -16,4 +16,3 @@ export const Chrom: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Chrom; 

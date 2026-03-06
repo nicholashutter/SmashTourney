@@ -21,4 +21,4 @@ const drawService = {
     }),
 };
 
-export default drawService;
+export { drawService };

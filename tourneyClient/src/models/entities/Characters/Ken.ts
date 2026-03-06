@@ -16,4 +16,3 @@ export const Ken: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default Ken; 

@@ -16,4 +16,3 @@ export const Pichu: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default Pichu; 

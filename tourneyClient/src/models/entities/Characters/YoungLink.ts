@@ -16,4 +16,3 @@ export const YoungLink: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default YoungLink; 

@@ -8,7 +8,7 @@ import { TierPlacement } from "@/models/Enums/TierPlacement";
 
 export const Lucas: Character =
 {
-    id: CharacterId.Lucas, 
+    id: CharacterId.Lucas,
     characterName: CharacterName.LUCAS,
     archetype: Archetype.MIX_UP,
     fallSpeed: FallSpeed.FLOATY,
@@ -16,4 +16,3 @@ export const Lucas: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default Lucas; 

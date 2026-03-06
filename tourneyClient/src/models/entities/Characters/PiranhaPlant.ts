@@ -16,4 +16,3 @@ export const PiranhaPlant: Character =
     tierPlacement: TierPlacement.D
 }
 
-export default PiranhaPlant; 

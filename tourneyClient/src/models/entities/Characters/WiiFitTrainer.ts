@@ -16,4 +16,3 @@ export const WiiFitTrainer: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default WiiFitTrainer; 

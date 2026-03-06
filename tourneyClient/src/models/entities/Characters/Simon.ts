@@ -16,4 +16,3 @@ export const Simon: Character =
     tierPlacement: TierPlacement.D
 }
 
-export default Simon; 

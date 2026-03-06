@@ -16,4 +16,3 @@ export const Samus: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default Samus; 

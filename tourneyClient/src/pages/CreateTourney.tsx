@@ -17,8 +17,10 @@ import { FallSpeed } from "@/models/Enums/FallSpeed";
 import { TierPlacement } from "@/models/Enums/TierPlacement";
 import { WeightClass } from "@/models/Enums/WeightClass";
 import { v4 as uuidv4 } from "uuid";
-import PersistentConnection from "@/services/PersistentConnection";
+import { PersistentConnection } from "@/services/PersistentConnection";
 import { getSessionIdentity, resolveCharacterMappings } from "@/services/playerSetupService";
+import { AddPlayerPayload } from "@/models/types/playerPayload";
+import { loadCharacterCatalog } from "@/lib/loadCharacterCatalog";
 import
 {
   DropdownMenu,
@@ -30,22 +32,6 @@ import
 // Renders host setup flow to create a tournament and join its lobby.
 const CreateTourney = () =>
 {
-  type AddPlayerPayload = {
-    Id: string;
-    displayName: string;
-    currentScore: number;
-    currentRound: number;
-    currentCharacter: {
-      id: string;
-      characterName: keyof typeof CharacterName;
-      archetype: keyof typeof Archetype;
-      fallSpeed: keyof typeof FallSpeed;
-      tierPlacement: keyof typeof TierPlacement;
-      weightClass: keyof typeof WeightClass;
-    };
-    currentGameID: string;
-  };
-
   // Handles route navigation after create flow events.
   const navigate = useNavigate();
 
@@ -64,14 +50,10 @@ const CreateTourney = () =>
   // Loads all selectable character definitions for host setup.
   useEffect(() =>
   {
-    const characterModuleMap = import.meta.glob("../models/entities/Characters/*.ts");
-
     const fetchAllCharacters = async () =>
     {
-      const modulePromises = Object.values(characterModuleMap).map((dynamicImport) => dynamicImport());
-      const resolvedModules = await Promise.all(modulePromises);
-      const characterObjects = resolvedModules.map((module) => (module as { default: Character }).default);
-      setCharacters(characterObjects);
+      const characterCatalog = await loadCharacterCatalog();
+      setCharacters(characterCatalog);
     };
 
     fetchAllCharacters();
@@ -80,8 +62,8 @@ const CreateTourney = () =>
   // Stores validated maximum player count input.
   const handleMaxPlayers = (e: ChangeEvent<HTMLInputElement>) =>
   {
-    const numplayers = parseInt(e.target.value);
-    if (validateTotalPlayers(numplayers))
+    const parsedPlayers = parseInt(e.target.value, 10);
+    if (validateTotalPlayers(parsedPlayers))
     {
       setNumPlayers(e.target.value);
 
@@ -94,7 +76,7 @@ const CreateTourney = () =>
   }
 
   // Stores validated display name input.
-  const displayNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
+  const handleDisplayNameChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     const validateDisplayName = validateInput(e.target.value);
     if (validateDisplayName.isValid)
@@ -220,7 +202,7 @@ const CreateTourney = () =>
             tierPlacement: mappedCharacter.tierPlacement as keyof typeof TierPlacement,
             weightClass: mappedCharacter.weightClass as keyof typeof WeightClass,
           },
-          currentGameID: resolvedGameId,
+          currentGameId: resolvedGameId,
         };
 
         await RequestService("addPlayers", {
@@ -280,7 +262,7 @@ const CreateTourney = () =>
           <HeadingTwo headingText={`Mode: ${gameType ? "Double Elimination" : "Single Elimination"}`} />
           <HeadingTwo headingText={`Enter Total Players (Up to ${MAX_SUPPORTED_PLAYERS})`} />
           <BasicInput labelText="" htmlFor="maxPlayers" name="maxPlayers" id="maxPlayers" value={numPlayers} onChange={handleMaxPlayers} />
-          <BasicInput labelText="Enter Player Name:" htmlFor="playerName" id="displayName" name="displayName" value={displayName} onChange={displayNameHandler} />
+          <BasicInput labelText="Enter Player Name:" htmlFor="playerName" id="displayName" name="displayName" value={displayName} onChange={handleDisplayNameChange} />
           <DropdownMenu>
             <DropdownMenuTrigger className="shrink p-2 m-2 bg-white hover:ring-2 hover:ring-green-400 text-black  font-bold rounded shadow-md 
       transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">{currentCharacter.characterName || "Choose Your Fighter"}</DropdownMenuTrigger>
@@ -300,4 +282,4 @@ const CreateTourney = () =>
   );
 }
 
-export default CreateTourney;
+export { CreateTourney };

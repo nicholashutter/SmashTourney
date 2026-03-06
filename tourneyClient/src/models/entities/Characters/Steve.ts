@@ -16,4 +16,3 @@ export const Steve: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default Steve; 

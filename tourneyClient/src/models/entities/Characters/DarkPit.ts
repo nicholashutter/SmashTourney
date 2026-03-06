@@ -16,4 +16,3 @@ export const DarkPit: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default DarkPit; 

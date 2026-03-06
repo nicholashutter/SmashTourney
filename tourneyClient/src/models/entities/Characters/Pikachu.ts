@@ -16,4 +16,3 @@ export const Pikachu: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default Pikachu; 

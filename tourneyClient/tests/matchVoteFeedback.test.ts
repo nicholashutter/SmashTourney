@@ -1,74 +1,194 @@
 import { expect, test } from "vitest";
 import { getVoteFeedbackFromError, getVoteFeedbackFromResponse } from "../src/services/matchVoteFeedback";
 
-// Verifies pending vote response keeps player on page and shows waiting notice.
-test("Vote feedback returns pending notice behavior", () =>
+const buildResponseFeedback = (status: "PENDING" | "COMMITTED") =>
 {
-    const feedback = getVoteFeedbackFromResponse({
+    return getVoteFeedbackFromResponse({
         gameId: "game-id",
         matchId: "match-id",
-        status: "PENDING",
-        voteCount: 1,
-        committedWinnerPlayerId: undefined
+        status,
+        voteCount: status === "PENDING" ? 1 : 2,
+        committedWinnerPlayerId: status === "COMMITTED" ? "winner-id" : undefined
     });
+};
+
+const buildErrorFeedback = (status: string, code = 409) =>
+{
+    return getVoteFeedbackFromError(`HTTP ${code}: {"status":"${status}"}`);
+};
+
+// Verifies pending response shows waiting notice text.
+test("pending response includes waiting notice", () =>
+{
+    const feedback = buildResponseFeedback("PENDING");
 
     expect(feedback.noticeMessage).toContain("Waiting for the other player");
+});
+
+// Verifies pending response does not trigger match refresh.
+test("pending response does not refresh match data", () =>
+{
+    const feedback = buildResponseFeedback("PENDING");
+
     expect(feedback.refreshMatchData).toBe(false);
+});
+
+// Verifies pending response clears selected winner.
+test("pending response clears selected winner", () =>
+{
+    const feedback = buildResponseFeedback("PENDING");
+
     expect(feedback.clearSelectedWinner).toBe(true);
 });
 
-// Verifies committed response refreshes state and shows confirmation alert.
-test("Vote feedback returns committed refresh behavior", () =>
+// Verifies pending response locks voting for the active match.
+test("pending response locks voting for active match", () =>
 {
-    const feedback = getVoteFeedbackFromResponse({
-        gameId: "game-id",
-        matchId: "match-id",
-        status: "COMMITTED",
-        voteCount: 2,
-        committedWinnerPlayerId: "winner-id"
-    });
+    const feedback = buildResponseFeedback("PENDING");
+
+    expect(feedback.lockVoteForCurrentMatch).toBe(true);
+});
+
+// Verifies committed response includes confirmation alert.
+test("committed response includes confirmation alert", () =>
+{
+    const feedback = buildResponseFeedback("COMMITTED");
 
     expect(feedback.alertMessage).toContain("Match result confirmed");
+});
+
+// Verifies committed response refreshes match data.
+test("committed response refreshes match data", () =>
+{
+    const feedback = buildResponseFeedback("COMMITTED");
+
     expect(feedback.refreshMatchData).toBe(true);
+});
+
+// Verifies committed response clears selected winner.
+test("committed response clears selected winner", () =>
+{
+    const feedback = buildResponseFeedback("COMMITTED");
+
     expect(feedback.clearSelectedWinner).toBe(true);
 });
 
-// Verifies stale match error triggers refresh and clear-selection behavior.
-test("Vote feedback handles MATCH_NOT_ACTIVE as critical refresh", () =>
+// Verifies committed response does not keep voting locked.
+test("committed response does not lock voting for active match", () =>
 {
-    const feedback = getVoteFeedbackFromError("HTTP 409: {\"status\":\"MATCH_NOT_ACTIVE\"}");
+    const feedback = buildResponseFeedback("COMMITTED");
+
+    expect(feedback.lockVoteForCurrentMatch).toBe(false);
+});
+
+// Verifies stale-match error includes inactive-match alert.
+test("MATCH_NOT_ACTIVE error returns inactive-match alert", () =>
+{
+    const feedback = buildErrorFeedback("MATCH_NOT_ACTIVE");
 
     expect(feedback.alertMessage).toContain("no longer active");
+});
+
+// Verifies stale-match error requests match refresh.
+test("MATCH_NOT_ACTIVE error refreshes match data", () =>
+{
+    const feedback = buildErrorFeedback("MATCH_NOT_ACTIVE");
+
     expect(feedback.refreshMatchData).toBe(true);
+});
+
+// Verifies stale-match error clears selected winner.
+test("MATCH_NOT_ACTIVE error clears selected winner", () =>
+{
+    const feedback = buildErrorFeedback("MATCH_NOT_ACTIVE");
+
     expect(feedback.clearSelectedWinner).toBe(true);
 });
 
-// Verifies conflicting votes keep user in match and request re-vote.
-test("Vote feedback handles CONFLICT as re-vote notice", () =>
+// Verifies conflict error returns a re-vote notice.
+test("CONFLICT error returns re-vote notice", () =>
 {
-    const feedback = getVoteFeedbackFromError("HTTP 409: {\"status\":\"CONFLICT\"}");
+    const feedback = buildErrorFeedback("CONFLICT");
 
     expect(feedback.noticeMessage).toContain("Please vote again");
+});
+
+// Verifies conflict error does not refresh match data.
+test("CONFLICT error does not refresh match data", () =>
+{
+    const feedback = buildErrorFeedback("CONFLICT");
+
     expect(feedback.refreshMatchData).toBe(false);
+});
+
+// Verifies conflict error clears selected winner.
+test("CONFLICT error clears selected winner", () =>
+{
+    const feedback = buildErrorFeedback("CONFLICT");
+
     expect(feedback.clearSelectedWinner).toBe(true);
 });
 
-// Verifies duplicate votes produce waiting notice and no refresh.
-test("Vote feedback handles DUPLICATE_VOTE as wait notice", () =>
+// Verifies conflict error does not lock voting and allows re-vote.
+test("CONFLICT error does not lock voting for active match", () =>
 {
-    const feedback = getVoteFeedbackFromError("HTTP 409: {\"status\":\"DUPLICATE_VOTE\"}");
+    const feedback = buildErrorFeedback("CONFLICT");
+
+    expect(feedback.lockVoteForCurrentMatch).toBe(false);
+});
+
+// Verifies duplicate-vote error returns already-voted notice.
+test("DUPLICATE_VOTE error returns already-voted notice", () =>
+{
+    const feedback = buildErrorFeedback("DUPLICATE_VOTE");
 
     expect(feedback.noticeMessage).toContain("already voted");
+});
+
+// Verifies duplicate-vote error does not refresh match data.
+test("DUPLICATE_VOTE error does not refresh match data", () =>
+{
+    const feedback = buildErrorFeedback("DUPLICATE_VOTE");
+
     expect(feedback.refreshMatchData).toBe(false);
+});
+
+// Verifies duplicate-vote error clears selected winner.
+test("DUPLICATE_VOTE error clears selected winner", () =>
+{
+    const feedback = buildErrorFeedback("DUPLICATE_VOTE");
+
     expect(feedback.clearSelectedWinner).toBe(true);
 });
 
-// Verifies non-participant error shows alert and preserves selection state.
-test("Vote feedback handles VOTER_NOT_PARTICIPANT with alert", () =>
+// Verifies duplicate-vote error keeps voting locked for waiting state.
+test("DUPLICATE_VOTE error locks voting for active match", () =>
 {
-    const feedback = getVoteFeedbackFromError("HTTP 403: {\"status\":\"VOTER_NOT_PARTICIPANT\"}");
+    const feedback = buildErrorFeedback("DUPLICATE_VOTE");
+
+    expect(feedback.lockVoteForCurrentMatch).toBe(true);
+});
+
+// Verifies non-participant error includes participant-only alert.
+test("VOTER_NOT_PARTICIPANT error returns participant-only alert", () =>
+{
+    const feedback = buildErrorFeedback("VOTER_NOT_PARTICIPANT", 403);
 
     expect(feedback.alertMessage).toContain("Only the players");
+});
+
+// Verifies non-participant error does not refresh match data.
+test("VOTER_NOT_PARTICIPANT error does not refresh match data", () =>
+{
+    const feedback = buildErrorFeedback("VOTER_NOT_PARTICIPANT", 403);
+
     expect(feedback.refreshMatchData).toBe(false);
+});
+
+// Verifies non-participant error keeps selected winner unchanged.
+test("VOTER_NOT_PARTICIPANT error keeps selected winner", () =>
+{
+    const feedback = buildErrorFeedback("VOTER_NOT_PARTICIPANT", 403);
+
     expect(feedback.clearSelectedWinner).toBe(false);
 });

@@ -21,4 +21,4 @@ const NotFound = () =>
     );
 };
 
-export default NotFound;
+export { NotFound };

@@ -16,4 +16,3 @@ export const KingDedede: Character =
     tierPlacement: TierPlacement.D
 }
 
-export default KingDedede; 

@@ -17,4 +17,3 @@ export const DrMario: Character =
 
 }
 
-export default DrMario; 

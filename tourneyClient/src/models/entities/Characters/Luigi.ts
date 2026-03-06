@@ -16,4 +16,3 @@ export const Luigi: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default Luigi; 

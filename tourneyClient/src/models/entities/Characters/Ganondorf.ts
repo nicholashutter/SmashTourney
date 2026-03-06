@@ -16,4 +16,3 @@ export const Ganondorf: Character =
     tierPlacement: TierPlacement.E
 }
 
-export default Ganondorf; 

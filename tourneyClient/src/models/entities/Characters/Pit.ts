@@ -16,4 +16,3 @@ export const Pit: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default Pit; 

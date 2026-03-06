@@ -27,4 +27,4 @@ const TourneyMenu = () =>
   );
 };
 
-export default TourneyMenu;
+export { TourneyMenu };

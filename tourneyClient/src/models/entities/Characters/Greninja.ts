@@ -16,4 +16,3 @@ export const Greninja: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default Greninja; 

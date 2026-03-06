@@ -16,4 +16,3 @@ export const Kazuya: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default Kazuya; 

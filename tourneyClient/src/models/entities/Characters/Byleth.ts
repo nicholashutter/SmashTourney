@@ -16,4 +16,3 @@ export const Byleth: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default Byleth; 

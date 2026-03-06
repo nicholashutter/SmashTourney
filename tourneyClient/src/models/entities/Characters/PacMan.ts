@@ -16,4 +16,3 @@ export const PacMan: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default PacMan; 

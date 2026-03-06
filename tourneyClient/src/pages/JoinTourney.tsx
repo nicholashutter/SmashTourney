@@ -10,9 +10,8 @@ import { Archetype } from "@/models/Enums/Archetype";
 import { FallSpeed } from "@/models/Enums/FallSpeed";
 import { TierPlacement } from "@/models/Enums/TierPlacement";
 import { WeightClass } from "@/models/Enums/WeightClass";
-import { Player } from "@/models/entities/Player";
 import { v4 as uuidv4 } from "uuid";
-import PersistentConnection from "@/services/PersistentConnection"
+import { PersistentConnection } from "@/services/PersistentConnection"
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
@@ -26,25 +25,13 @@ import
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { isValidGuid, normalizeGameId, resolveCharacterMappings } from "@/services/playerSetupService";
+import { AddPlayerPayload, BackendCharacterPayload } from "@/models/types/playerPayload";
+import { loadCharacterCatalog } from "@/lib/loadCharacterCatalog";
 
 // Renders player join flow for an existing tournament lobby.
 
 const JoinTourney = () =>
 {
-  type BackendCharacterPayload = {
-    id: string;
-    characterName: keyof typeof CharacterName;
-    archetype: keyof typeof Archetype;
-    fallSpeed: keyof typeof FallSpeed;
-    tierPlacement: keyof typeof TierPlacement;
-    weightClass: keyof typeof WeightClass;
-  };
-
-  type AddPlayerPayload = Omit<Player, "currentCharacter"> & {
-    currentCharacter: BackendCharacterPayload;
-  };
-
-
   // Handles route navigation after join flow events.
   const navigate = useNavigate();
 
@@ -65,21 +52,17 @@ const JoinTourney = () =>
   // Loads all selectable character definitions for join flow setup.
   useEffect(() =>
   {
-    const characterModuleMap = import.meta.glob("../models/entities/Characters/*.ts");
-
     const fetchAllCharacters = async () =>
     {
-      const modulePromises = Object.values(characterModuleMap).map((dynamicImport) => dynamicImport());
-      const resolvedModules = await Promise.all(modulePromises);
-      const characterObjects = resolvedModules.map((module) => (module as { default: Character }).default);
-      setCharacters(characterObjects);
+      const characterCatalog = await loadCharacterCatalog();
+      setCharacters(characterCatalog);
     };
 
     fetchAllCharacters();
   }, []);
 
   // Stores validated session code input.
-  const gameIdHandler = (e: ChangeEvent<HTMLInputElement>) =>
+  const handleGameIdChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     const normalizedGameId = normalizeGameId(e.target.value);
     const validateGameId = validateInput(normalizedGameId);
@@ -95,7 +78,7 @@ const JoinTourney = () =>
   }
 
   // Stores validated display name input.
-  const displayNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
+  const handleDisplayNameChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     const validateDisplayName = validateInput(e.target.value);
     if (validateDisplayName.isValid)
@@ -110,7 +93,7 @@ const JoinTourney = () =>
   }
 
   // Submits join request, connects to lobby, and routes to lobby page.
-  const submitHandler = async () =>
+  const handleSubmit = async () =>
   {
     if (isJoining)
     {
@@ -222,9 +205,9 @@ const JoinTourney = () =>
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
           <BasicHeading headingText="Join Room" headingColors="white" />
           <BasicInput labelText="Session Code:" htmlFor="sessionCode"
-            id="gameId" name="gameId" value={gameId ?? ""} onChange={gameIdHandler} />
+            id="gameId" name="gameId" value={gameId ?? ""} onChange={handleGameIdChange} />
           <BasicInput labelText="Enter Player Name:" htmlFor="playerName"
-            id="displayName" name="displayName" value={displayName} onChange={displayNameHandler} />
+            id="displayName" name="displayName" value={displayName} onChange={handleDisplayNameChange} />
           <DropdownMenu>
             <DropdownMenuTrigger className="shrink p-2 m-2 bg-white hover:ring-2 hover:ring-green-400 text-black  font-bold rounded shadow-md 
       transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">{currentCharacter.characterName || "Choose Your Fighter"}</DropdownMenuTrigger>
@@ -239,7 +222,7 @@ const JoinTourney = () =>
             </DropdownMenuContent>
           </DropdownMenu>
           <HeadingTwo headingText={joinStatus} />
-          <SubmitButton buttonLabel={isJoining ? "Joining..." : "Join Room"} onSubmit={submitHandler} />
+          <SubmitButton buttonLabel={isJoining ? "Joining..." : "Join Room"} onSubmit={handleSubmit} />
           <BasicButton buttonLabel="Return to Main Menu" href="/" />
 
         </div>
@@ -248,4 +231,4 @@ const JoinTourney = () =>
   );
 };
 
-export default JoinTourney;
+export { JoinTourney };

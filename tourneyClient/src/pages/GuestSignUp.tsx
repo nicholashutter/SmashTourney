@@ -13,13 +13,13 @@ const GuestSignUp = () =>
   const [userName, setUserName] = useState("");
 
   // Stores guest username input for session creation.
-  const userNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
+  const handleUserNameChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setUserName(e.target.value);
   }
 
   // Submits guest session creation and routes to tournament menu.
-  const onSubmit = async () =>
+  const handleSubmit = async () =>
   {
     window.alert("Guest signup is no longer supported. Please sign up or sign in.");
     navigate("/");
@@ -32,8 +32,8 @@ const GuestSignUp = () =>
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
           <HeadingOne headingText="Guest Sign Up" headingColors="white" />
           <BasicInput labelText="Username:" htmlFor="userName" name="userName"
-            id="userName" value={userName} onChange={userNameHandler} />
-          <SubmitButton buttonLabel="Guest Sign Up" onSubmit={onSubmit} />
+            id="userName" value={userName} onChange={handleUserNameChange} />
+          <SubmitButton buttonLabel="Guest Sign Up" onSubmit={handleSubmit} />
           <HeadingTwo headingText="Already have An Account?" />
           <BasicButton buttonLabel="Sign In Here" href="/" />
         </div>
@@ -42,4 +42,4 @@ const GuestSignUp = () =>
   );
 };
 
-export default GuestSignUp;
+export { GuestSignUp };

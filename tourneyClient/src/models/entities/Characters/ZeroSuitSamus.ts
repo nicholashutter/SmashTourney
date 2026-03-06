@@ -16,4 +16,3 @@ export const ZeroSuitSamus: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default ZeroSuitSamus; 

@@ -16,4 +16,3 @@ export const Ryu: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default Ryu; 

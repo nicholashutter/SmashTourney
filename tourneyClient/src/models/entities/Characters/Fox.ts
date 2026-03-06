@@ -16,4 +16,3 @@ export const Fox: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default Fox; 

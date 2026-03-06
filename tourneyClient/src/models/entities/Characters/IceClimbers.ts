@@ -16,4 +16,3 @@ export const IceClimbers: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default IceClimbers; 

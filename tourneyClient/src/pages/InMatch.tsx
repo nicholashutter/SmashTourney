@@ -25,6 +25,7 @@ const InMatch = () =>
     const [gamePlayers, setGamePlayers] = useState<Player[]>([]);
     const [selectedWinnerId, setSelectedWinnerId] = useState<string | null>(null);
     const [voteNotice, setVoteNotice] = useState<string | null>(null);
+    const [isVoteLockedForActiveMatch, setIsVoteLockedForActiveMatch] = useState(false);
     const activeMatchIdRef = useRef<string | null>(null);
 
     // Builds a lookup table from player identifiers to display names.
@@ -78,7 +79,8 @@ const InMatch = () =>
     const canCurrentUserVote = Boolean(
         playerId &&
         currentMatch &&
-        (currentMatch.playerOneId === playerId || currentMatch.playerTwoId === playerId)
+        (currentMatch.playerOneId === playerId || currentMatch.playerTwoId === playerId) &&
+        !isVoteLockedForActiveMatch
     );
 
     // Loads current in-match data from bracket and player endpoints.
@@ -99,6 +101,7 @@ const InMatch = () =>
                 activeMatchIdRef.current = nextMatchId;
                 setSelectedWinnerId(null);
                 setVoteNotice(null);
+                setIsVoteLockedForActiveMatch(false);
             }
 
             setCurrentMatch(inMatchViewData.currentMatch);
@@ -168,6 +171,11 @@ const InMatch = () =>
                 setSelectedWinnerId(null);
             }
 
+            if (voteFeedback.lockVoteForCurrentMatch)
+            {
+                setIsVoteLockedForActiveMatch(true);
+            }
+
             if (voteFeedback.noticeMessage)
             {
                 setVoteNotice(voteFeedback.noticeMessage);
@@ -193,6 +201,11 @@ const InMatch = () =>
             if (voteFeedback.clearSelectedWinner)
             {
                 setSelectedWinnerId(null);
+            }
+
+            if (voteFeedback.lockVoteForCurrentMatch)
+            {
+                setIsVoteLockedForActiveMatch(true);
             }
 
             if (voteFeedback.noticeMessage)
@@ -257,4 +270,4 @@ const InMatch = () =>
 
     );
 }
-export default InMatch;
+export { InMatch };

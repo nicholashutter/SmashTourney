@@ -19,19 +19,19 @@ const HomePage = () =>
   const [password, setPassword] = useState("");
 
   // Stores username input from the sign-in form.
-  const userNameHandler = (e: ChangeEvent<HTMLInputElement>) =>
+  const handleUserNameChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setUserName(e.target.value);
   }
 
   // Stores password input from the sign-in form.
-  const passwordHandler = (e: ChangeEvent<HTMLInputElement>) =>
+  const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) =>
   {
     setPassword(e.target.value);
   }
 
   // Submits login request and routes to the tournament menu on success.
-  const onSubmit = async () =>
+  const handleSubmit = async () =>
   {
     const isUserNameValid = validateInput(userName).isValid;
     const isPasswordValid = validateInput(password).isValid;
@@ -73,10 +73,10 @@ const HomePage = () =>
         <title>Smash Tourney</title>
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
           <BasicHeading headingText="Welcome!" headingColors="white" />
-          <BasicInput labelText="Username:" htmlFor="username" name="username" id="username" value={userName} onChange={userNameHandler} />
-          <BasicInput labelText="Password:" htmlFor="password" name="password" id="password" value={password} onChange={passwordHandler} />
+          <BasicInput labelText="Username:" htmlFor="username" name="username" id="username" value={userName} onChange={handleUserNameChange} />
+          <BasicInput labelText="Password:" htmlFor="password" name="password" id="password" value={password} onChange={handlePasswordChange} />
 
-          <SubmitButton buttonLabel="Sign In" onSubmit={onSubmit} />
+          <SubmitButton buttonLabel="Sign In" onSubmit={handleSubmit} />
           <HeadingTwo headingText="Or" />
           <BasicButton buttonLabel="Sign Up" href="/signUp" />
 
@@ -86,4 +86,4 @@ const HomePage = () =>
   );
 }
 
-export default HomePage;
+export { HomePage };

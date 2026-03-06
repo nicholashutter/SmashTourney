@@ -142,4 +142,4 @@ const ShowBracket = () =>
 
     );
 }
-export default ShowBracket;
+export { ShowBracket };

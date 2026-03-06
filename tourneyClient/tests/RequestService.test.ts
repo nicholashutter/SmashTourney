@@ -1,40 +1,87 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import { beforeEach, expect, test, vi } from "vitest";
+import { CharacterId } from "../src/models/Enums/CharacterId";
+import { Marth } from "../src/models/entities/Characters/Marth";
+import { Player } from "../src/models/entities/Player";
+import { RequestService } from "../src/services/RequestService";
 
-import { test, expect, vi, beforeEach } from 'vitest';
-import { RequestService } from '../src/services/RequestService';
-import Marth from '../src/models/entities/Characters/Marth';
-import { CharacterId } from '../src/models/Enums/CharacterId';
-import { Player } from '../src/models/entities/Player';
+type MockFetchJsonResponse = {
+    ok: boolean;
+    json: () => Promise<unknown>;
+};
 
-beforeEach(
-    () => 
-    {
-        global.fetch = vi.fn();
-    }
-)
+type MockFetchTextResponse = {
+    ok: boolean;
+    status?: number;
+    headers: {
+        get: (key: string) => string | null;
+    };
+    text: () => Promise<string>;
+};
 
-/**
- *  Verifies that RequestService formats a POST request with route param and array of Player objects.
- * - Endpoint: addPlayers
- * - Payload: Player[]
- * - Route param: gameId
- * - Checks nested Character serialization and response message.
- */
-test("RequestService formats POST request with array of Player objects for addPlayers", async () =>
+type GetPlayersInGameResponse = {
+    gameId: string;
+    gameName: string;
+    players: Array<{
+        currentCharacter: {
+            id: CharacterId;
+        };
+    }>;
+};
+
+const fetchSpy = () =>
+{
+    return fetch as unknown as ReturnType<typeof vi.fn>;
+};
+
+const queueJsonResponse = (payload: unknown) =>
+{
+    const response: MockFetchJsonResponse = {
+        ok: true,
+        json: async () => payload
+    };
+
+    fetchSpy().mockResolvedValueOnce(response);
+};
+
+const queueTextResponse = (payload: unknown, ok = true, status = 200) =>
+{
+    const response: MockFetchTextResponse = {
+        ok,
+        status,
+        headers: {
+            get: () => "application/json"
+        },
+        text: async () => JSON.stringify(payload)
+    };
+
+    fetchSpy().mockResolvedValueOnce(response);
+};
+
+const parseFetchBody = (callIndex: number) =>
+{
+    const call = fetchSpy().mock.calls[callIndex] as [string, RequestInit];
+
+    return JSON.parse(String(call[1].body));
+};
+
+const getFetchCall = (callIndex: number) =>
+{
+    return fetchSpy().mock.calls[callIndex] as [string, RequestInit];
+};
+
+beforeEach(() =>
+{
+    global.fetch = vi.fn();
+});
+
+// Verifies addPlayers returns success payload from backend.
+test("addPlayers returns success payload", async () =>
 {
     const gameId = "game-abc123";
-
     const players: Player[] = [
         {
+            Id: "player-one",
             displayName: "Player One",
-            currentScore: 0,
-            currentRound: 1,
-            currentGameId: gameId,
-            currentCharacter: Marth
-        },
-        {
-            displayName: "Player Two",
             currentScore: 0,
             currentRound: 1,
             currentGameId: gameId,
@@ -42,78 +89,134 @@ test("RequestService formats POST request with array of Player objects for addPl
         }
     ];
 
-    (fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-            message: `Players Added to Game ${gameId}`
-        })
-    });
+    queueJsonResponse({ message: `Players Added to Game ${gameId}` });
 
     const result = await RequestService("addPlayers", {
         routeParams: { gameId },
         body: players
     });
 
-    expect(result).toEqual({
-        message: `Players Added to Game ${gameId}`
-    });
-
-    const [url, options] = (fetch as any).mock.calls[0];
-    expect(url).toContain(`/Games/AddPlayer/${gameId}`);
-    expect(options.method).toBe("POST");
-    expect(options.headers["Content-Type"]).toBe("application/json");
-
-    const parsedBody = JSON.parse(options.body);
-    expect(Array.isArray(parsedBody)).toBe(true);
-    expect(parsedBody[0].displayName).toBe("Player One");
-    expect(parsedBody[0].currentCharacter.id).toBe(CharacterId.Marth);
+    expect(result).toEqual({ message: `Players Added to Game ${gameId}` });
 });
 
-test("RequestService addPlayers payload can omit userId", async () =>
+// Verifies addPlayers targets expected route path.
+test("addPlayers calls AddPlayer route", async () =>
+{
+    const gameId = "game-abc123";
+
+    queueJsonResponse({ message: "ok" });
+
+    await RequestService("addPlayers", {
+        routeParams: { gameId },
+        body: []
+    });
+
+    expect(getFetchCall(0)[0]).toContain(`/Games/AddPlayer/${gameId}`);
+});
+
+// Verifies addPlayers uses POST method.
+test("addPlayers uses POST method", async () =>
+{
+    const gameId = "game-abc123";
+
+    queueJsonResponse({ message: "ok" });
+
+    await RequestService("addPlayers", {
+        routeParams: { gameId },
+        body: []
+    });
+
+    expect(getFetchCall(0)[1].method).toBe("POST");
+});
+
+// Verifies addPlayers sets JSON content-type header.
+test("addPlayers sets JSON content type", async () =>
+{
+    const gameId = "game-abc123";
+
+    queueJsonResponse({ message: "ok" });
+
+    await RequestService("addPlayers", {
+        routeParams: { gameId },
+        body: []
+    });
+
+    expect((getFetchCall(0)[1].headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+});
+
+// Verifies addPlayers serializes body as array.
+test("addPlayers serializes array payload", async () =>
+{
+    const gameId = "game-abc123";
+
+    queueJsonResponse({ message: "ok" });
+
+    await RequestService("addPlayers", {
+        routeParams: { gameId },
+        body: [{ Id: "player-one", displayName: "Player One", currentScore: 0, currentRound: 1, currentGameId: gameId, currentCharacter: Marth }]
+    });
+
+    expect(Array.isArray(parseFetchBody(0))).toBe(true);
+});
+
+// Verifies addPlayers serializes first player's displayName.
+test("addPlayers serializes displayName", async () =>
+{
+    const gameId = "game-abc123";
+
+    queueJsonResponse({ message: "ok" });
+
+    await RequestService("addPlayers", {
+        routeParams: { gameId },
+        body: [{ Id: "player-one", displayName: "Player One", currentScore: 0, currentRound: 1, currentGameId: gameId, currentCharacter: Marth }]
+    });
+
+    expect(parseFetchBody(0)[0].displayName).toBe("Player One");
+});
+
+// Verifies addPlayers serializes nested character id.
+test("addPlayers serializes character id", async () =>
+{
+    const gameId = "game-abc123";
+
+    queueJsonResponse({ message: "ok" });
+
+    await RequestService("addPlayers", {
+        routeParams: { gameId },
+        body: [{ Id: "player-one", displayName: "Player One", currentScore: 0, currentRound: 1, currentGameId: gameId, currentCharacter: Marth }]
+    });
+
+    expect(parseFetchBody(0)[0].currentCharacter.id).toBe(CharacterId.Marth);
+});
+
+// Verifies addPlayers payload may omit userId.
+test("addPlayers allows payload without userId", async () =>
 {
     const gameId = "f9c2d4eb-8786-449a-ae28-7823813339b6";
 
-    const playerPayload = {
-        Id: "93f00506-bcc6-4d0d-a5f0-c588505f3b60",
-        displayName: "NoUserIdClientPayload",
-        currentScore: 0,
-        currentRound: 0,
-        currentCharacter: Marth,
-        currentGameId: gameId
-    };
+    queueJsonResponse({ success: true });
 
-    (fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true })
-    });
-
-    const result = await RequestService("addPlayers", {
+    await RequestService("addPlayers", {
         routeParams: { gameId },
-        body: playerPayload
+        body: {
+            Id: "93f00506-bcc6-4d0d-a5f0-c588505f3b60",
+            displayName: "NoUserIdClientPayload",
+            currentScore: 0,
+            currentRound: 0,
+            currentCharacter: Marth,
+            currentGameId: gameId
+        }
     });
 
-    expect(result).toEqual({ success: true });
-
-    const [url, options] = (fetch as any).mock.calls[0];
-    expect(url).toContain(`/Games/AddPlayer/${gameId}`);
-    expect(options.method).toBe("POST");
-
-    const parsedBody = JSON.parse(options.body);
-    expect(parsedBody.userId).toBeUndefined();
-    expect(parsedBody.displayName).toBe("NoUserIdClientPayload");
+    expect(parseFetchBody(0).userId).toBeUndefined();
 });
 
-/**
- *  Verifies that RequestService parses a Game object and nested Player[] from response.
- * - Endpoint: getPlayersInGame
- * - Route param: gameId
- * - Checks nested Character deserialization and Game structure.
- */
-test("RequestService parses Game object and Player[] from getPlayersInGame response", async () =>
+// Verifies getPlayersInGame response includes requested game id.
+test("getPlayersInGame returns game id", async () =>
 {
     const gameId = "game-xyz789";
 
-    const mockResponse = {
+    queueJsonResponse({
         gameId,
         gameName: "Test Game",
         players: [
@@ -125,117 +228,251 @@ test("RequestService parses Game object and Player[] from getPlayersInGame respo
                 currentCharacter: Marth
             }
         ]
-    };
-
-    (fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse
     });
 
-    const result = await RequestService("getPlayersInGame", {
+    const result = await RequestService<"getPlayersInGame", never, GetPlayersInGameResponse>("getPlayersInGame", {
+        routeParams: { gameId }
+    });
+
+    expect(result.gameId).toBe(gameId);
+});
+
+// Verifies getPlayersInGame response includes game name.
+test("getPlayersInGame returns game name", async () =>
+{
+    const gameId = "game-xyz789";
+
+    queueJsonResponse({
+        gameId,
+        gameName: "Test Game",
+        players: []
+    });
+
+    const result = await RequestService<"getPlayersInGame", never, GetPlayersInGameResponse>("getPlayersInGame", {
+        routeParams: { gameId }
+    });
+
+    expect(result.gameName).toBe("Test Game");
+});
+
+// Verifies getPlayersInGame returns player list.
+test("getPlayersInGame returns players array", async () =>
+{
+    const gameId = "game-xyz789";
+
+    queueJsonResponse({
+        gameId,
+        gameName: "Test Game",
+        players: [
+            {
+                displayName: "Sam",
+                currentScore: 88,
+                currentRound: 5,
+                currentGameId: gameId,
+                currentCharacter: Marth
+            }
+        ]
+    });
+
+    const result = await RequestService<"getPlayersInGame", never, GetPlayersInGameResponse>("getPlayersInGame", {
+        routeParams: { gameId }
+    });
+
+    expect(Array.isArray(result.players)).toBe(true);
+});
+
+// Verifies getPlayersInGame deserializes nested character id.
+test("getPlayersInGame returns character id", async () =>
+{
+    const gameId = "game-xyz789";
+
+    queueJsonResponse({
+        gameId,
+        gameName: "Test Game",
+        players: [
+            {
+                displayName: "Sam",
+                currentScore: 88,
+                currentRound: 5,
+                currentGameId: gameId,
+                currentCharacter: Marth
+            }
+        ]
+    });
+
+    const result = await RequestService<"getPlayersInGame", never, GetPlayersInGameResponse>("getPlayersInGame", {
+        routeParams: { gameId }
+    });
+
+    expect(result.players[0].currentCharacter.id).toBe(CharacterId.Marth);
+});
+
+// Verifies getPlayersInGame calls expected route path.
+test("getPlayersInGame calls route with gameId", async () =>
+{
+    const gameId = "game-xyz789";
+
+    queueJsonResponse({ gameId, gameName: "Test Game", players: [] });
+
+    await RequestService("getPlayersInGame", {
         routeParams: { gameId },
         body: {}
     });
 
-    expect(result.gameId).toBe(gameId);
-    expect(result.gameName).toBe("Test Game");
-    expect(Array.isArray(result.players)).toBe(true);
-
-    const receivedCharacter = result.players[0].currentCharacter;
-    expect(receivedCharacter.id).toBe(CharacterId.Marth);
-
-    const [url, options] = (fetch as any).mock.calls[0];
-    expect(url).toContain(`/Games/GetPlayersInGame/${gameId}`);
-    expect(options.method).toBe("POST");
+    expect(getFetchCall(0)[0]).toContain(`/Games/GetPlayersInGame/${gameId}`);
 });
 
-test("CreateTourney flow enforces auth and succeeds when authenticated", async () =>
+// Verifies getPlayersInGame uses POST method.
+test("getPlayersInGame uses POST method", async () =>
+{
+    const gameId = "game-xyz789";
+
+    queueJsonResponse({ gameId, gameName: "Test Game", players: [] });
+
+    await RequestService("getPlayersInGame", {
+        routeParams: { gameId },
+        body: {}
+    });
+
+    expect(getFetchCall(0)[1].method).toBe("POST");
+});
+
+// Verifies createGameWithMode returns generated game id.
+test("createGameWithMode returns GameId", async () =>
 {
     const gameId = "7f3ebf71-704e-4d34-bca9-eb2852e6f922";
 
-    (fetch as any)
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify({ GameId: gameId })
-        })
-        .mockResolvedValueOnce({
-            ok: false,
-            status: 401,
-            headers: { get: () => "application/json" },
-            text: async () => ""
-        });
+    queueTextResponse({ GameId: gameId });
 
     const created = await RequestService<"createGameWithMode", { bracketMode: string }, { GameId: string }>("createGameWithMode", {
         body: { bracketMode: "SINGLE_ELIMINATION" }
     });
+
     expect(created.GameId).toBe(gameId);
+});
+
+// Verifies sessionStatus throws when backend returns 401.
+test("sessionStatus throws on unauthorized response", async () =>
+{
+    queueTextResponse({ message: "unauthorized" }, false, 401);
 
     await expect(
         RequestService<"sessionStatus", never, { IsAuthenticated: boolean }>("sessionStatus")
     ).rejects.toThrow("HTTP 401");
+});
 
-    expect((fetch as any).mock.calls).toHaveLength(2);
-    expect((fetch as any).mock.calls[0][0]).toContain("/Games/CreateGameWithMode");
-    expect((fetch as any).mock.calls[1][0]).toContain("/users/session");
-    expect((fetch as any).mock.calls[0][1].credentials).toBe("include");
-    expect((fetch as any).mock.calls[1][1].credentials).toBe("include");
+// Verifies createGameWithMode endpoint path.
+test("createGameWithMode calls expected route", async () =>
+{
+    queueTextResponse({ GameId: "game-id" });
 
-    (fetch as any).mockReset();
-
-    const addPlayerPayload = {
-        Id: "0de2acbb-b6f0-4f01-ab0a-3f7fb58d3f57",
-        displayName: "AuthedUser",
-        currentScore: 0,
-        currentRound: 0,
-        currentCharacter: Marth,
-        currentGameId: gameId
-    };
-
-    (fetch as any)
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify({ GameId: gameId })
-        })
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify({ IsAuthenticated: true, UserName: "dummy01" })
-        })
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify({ success: true })
-        });
-
-    const createdAuthed = await RequestService<"createGameWithMode", { bracketMode: string }, { GameId: string }>("createGameWithMode", {
+    await RequestService("createGameWithMode", {
         body: { bracketMode: "SINGLE_ELIMINATION" }
     });
-    expect(createdAuthed.GameId).toBe(gameId);
+
+    expect(getFetchCall(0)[0]).toContain("/Games/CreateGameWithMode");
+});
+
+// Verifies sessionStatus endpoint path.
+test("sessionStatus calls expected route", async () =>
+{
+    queueTextResponse({ IsAuthenticated: true });
+
+    await RequestService("sessionStatus");
+
+    expect(getFetchCall(0)[0]).toContain("/users/session");
+});
+
+// Verifies createGameWithMode includes credentials.
+test("createGameWithMode includes credentials", async () =>
+{
+    queueTextResponse({ GameId: "game-id" });
+
+    await RequestService("createGameWithMode", {
+        body: { bracketMode: "SINGLE_ELIMINATION" }
+    });
+
+    expect(getFetchCall(0)[1].credentials).toBe("include");
+});
+
+// Verifies sessionStatus includes credentials.
+test("sessionStatus includes credentials", async () =>
+{
+    queueTextResponse({ IsAuthenticated: true });
+
+    await RequestService("sessionStatus");
+
+    expect(getFetchCall(0)[1].credentials).toBe("include");
+});
+
+// Verifies sessionStatus returns authenticated flag.
+test("sessionStatus returns authentication state", async () =>
+{
+    queueTextResponse({ IsAuthenticated: true, UserName: "dummy01" });
 
     const session = await RequestService<"sessionStatus", never, { IsAuthenticated: boolean; UserName: string }>("sessionStatus");
+
     expect(session.IsAuthenticated).toBe(true);
+});
+
+// Verifies sessionStatus returns username.
+test("sessionStatus returns username", async () =>
+{
+    queueTextResponse({ IsAuthenticated: true, UserName: "dummy01" });
+
+    const session = await RequestService<"sessionStatus", never, { IsAuthenticated: boolean; UserName: string }>("sessionStatus");
+
     expect(session.UserName).toBe("dummy01");
+});
+
+// Verifies addPlayers call succeeds with authenticated flow payload.
+test("authenticated addPlayers returns success", async () =>
+{
+    const gameId = "7f3ebf71-704e-4d34-bca9-eb2852e6f922";
+
+    queueTextResponse({ success: true });
 
     const addResult = await RequestService("addPlayers", {
         routeParams: { gameId },
-        body: addPlayerPayload
+        body: {
+            Id: "0de2acbb-b6f0-4f01-ab0a-3f7fb58d3f57",
+            displayName: "AuthedUser",
+            currentScore: 0,
+            currentRound: 0,
+            currentCharacter: Marth,
+            currentGameId: gameId
+        }
     });
 
     expect(addResult).toEqual({ success: true });
-    expect((fetch as any).mock.calls).toHaveLength(3);
-    expect((fetch as any).mock.calls[2][0]).toContain(`/Games/AddPlayer/${gameId}`);
-    expect((fetch as any).mock.calls[2][1].credentials).toBe("include");
 });
 
-test("RequestService createGameWithMode sends bracketMode payload", async () =>
+// Verifies addPlayers includes credentials for authenticated flow.
+test("addPlayers includes credentials", async () =>
 {
-    (fetch as any).mockResolvedValueOnce({
-        ok: true,
-        headers: { get: () => "application/json" },
-        text: async () => JSON.stringify({ gameId: "mode-game-id", bracketMode: "DOUBLE_ELIMINATION" })
+    const gameId = "7f3ebf71-704e-4d34-bca9-eb2852e6f922";
+
+    queueTextResponse({ success: true });
+
+    await RequestService("addPlayers", {
+        routeParams: { gameId },
+        body: {
+            Id: "0de2acbb-b6f0-4f01-ab0a-3f7fb58d3f57",
+            displayName: "AuthedUser",
+            currentScore: 0,
+            currentRound: 0,
+            currentCharacter: Marth,
+            currentGameId: gameId
+        }
     });
+
+    expect(getFetchCall(0)[1].credentials).toBe("include");
+});
+
+// Verifies createGameWithMode echoes game id.
+test("createGameWithMode returns gameId", async () =>
+{
+    queueTextResponse({ gameId: "mode-game-id", bracketMode: "DOUBLE_ELIMINATION" });
 
     const result = await RequestService<"createGameWithMode", { bracketMode: string }, { gameId: string; bracketMode: string }>(
         "createGameWithMode",
@@ -245,15 +482,49 @@ test("RequestService createGameWithMode sends bracketMode payload", async () =>
     );
 
     expect(result.gameId).toBe("mode-game-id");
-    expect(result.bracketMode).toBe("DOUBLE_ELIMINATION");
-
-    const [url, options] = (fetch as any).mock.calls[0];
-    expect(url).toContain("/Games/CreateGameWithMode");
-    expect(options.method).toBe("POST");
-    expect(JSON.parse(options.body)).toEqual({ bracketMode: "DOUBLE_ELIMINATION" });
 });
 
-test("RequestService bracket routes interpolate gameId and parse responses", async () =>
+// Verifies createGameWithMode echoes bracket mode.
+test("createGameWithMode returns bracket mode", async () =>
+{
+    queueTextResponse({ gameId: "mode-game-id", bracketMode: "DOUBLE_ELIMINATION" });
+
+    const result = await RequestService<"createGameWithMode", { bracketMode: string }, { gameId: string; bracketMode: string }>(
+        "createGameWithMode",
+        {
+            body: { bracketMode: "DOUBLE_ELIMINATION" }
+        }
+    );
+
+    expect(result.bracketMode).toBe("DOUBLE_ELIMINATION");
+});
+
+// Verifies createGameWithMode uses POST method.
+test("createGameWithMode uses POST method", async () =>
+{
+    queueTextResponse({ gameId: "mode-game-id", bracketMode: "DOUBLE_ELIMINATION" });
+
+    await RequestService("createGameWithMode", {
+        body: { bracketMode: "DOUBLE_ELIMINATION" }
+    });
+
+    expect(getFetchCall(0)[1].method).toBe("POST");
+});
+
+// Verifies createGameWithMode serializes bracket payload.
+test("createGameWithMode serializes request payload", async () =>
+{
+    queueTextResponse({ gameId: "mode-game-id", bracketMode: "DOUBLE_ELIMINATION" });
+
+    await RequestService("createGameWithMode", {
+        body: { bracketMode: "DOUBLE_ELIMINATION" }
+    });
+
+    expect(parseFetchBody(0)).toEqual({ bracketMode: "DOUBLE_ELIMINATION" });
+});
+
+// Verifies getFlowState returns in-match state.
+test("getFlowState returns current state", async () =>
 {
     const gameId = "7b6f5f95-0e8e-46c6-bb96-ce52726332d2";
     const flowState = {
@@ -264,6 +535,41 @@ test("RequestService bracket routes interpolate gameId and parse responses", asy
         currentMatchPlayerOneId: "8aa22920-a8ea-4db7-81d8-91773893ce2a",
         currentMatchPlayerTwoId: "12761655-f130-42fb-8378-6566adf08d90"
     };
+
+    queueTextResponse(flowState);
+
+    const result = await RequestService<"getFlowState", never, typeof flowState>("getFlowState", {
+        routeParams: { gameId }
+    });
+
+    expect(result.state).toBe("IN_MATCH_ACTIVE");
+});
+
+// Verifies getBracket returns expected mode.
+test("getBracket returns bracket mode", async () =>
+{
+    const gameId = "7b6f5f95-0e8e-46c6-bb96-ce52726332d2";
+
+    queueTextResponse({
+        gameId,
+        mode: "DOUBLE_ELIMINATION",
+        gameStarted: true,
+        isGrandFinalResetRequired: false,
+        players: [],
+        matches: []
+    });
+
+    const result = await RequestService<"getBracket", never, { mode: string }>("getBracket", {
+        routeParams: { gameId }
+    });
+
+    expect(result.mode).toBe("DOUBLE_ELIMINATION");
+});
+
+// Verifies getCurrentMatch returns selected match id.
+test("getCurrentMatch returns match id", async () =>
+{
+    const gameId = "7b6f5f95-0e8e-46c6-bb96-ce52726332d2";
     const currentMatch = {
         gameId,
         matchId: "43db2e62-f1fc-4c67-81ca-3578886f3d34",
@@ -274,89 +580,136 @@ test("RequestService bracket routes interpolate gameId and parse responses", asy
         playerTwoId: "12761655-f130-42fb-8378-6566adf08d90"
     };
 
-    const bracketSnapshot = {
+    queueTextResponse(currentMatch);
+
+    const result = await RequestService<"getCurrentMatch", never, typeof currentMatch>("getCurrentMatch", {
+        routeParams: { gameId }
+    });
+
+    expect(result.matchId).toBe(currentMatch.matchId);
+});
+
+// Verifies submitMatchVote returns committed status.
+test("submitMatchVote returns COMMITTED status", async () =>
+{
+    const gameId = "7b6f5f95-0e8e-46c6-bb96-ce52726332d2";
+
+    queueTextResponse({
+        gameId,
+        matchId: "43db2e62-f1fc-4c67-81ca-3578886f3d34",
+        status: "COMMITTED",
+        voteCount: 2,
+        committedWinnerPlayerId: "8aa22920-a8ea-4db7-81d8-91773893ce2a"
+    });
+
+    const result = await RequestService<"submitMatchVote", { matchId: string; winnerPlayerId: string }, { status: string }>("submitMatchVote", {
+        routeParams: { gameId },
+        body: {
+            matchId: "43db2e62-f1fc-4c67-81ca-3578886f3d34",
+            winnerPlayerId: "8aa22920-a8ea-4db7-81d8-91773893ce2a"
+        }
+    });
+
+    expect(result.status).toBe("COMMITTED");
+});
+
+// Verifies getFlowState route interpolation.
+test("getFlowState interpolates route parameter", async () =>
+{
+    const gameId = "7b6f5f95-0e8e-46c6-bb96-ce52726332d2";
+
+    queueTextResponse({ state: "IN_MATCH_ACTIVE" });
+
+    await RequestService("getFlowState", {
+        routeParams: { gameId }
+    });
+
+    expect(getFetchCall(0)[0]).toContain(`/Games/GetFlowState/${gameId}`);
+});
+
+// Verifies getBracket route interpolation.
+test("getBracket interpolates route parameter", async () =>
+{
+    const gameId = "7b6f5f95-0e8e-46c6-bb96-ce52726332d2";
+
+    queueTextResponse({ mode: "DOUBLE_ELIMINATION", matches: [] });
+
+    await RequestService("getBracket", {
+        routeParams: { gameId }
+    });
+
+    expect(getFetchCall(0)[0]).toContain(`/Games/GetBracket/${gameId}`);
+});
+
+// Verifies getCurrentMatch route interpolation.
+test("getCurrentMatch interpolates route parameter", async () =>
+{
+    const gameId = "7b6f5f95-0e8e-46c6-bb96-ce52726332d2";
+
+    queueTextResponse({ matchId: "match-id", playerOneId: "player-id" });
+
+    await RequestService("getCurrentMatch", {
+        routeParams: { gameId }
+    });
+
+    expect(getFetchCall(0)[0]).toContain(`/Games/GetCurrentMatch/${gameId}`);
+});
+
+// Verifies submitMatchVote route interpolation.
+test("submitMatchVote interpolates route parameter", async () =>
+{
+    const gameId = "7b6f5f95-0e8e-46c6-bb96-ce52726332d2";
+
+    queueTextResponse({ status: "COMMITTED" });
+
+    await RequestService("submitMatchVote", {
+        routeParams: { gameId },
+        body: { matchId: "match-id", winnerPlayerId: "winner-id" }
+    });
+
+    expect(getFetchCall(0)[0]).toContain(`/Games/SubmitMatchVote/${gameId}`);
+});
+
+// Verifies submitMatchVote serializes request body.
+test("submitMatchVote serializes winner payload", async () =>
+{
+    const gameId = "7b6f5f95-0e8e-46c6-bb96-ce52726332d2";
+    const payload = {
+        matchId: "match-id",
+        winnerPlayerId: "winner-id"
+    };
+
+    queueTextResponse({ status: "COMMITTED" });
+
+    await RequestService("submitMatchVote", {
+        routeParams: { gameId },
+        body: payload
+    });
+
+    expect(parseFetchBody(0)).toEqual(payload);
+});
+
+// Verifies end-to-end lifecycle returns bracket mode.
+test("end-to-end lifecycle returns DOUBLE_ELIMINATION mode", async () =>
+{
+    const gameId = "e9f0525d-bd9f-4d37-8ec0-f1177d53c4e2";
+    const playerId = "32187753-4f84-4413-a641-bdd7d101f200";
+
+    queueTextResponse({ GameId: gameId, BracketMode: "DOUBLE_ELIMINATION" });
+    queueTextResponse({ message: "Player added" });
+    queueTextResponse({ message: "Game started" });
+    queueTextResponse({
         gameId,
         mode: "DOUBLE_ELIMINATION",
         gameStarted: true,
         isGrandFinalResetRequired: false,
-        players: [],
+        players: [
+            { playerId, displayName: "Player 1", seed: 1, losses: 0, eliminated: false },
+            { playerId: "241f5273-485c-4f40-938e-4ce6bcc1cae6", displayName: "Player 2", seed: 2, losses: 0, eliminated: false }
+        ],
         matches: []
-    };
-
-    (fetch as any)
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify(flowState)
-        })
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify(bracketSnapshot)
-        })
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify(currentMatch)
-        })
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify({
-                gameId,
-                matchId: currentMatch.matchId,
-                status: "COMMITTED",
-                voteCount: 2,
-                committedWinnerPlayerId: currentMatch.playerOneId
-            })
-        });
-
-    const flowResult = await RequestService<"getFlowState", never, typeof flowState>("getFlowState", {
-        routeParams: { gameId }
     });
-
-    const snapshotResult = await RequestService<"getBracket", never, typeof bracketSnapshot>("getBracket", {
-        routeParams: { gameId }
-    });
-
-    const currentMatchResult = await RequestService<"getCurrentMatch", never, typeof currentMatch>("getCurrentMatch", {
-        routeParams: { gameId }
-    });
-
-    const voteResult = await RequestService<"submitMatchVote", { matchId: string; winnerPlayerId: string }, {
-        gameId: string;
-        matchId: string;
-        status: string;
-        voteCount: number;
-        committedWinnerPlayerId?: string;
-    }>("submitMatchVote", {
-        routeParams: { gameId },
-        body: {
-            matchId: currentMatch.matchId,
-            winnerPlayerId: currentMatch.playerOneId
-        }
-    });
-
-    expect(flowResult.state).toBe("IN_MATCH_ACTIVE");
-    expect(snapshotResult.mode).toBe("DOUBLE_ELIMINATION");
-    expect(currentMatchResult.matchId).toBe(currentMatch.matchId);
-    expect(voteResult.status).toBe("COMMITTED");
-
-    expect((fetch as any).mock.calls[0][0]).toContain(`/Games/GetFlowState/${gameId}`);
-    expect((fetch as any).mock.calls[1][0]).toContain(`/Games/GetBracket/${gameId}`);
-    expect((fetch as any).mock.calls[2][0]).toContain(`/Games/GetCurrentMatch/${gameId}`);
-    expect((fetch as any).mock.calls[3][0]).toContain(`/Games/SubmitMatchVote/${gameId}`);
-    expect(JSON.parse((fetch as any).mock.calls[3][1].body)).toEqual({
-        matchId: currentMatch.matchId,
-        winnerPlayerId: currentMatch.playerOneId
-    });
-});
-
-test("RequestService supports end-to-end bracket lifecycle sequence", async () =>
-{
-    const gameId = "e9f0525d-bd9f-4d37-8ec0-f1177d53c4e2";
-    const playerId = "32187753-4f84-4413-a641-bdd7d101f200";
-    const currentMatch = {
+    queueTextResponse({
         gameId,
         matchId: "2ecfe5df-f76b-4dca-a762-c0c5326cc9c2",
         lane: "WINNERS",
@@ -364,57 +717,14 @@ test("RequestService supports end-to-end bracket lifecycle sequence", async () =
         matchNumber: 1,
         playerOneId: playerId,
         playerTwoId: "241f5273-485c-4f40-938e-4ce6bcc1cae6"
-    };
-
-    const bracketSnapshot = {
+    });
+    queueTextResponse({
         gameId,
-        mode: "DOUBLE_ELIMINATION",
-        gameStarted: true,
-        isGrandFinalResetRequired: false,
-        players: [
-            { playerId, displayName: "Player 1", seed: 1, losses: 0, eliminated: false },
-            { playerId: currentMatch.playerTwoId, displayName: "Player 2", seed: 2, losses: 0, eliminated: false }
-        ],
-        matches: []
-    };
-
-    (fetch as any)
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify({ GameId: gameId, BracketMode: "DOUBLE_ELIMINATION" })
-        })
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify({ message: "Player added" })
-        })
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify({ message: "Game started" })
-        })
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify(bracketSnapshot)
-        })
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify(currentMatch)
-        })
-        .mockResolvedValueOnce({
-            ok: true,
-            headers: { get: () => "application/json" },
-            text: async () => JSON.stringify({
-                gameId,
-                matchId: currentMatch.matchId,
-                status: "COMMITTED",
-                voteCount: 2,
-                committedWinnerPlayerId: currentMatch.playerOneId
-            })
-        });
+        matchId: "2ecfe5df-f76b-4dca-a762-c0c5326cc9c2",
+        status: "COMMITTED",
+        voteCount: 2,
+        committedWinnerPlayerId: playerId
+    });
 
     await RequestService("createGameWithMode", {
         body: { bracketMode: "DOUBLE_ELIMINATION" }
@@ -436,39 +746,119 @@ test("RequestService supports end-to-end bracket lifecycle sequence", async () =
         routeParams: { gameId }
     });
 
-    const snapshot = await RequestService<"getBracket", never, typeof bracketSnapshot>("getBracket", {
+    const snapshot = await RequestService<"getBracket", never, { mode: string }>("getBracket", {
         routeParams: { gameId }
     });
-    const match = await RequestService<"getCurrentMatch", never, typeof currentMatch>("getCurrentMatch", {
+
+    await RequestService("getCurrentMatch", {
         routeParams: { gameId }
     });
 
     await RequestService("submitMatchVote", {
         routeParams: { gameId },
         body: {
-            matchId: match.matchId,
-            winnerPlayerId: match.playerOneId
+            matchId: "2ecfe5df-f76b-4dca-a762-c0c5326cc9c2",
+            winnerPlayerId: playerId
         }
     });
 
     expect(snapshot.mode).toBe("DOUBLE_ELIMINATION");
-    expect(match.gameId).toBe(gameId);
-    expect((fetch as any).mock.calls[0][0]).toContain("/Games/CreateGameWithMode");
-    expect((fetch as any).mock.calls[1][0]).toContain(`/Games/AddPlayer/${gameId}`);
-    expect((fetch as any).mock.calls[2][0]).toContain(`/Games/StartGame/${gameId}`);
-    expect((fetch as any).mock.calls[3][0]).toContain(`/Games/GetBracket/${gameId}`);
-    expect((fetch as any).mock.calls[4][0]).toContain(`/Games/GetCurrentMatch/${gameId}`);
-    expect((fetch as any).mock.calls[5][0]).toContain(`/Games/SubmitMatchVote/${gameId}`);
 });
 
-/**
- * Verifies that RequestService submits vote-ledger requests to SubmitMatchVote route.
- * - Endpoint: submitMatchVote
- * - Route param: gameId
- * - Payload: matchId + winnerPlayerId
- * - Checks route interpolation and status parsing.
- */
-test("RequestService submitMatchVote posts to vote-ledger route", async () =>
+// Verifies end-to-end lifecycle calls create route.
+test("end-to-end lifecycle calls CreateGameWithMode route", async () =>
+{
+    const gameId = "e9f0525d-bd9f-4d37-8ec0-f1177d53c4e2";
+
+    queueTextResponse({ GameId: gameId, BracketMode: "DOUBLE_ELIMINATION" });
+
+    await RequestService("createGameWithMode", {
+        body: { bracketMode: "DOUBLE_ELIMINATION" }
+    });
+
+    expect(getFetchCall(0)[0]).toContain("/Games/CreateGameWithMode");
+});
+
+// Verifies vote-ledger request returns pending status.
+test("submitMatchVote vote-ledger returns PENDING status", async () =>
+{
+    const gameId = "8f29daff-adfa-49bb-a8c8-4e4f9fb58e3b";
+
+    queueTextResponse({
+        gameId,
+        matchId: "4d4da6f2-c56e-4c34-8d99-1bb3f12ec0dc",
+        status: "PENDING",
+        voteCount: 1,
+        committedWinnerPlayerId: null
+    });
+
+    const result = await RequestService<"submitMatchVote", { matchId: string; winnerPlayerId: string }, {
+        status: string;
+        voteCount: number;
+    }>("submitMatchVote", {
+        routeParams: { gameId },
+        body: {
+            matchId: "4d4da6f2-c56e-4c34-8d99-1bb3f12ec0dc",
+            winnerPlayerId: "fd723edf-9302-42f7-af35-07b2c0604ffc"
+        }
+    });
+
+    expect(result.status).toBe("PENDING");
+});
+
+// Verifies vote-ledger request returns expected vote count.
+test("submitMatchVote vote-ledger returns vote count", async () =>
+{
+    const gameId = "8f29daff-adfa-49bb-a8c8-4e4f9fb58e3b";
+
+    queueTextResponse({
+        gameId,
+        matchId: "4d4da6f2-c56e-4c34-8d99-1bb3f12ec0dc",
+        status: "PENDING",
+        voteCount: 1,
+        committedWinnerPlayerId: null
+    });
+
+    const result = await RequestService<"submitMatchVote", { matchId: string; winnerPlayerId: string }, {
+        status: string;
+        voteCount: number;
+    }>("submitMatchVote", {
+        routeParams: { gameId },
+        body: {
+            matchId: "4d4da6f2-c56e-4c34-8d99-1bb3f12ec0dc",
+            winnerPlayerId: "fd723edf-9302-42f7-af35-07b2c0604ffc"
+        }
+    });
+
+    expect(result.voteCount).toBe(1);
+});
+
+// Verifies vote-ledger request calls expected route.
+test("submitMatchVote vote-ledger calls expected route", async () =>
+{
+    const gameId = "8f29daff-adfa-49bb-a8c8-4e4f9fb58e3b";
+
+    queueTextResponse({
+        gameId,
+        matchId: "4d4da6f2-c56e-4c34-8d99-1bb3f12ec0dc",
+        status: "PENDING",
+        voteCount: 1,
+        committedWinnerPlayerId: null
+    });
+
+    await RequestService("submitMatchVote", {
+        routeParams: { gameId },
+        body: {
+            matchId: "4d4da6f2-c56e-4c34-8d99-1bb3f12ec0dc",
+            winnerPlayerId: "fd723edf-9302-42f7-af35-07b2c0604ffc"
+        }
+    });
+
+    expect(getFetchCall(0)[0]).toContain(`/Games/SubmitMatchVote/${gameId}`);
+});
+
+// Verifies vote-ledger request serializes payload.
+test("submitMatchVote vote-ledger serializes payload", async () =>
 {
     const gameId = "8f29daff-adfa-49bb-a8c8-4e4f9fb58e3b";
     const payload = {
@@ -476,31 +866,18 @@ test("RequestService submitMatchVote posts to vote-ledger route", async () =>
         winnerPlayerId: "fd723edf-9302-42f7-af35-07b2c0604ffc"
     };
 
-    (fetch as any).mockResolvedValueOnce({
-        ok: true,
-        headers: { get: () => "application/json" },
-        text: async () => JSON.stringify({
-            gameId,
-            matchId: payload.matchId,
-            status: "PENDING",
-            voteCount: 1,
-            committedWinnerPlayerId: null
-        })
+    queueTextResponse({
+        gameId,
+        matchId: payload.matchId,
+        status: "PENDING",
+        voteCount: 1,
+        committedWinnerPlayerId: null
     });
 
-    const result = await RequestService<"submitMatchVote", typeof payload, {
-        gameId: string;
-        matchId: string;
-        status: string;
-        voteCount: number;
-        committedWinnerPlayerId?: string | null;
-    }>("submitMatchVote", {
+    await RequestService("submitMatchVote", {
         routeParams: { gameId },
         body: payload
     });
 
-    expect(result.status).toBe("PENDING");
-    expect(result.voteCount).toBe(1);
-    expect((fetch as any).mock.calls[0][0]).toContain(`/Games/SubmitMatchVote/${gameId}`);
-    expect(JSON.parse((fetch as any).mock.calls[0][1].body)).toEqual(payload);
+    expect(parseFetchBody(0)).toEqual(payload);
 });

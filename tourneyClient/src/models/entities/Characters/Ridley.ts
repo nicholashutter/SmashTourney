@@ -16,4 +16,3 @@ export const Ridley: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Ridley; 

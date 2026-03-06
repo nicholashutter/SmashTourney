@@ -12,8 +12,7 @@ export const Richter: Character =
     characterName: CharacterName.RICHTER,
     archetype: Archetype.TURTLE,
     fallSpeed: FallSpeed.FAST_FALLERS,
-    weightClass:WeightClass.MIDDLEWEIGHT,
+    weightClass: WeightClass.MIDDLEWEIGHT,
     tierPlacement: TierPlacement.D
 }
 
-export default Richter; 

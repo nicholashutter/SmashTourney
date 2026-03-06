@@ -16,4 +16,3 @@ export const Wolf: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default Wolf; 

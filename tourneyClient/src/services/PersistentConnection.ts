@@ -5,7 +5,7 @@ import { Player } from "@/models/entities/Player";
 
 
 // Manages the SignalR connection used for lobby and game realtime updates.
-class SignalRService
+class PersistentConnection
 {
 
     private connection: HubConnection | null = null;
@@ -192,4 +192,4 @@ class SignalRService
     }
 
 }
-export default SignalRService;
+export { PersistentConnection };

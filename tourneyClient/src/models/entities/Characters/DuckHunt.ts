@@ -17,4 +17,3 @@ export const DuckHunt: Character =
 
 }
 
-export default DuckHunt; 

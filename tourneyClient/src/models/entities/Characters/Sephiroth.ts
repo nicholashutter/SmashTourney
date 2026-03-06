@@ -16,4 +16,3 @@ export const Sephiroth: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default Sephiroth; 

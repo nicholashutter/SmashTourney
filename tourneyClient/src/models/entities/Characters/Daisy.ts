@@ -16,4 +16,3 @@ export const Daisy: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default Daisy; 

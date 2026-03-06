@@ -16,4 +16,3 @@ export const Link: Character =
     tierPlacement: TierPlacement.C
 }
 
-export default Link; 

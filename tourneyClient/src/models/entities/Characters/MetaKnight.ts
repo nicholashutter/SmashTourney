@@ -16,4 +16,3 @@ export const MetaKnight: Character =
     tierPlacement: TierPlacement.B
 }
 
-export default MetaKnight; 

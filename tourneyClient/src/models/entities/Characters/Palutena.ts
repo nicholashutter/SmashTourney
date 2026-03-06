@@ -16,4 +16,3 @@ export const Palutena: Character =
     tierPlacement: TierPlacement.A
 }
 
-export default Palutena; 

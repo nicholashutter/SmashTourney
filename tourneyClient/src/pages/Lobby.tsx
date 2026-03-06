@@ -4,7 +4,7 @@ import SubmitButton from '@/components/SubmitButton';
 import HeadingTwo from "@/components/HeadingTwo";
 import { Player } from "@/models/entities/Player";
 import { RequestService } from '@/services/RequestService';
-import PersistentConnection from "@/services/PersistentConnection";
+import { PersistentConnection } from "@/services/PersistentConnection";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameData } from '@/hooks/useGameData';
 import { useNavigate } from 'react-router';
@@ -277,4 +277,4 @@ const Lobby = () =>
     );
 };
 
-export default Lobby;
+export { Lobby };

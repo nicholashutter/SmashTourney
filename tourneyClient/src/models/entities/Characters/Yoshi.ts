@@ -16,4 +16,3 @@ export const Yoshi: Character =
     tierPlacement: TierPlacement.S
 }
 
-export default Yoshi; 

@@ -6,6 +6,7 @@ export type VoteFeedback = {
     noticeMessage?: string;
     refreshMatchData: boolean;
     clearSelectedWinner: boolean;
+    lockVoteForCurrentMatch: boolean;
 };
 
 // Maps successful vote responses to frontend UI actions.
@@ -18,7 +19,8 @@ export const getVoteFeedbackFromResponse = (
         return {
             noticeMessage: "Your vote is locked in. Waiting for the other player to vote.",
             refreshMatchData: false,
-            clearSelectedWinner: true
+            clearSelectedWinner: true,
+            lockVoteForCurrentMatch: true
         };
     }
 
@@ -27,14 +29,16 @@ export const getVoteFeedbackFromResponse = (
         return {
             alertMessage: "Match result confirmed. This screen will refresh for the next match state.",
             refreshMatchData: true,
-            clearSelectedWinner: true
+            clearSelectedWinner: true,
+            lockVoteForCurrentMatch: false
         };
     }
 
     return {
         alertMessage: "Vote submitted, but the match state changed. This screen will refresh now.",
         refreshMatchData: true,
-        clearSelectedWinner: true
+        clearSelectedWinner: true,
+        lockVoteForCurrentMatch: false
     };
 };
 
@@ -46,7 +50,8 @@ export const getVoteFeedbackFromError = (errorMessage: string): VoteFeedback =>
         return {
             alertMessage: "That match is no longer active. This screen will refresh now.",
             refreshMatchData: true,
-            clearSelectedWinner: true
+            clearSelectedWinner: true,
+            lockVoteForCurrentMatch: false
         };
     }
 
@@ -55,7 +60,8 @@ export const getVoteFeedbackFromError = (errorMessage: string): VoteFeedback =>
         return {
             noticeMessage: "Votes conflicted. Please vote again for this match.",
             refreshMatchData: false,
-            clearSelectedWinner: true
+            clearSelectedWinner: true,
+            lockVoteForCurrentMatch: false
         };
     }
 
@@ -64,7 +70,8 @@ export const getVoteFeedbackFromError = (errorMessage: string): VoteFeedback =>
         return {
             noticeMessage: "You already voted for this match. Waiting for the other player.",
             refreshMatchData: false,
-            clearSelectedWinner: true
+            clearSelectedWinner: true,
+            lockVoteForCurrentMatch: true
         };
     }
 
@@ -73,13 +80,15 @@ export const getVoteFeedbackFromError = (errorMessage: string): VoteFeedback =>
         return {
             alertMessage: "Only the players in this match can vote.",
             refreshMatchData: false,
-            clearSelectedWinner: false
+            clearSelectedWinner: false,
+            lockVoteForCurrentMatch: false
         };
     }
 
     return {
         alertMessage: "We could not submit that vote. You will stay on this screen so you can try again.",
         refreshMatchData: false,
-        clearSelectedWinner: false
+        clearSelectedWinner: false,
+        lockVoteForCurrentMatch: false
     };
 };
