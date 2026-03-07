@@ -8,6 +8,12 @@ public sealed record CreateGameOptions(
     int TotalPlayers = 0
 );
 
+// Represents realtime payload returned after creating a game.
+public sealed record CreateGameRealtimeResponse(
+    Guid GameId,
+    BracketMode BracketMode
+);
+
 // Represents the winner selection for a reported bracket match.
 public sealed record ReportMatchRequest(
     Guid MatchId,

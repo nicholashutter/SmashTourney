@@ -1,4 +1,5 @@
 import { CurrentMatchResponse, GameState } from "@/models/entities/Bracket";
+import { areSameId } from "@/lib/idEquality";
 
 // Resolves whether in-match view should redirect based on game state and participant context.
 export const resolveInMatchRedirect = (
@@ -28,7 +29,7 @@ export const resolveInMatchRedirect = (
     }
 
     const isPlayerInCurrentMatch = Boolean(
-        playerId && (currentMatch.playerOneId === playerId || currentMatch.playerTwoId === playerId)
+        playerId && (areSameId(currentMatch.playerOneId, playerId) || areSameId(currentMatch.playerTwoId, playerId))
     );
 
     if (!isPlayerInCurrentMatch)

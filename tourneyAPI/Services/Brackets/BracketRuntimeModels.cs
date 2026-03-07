@@ -6,6 +6,7 @@ using Enums;
 internal sealed class BracketPlayerRuntime
 {
     public Guid PlayerId { get; set; }
+    public string UserId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public int Seed { get; set; }
     public int Losses { get; set; }

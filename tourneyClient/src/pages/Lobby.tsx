@@ -3,13 +3,19 @@ import BasicButton from '@/components/BasicButton';
 import SubmitButton from '@/components/SubmitButton';
 import HeadingTwo from "@/components/HeadingTwo";
 import { Player } from "@/models/entities/Player";
-import { RequestService } from '@/services/RequestService';
-import { PersistentConnection } from "@/services/PersistentConnection";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameData } from '@/hooks/useGameData';
 import { useNavigate } from 'react-router';
 import { normalizePlayers, resolvePlayerId } from '@/lib/normalizePlayer';
-import { fetchGameState, fetchPlayersInGame } from '@/services/gameFlowService';
+import
+    {
+        connectToGameRealtime,
+        getPlayersInGameRealtime,
+        onFlowStateUpdatedRealtime,
+        onGameStartedRealtime,
+        onPlayersUpdatedRealtime,
+        startGameRealtime
+    } from '@/services/RealtimeGameService';
 
 
 // Renders the lobby and handles realtime player updates before game start.
@@ -30,7 +36,7 @@ const Lobby = () =>
     const [players, setPlayers] = useState<Player[]>([]);
     const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
     const [joinNotice, setJoinNotice] = useState<string | null>(null);
-    const lobbyConnectionRef = useRef<PersistentConnection | null>(null);
+    const joinNoticeTimeoutIdRef = useRef<number | null>(null);
 
     // Reads game-session values shared by create/join flow pages.
     const { gameId, isHost, setGameStarted } = useGameData();
@@ -45,18 +51,14 @@ const Lobby = () =>
             return;
         }
 
-        const lobbyConnection = new PersistentConnection();
-        lobbyConnectionRef.current = lobbyConnection;
         let isDisposed = false;
-        let gameStartedPollId: number | null = null;
-        let joinNoticeTimeoutId: number | null = null;
 
         const clearJoinNoticeTimer = () =>
         {
-            if (joinNoticeTimeoutId)
+            if (joinNoticeTimeoutIdRef.current)
             {
-                window.clearTimeout(joinNoticeTimeoutId);
-                joinNoticeTimeoutId = null;
+                window.clearTimeout(joinNoticeTimeoutIdRef.current);
+                joinNoticeTimeoutIdRef.current = null;
             }
         };
 
@@ -64,7 +66,7 @@ const Lobby = () =>
         {
             try
             {
-                const playersInGame = await fetchPlayersInGame(targetGameId);
+                const playersInGame = await getPlayersInGameRealtime(targetGameId);
                 if (!isDisposed)
                 {
                     setPlayers(playersInGame);
@@ -87,27 +89,6 @@ const Lobby = () =>
             }
         };
 
-        const checkStartedState = async (targetGameId: string): Promise<boolean> =>
-        {
-            try
-            {
-                const flowState = await fetchGameState(targetGameId);
-
-                if (!isDisposed && flowState && flowState.state !== "LOBBY_WAITING")
-                {
-                    setGameStarted(true);
-                    navigate("/showBracket", { replace: true });
-                    return true;
-                }
-            }
-            catch (error)
-            {
-                console.warn("Lobby start-state check failed", error);
-            }
-
-            return false;
-        };
-
         const buildJoinNoticeText = (newPlayers: Player[]): string =>
         {
             const newNames = newPlayers.map((player) => player.displayName || "A player");
@@ -119,7 +100,7 @@ const Lobby = () =>
         const scheduleJoinNoticeClear = () =>
         {
             clearJoinNoticeTimer();
-            joinNoticeTimeoutId = window.setTimeout(() =>
+            joinNoticeTimeoutIdRef.current = window.setTimeout(() =>
             {
                 if (!isDisposed)
                 {
@@ -167,26 +148,28 @@ const Lobby = () =>
             navigate("/showBracket", { replace: true });
         };
 
+        const handleFlowStateUpdated = (flowState: { state: string } | null) =>
+        {
+            if (isDisposed || !flowState)
+            {
+                return;
+            }
+
+            if (flowState.state !== "LOBBY_WAITING")
+            {
+                setGameStarted(true);
+                navigate("/showBracket", { replace: true });
+            }
+        };
+
         const initializeLobby = async () =>
         {
-            lobbyConnection.setOnPlayersUpdated(handlePlayersUpdated);
-            lobbyConnection.setOnGameStarted(handleGameStarted);
-            await lobbyConnection.createPlayerConnection(gameId);
-            await loadLobbyPlayers(gameId);
+            onPlayersUpdatedRealtime(handlePlayersUpdated);
+            onGameStartedRealtime(handleGameStarted);
+            onFlowStateUpdatedRealtime(handleFlowStateUpdated);
 
-            const started = await checkStartedState(gameId);
-            if (!started)
-            {
-                gameStartedPollId = window.setInterval(async () =>
-                {
-                    const hasStarted = await checkStartedState(gameId);
-                    if (hasStarted && gameStartedPollId)
-                    {
-                        window.clearInterval(gameStartedPollId);
-                        gameStartedPollId = null;
-                    }
-                }, 1500);
-            }
+            await connectToGameRealtime(gameId);
+            await loadLobbyPlayers(gameId);
         };
 
         initializeLobby();
@@ -195,16 +178,15 @@ const Lobby = () =>
         {
             isDisposed = true;
             clearJoinNoticeTimer();
-            if (gameStartedPollId)
+            onPlayersUpdatedRealtime(() =>
             {
-                window.clearInterval(gameStartedPollId);
-                gameStartedPollId = null;
-            }
-            lobbyConnection.disconnect();
-            if (lobbyConnectionRef.current === lobbyConnection)
+            });
+            onGameStartedRealtime(() =>
             {
-                lobbyConnectionRef.current = null;
-            }
+            });
+            onFlowStateUpdatedRealtime(() =>
+            {
+            });
         };
 
     }, [gameId, navigate, normalizePlayersCallback, resolvePlayerIdCallback, setGameStarted]);
@@ -220,15 +202,14 @@ const Lobby = () =>
                 return;
             }
 
-            await RequestService("startGame", {
-                routeParams: { gameId }
-            });
+            const started = await startGameRealtime(gameId);
+            if (!started)
+            {
+                window.alert("We could not start the game. You will stay in the lobby so you can try again.");
+                return;
+            }
 
             setGameStarted(true);
-            if (lobbyConnectionRef.current)
-            {
-                await lobbyConnectionRef.current.notifyGameStarted(gameId);
-            }
 
             window.alert("All players are in. Starting the tournament now and moving everyone to the bracket view.");
             navigate("/showBracket");

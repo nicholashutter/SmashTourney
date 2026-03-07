@@ -1,6 +1,5 @@
 import { useState, useEffect, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
-import { RequestService } from "@/services/RequestService";
 import { useGameData } from "@/hooks/useGameData";
 import { validateInput } from "@/services/validationService";
 import { INVALID_CHARACTERS } from "@/constants/AppConstants";
@@ -11,7 +10,6 @@ import { FallSpeed } from "@/models/Enums/FallSpeed";
 import { TierPlacement } from "@/models/Enums/TierPlacement";
 import { WeightClass } from "@/models/Enums/WeightClass";
 import { v4 as uuidv4 } from "uuid";
-import { PersistentConnection } from "@/services/PersistentConnection"
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
@@ -25,8 +23,9 @@ import
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { isValidGuid, normalizeGameId, resolveCharacterMappings } from "@/services/playerSetupService";
-import { AddPlayerPayload, BackendCharacterPayload } from "@/models/types/playerPayload";
+import { AddPlayerPayload } from "@/models/types/playerPayload";
 import { loadCharacterCatalog } from "@/lib/loadCharacterCatalog";
+import { addPlayerToGameRealtime, connectToGameRealtime } from "@/services/RealtimeGameService";
 
 // Renders player join flow for an existing tournament lobby.
 
@@ -158,26 +157,13 @@ const JoinTourney = () =>
       currentGameId: normalizedGameId
     };
 
-    const lobbyConnection = new PersistentConnection();
-
     try
     {
       setIsJoining(true);
       setJoinStatus("Joining room...");
 
-      await RequestService(
-        "addPlayers",
-        {
-          body: playerPayload,
-          routeParams:
-          {
-            gameId: normalizedGameId
-          }
-        }
-      );
-
-      await lobbyConnection.createPlayerConnection(normalizedGameId);
-      await lobbyConnection.updateOthers(normalizedGameId);
+      await connectToGameRealtime(normalizedGameId);
+      await addPlayerToGameRealtime(normalizedGameId, playerPayload);
 
       setJoinStatus("Join successful. Opening lobby...");
       setIsHost(false);
@@ -193,7 +179,6 @@ const JoinTourney = () =>
     finally
     {
       setIsJoining(false);
-      await lobbyConnection.disconnect();
     }
 
   }

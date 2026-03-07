@@ -13,43 +13,6 @@ export interface ApiEndpoint
 
 // Stores API endpoint metadata used by request helpers.
 const RequestBuilder = {
-  createGameWithMode: { method: "POST", path: "/Games/CreateGameWithMode" },
-  getBracket: {
-    method: "GET",
-    path: "/Games/GetBracket/{gameId}",
-    params: ["gameId"]
-  },
-  getCurrentMatch: {
-    method: "GET",
-    path: "/Games/GetCurrentMatch/{gameId}",
-    params: ["gameId"]
-  },
-  getFlowState: {
-    method: "GET",
-    path: "/Games/GetFlowState/{gameId}",
-    params: ["gameId"]
-  },
-  submitMatchVote: {
-    method: "POST",
-    path: "/Games/SubmitMatchVote/{gameId}",
-    params: ["gameId"]
-  },
-  addPlayers: {
-    method: "POST",
-    path: "/Games/AddPlayer/{gameId}",
-    params: ["gameId"]
-  },
-  getPlayersInGame: {
-    method: "POST",
-    path: "/Games/GetPlayersInGame/{gameId}",
-    params: ["gameId"]
-  },
-  startGame: {
-    method: "POST",
-    path: "/Games/StartGame/{gameId}",
-    params: ["gameId"]
-  },
-
   register: { method: "POST", path: "/Users/Register" },
   login: { method: "POST", path: "/users/login" },
   sessionStatus: { method: "GET", path: "/users/session" },

@@ -1,7 +1,12 @@
 namespace ApiTests;
 
 using System.Net;
+using System.Text.Json;
+using Contracts;
+using Enums;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
+using Services;
 
 // Verifies realtime broadcast behavior that keeps clients synchronized during tournament play.
 public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
@@ -13,6 +18,10 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
     public RealTimeTest(CustomWebApplicationFactory<Program> factory)
     {
         _factory = factory;
+
+        using var scope = _factory.Services.CreateScope();
+        var database = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        database.Database.EnsureCreated();
     }
 
     // Creates a SignalR client connected to the in-memory test server.
@@ -48,7 +57,7 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
         var completionSource = new TaskCompletionSource<string>();
         var connection = CreateClient();
 
-        connection.On("Successfully Joined", () =>
+        connection.On("SuccessfullyJoined", () =>
         {
             completionSource.TrySetResult(expectedResult);
         });
@@ -98,5 +107,32 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
 
         await hostConnection.DisposeAsync();
         await guestConnection.DisposeAsync();
+    }
+
+    // Confirms game creation can be invoked through SignalR contract.
+    [Fact]
+    public async Task CreateGameWithModeReturnsGameId()
+    {
+        var connection = CreateClient();
+        await connection.StartAsync();
+
+        var response = await connection.InvokeAsync<JsonElement>(
+            "CreateGameWithMode",
+            new CreateGameOptions(BracketMode.SINGLE_ELIMINATION, 4));
+
+        var resolvedGameId = Guid.Empty;
+        if (response.TryGetProperty("gameId", out var camelCaseGameIdProperty))
+        {
+            Guid.TryParse(camelCaseGameIdProperty.GetString(), out resolvedGameId);
+        }
+        else if (response.TryGetProperty("GameId", out var pascalCaseGameIdProperty))
+        {
+            Guid.TryParse(pascalCaseGameIdProperty.GetString(), out resolvedGameId);
+        }
+
+        var responseContainsGameId = resolvedGameId != Guid.Empty;
+        Assert.True(responseContainsGameId);
+
+        await connection.DisposeAsync();
     }
 }

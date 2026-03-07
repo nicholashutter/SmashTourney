@@ -26,7 +26,7 @@ Business focus:
 
 - user can register, login, and logout
 - authenticated users can create and join tournaments
-- games progress from lobby to completion using authoritative state routes
+- games progress from lobby to completion using authoritative SignalR state methods/events
 - bracket snapshots and current matches remain consistent
 
 ## 2) Service-Level Behavior Tests
@@ -43,6 +43,7 @@ Business focus:
 - bracket mode behavior is initialized correctly
 - vote-ledger and bracket progression state persists and reloads correctly
 - odd-player brackets auto-resolve bye-involved matches so real-player flow does not stall
+- bye progression remains correct even if one bye metadata source drifts (ID map vs label)
 
 ## 3) Realtime Contract Tests
 
@@ -55,6 +56,7 @@ Business focus:
 - clients can connect to hub route
 - connected clients receive join acknowledgments
 - game-start broadcasts reach all clients in the same game group
+- hub game-management methods return valid typed payloads
 
 ## 4) Frontend Flow Tests
 
@@ -62,7 +64,7 @@ Primary location:
 
 - `tourneyClient/tests/RequestService.test.ts`
 - `tourneyClient/tests/PersistentConnection.test.ts`
-- `tourneyClient/tests/FrontendLifecycleFlow.test.ts`
+- `tourneyClient/tests/RealtimeGameService.test.ts`
 - `tourneyClient/tests/matchVoteFeedback.test.ts`
 - `tourneyClient/tests/ValidationService.test.ts`
 
@@ -74,6 +76,7 @@ Business focus:
 - odd-player matrices verify bye auto-resolution for single and double elimination modes
 - vote-ledger status and error feedback is validated for happy-path and critical outcomes
 - input validation rules consistently reject unsafe or malformed client input
+- flow-service reconciliation logic is validated so mixed endpoint snapshots do not lock the UI in waiting state
 
 ## Alignment With System Modules
 

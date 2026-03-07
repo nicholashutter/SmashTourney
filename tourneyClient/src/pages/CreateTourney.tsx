@@ -3,24 +3,23 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import BasicHeading from "@/components/HeadingOne";
 import BasicInput from "@/components/BasicInput";
 import SubmitButton from "@/components/SubmitButton";
-import { RequestService } from "@/services/RequestService";
 import { validateGameIdResponse, validateInput, validateTotalPlayers } from "@/services/validationService";
 import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS } from "@/constants/AppConstants";
 import { useNavigate } from 'react-router';
 import { useGameData } from "@/hooks/useGameData";
 import HeadingTwo from "@/components/HeadingTwo";
 import { Character } from "@/models/entities/Character";
-import { CreateGameWithModeRequest, CreateGameWithModeResponse } from "@/models/entities/Bracket";
+import { CreateGameWithModeRequest } from "@/models/entities/Bracket";
 import { CharacterName } from "@/models/Enums/CharacterName";
 import { Archetype } from "@/models/Enums/Archetype";
 import { FallSpeed } from "@/models/Enums/FallSpeed";
 import { TierPlacement } from "@/models/Enums/TierPlacement";
 import { WeightClass } from "@/models/Enums/WeightClass";
 import { v4 as uuidv4 } from "uuid";
-import { PersistentConnection } from "@/services/PersistentConnection";
 import { getSessionIdentity, resolveCharacterMappings } from "@/services/playerSetupService";
 import { AddPlayerPayload } from "@/models/types/playerPayload";
 import { loadCharacterCatalog } from "@/lib/loadCharacterCatalog";
+import { addPlayerToGameRealtime, connectToGameRealtime, createGameWithModeRealtime } from "@/services/RealtimeGameService";
 import
 {
   DropdownMenu,
@@ -140,15 +139,10 @@ const CreateTourney = () =>
         selectedMode = "DOUBLE_ELIMINATION";
       }
 
-      const response = await RequestService<"createGameWithMode", CreateGameWithModeRequest, CreateGameWithModeResponse>(
-        "createGameWithMode",
-        {
-          body: {
-            bracketMode: selectedMode,
-            totalPlayers: requestedTotalPlayers
-          }
-        }
-      );
+      const response = await createGameWithModeRealtime({
+        bracketMode: selectedMode,
+        totalPlayers: requestedTotalPlayers
+      } as CreateGameWithModeRequest);
       let resolvedGameId = "";
       if (response && response.gameId)
       {
@@ -205,27 +199,8 @@ const CreateTourney = () =>
           currentGameId: resolvedGameId,
         };
 
-        await RequestService("addPlayers", {
-          body: hostPlayerPayload,
-          routeParams: {
-            gameId: resolvedGameId
-          }
-        });
-
-        const lobbyConnection = new PersistentConnection();
-        try
-        {
-          await lobbyConnection.createPlayerConnection(resolvedGameId);
-          await lobbyConnection.updateOthers(resolvedGameId);
-        }
-        catch (error)
-        {
-          console.error("Failed to notify lobby updates", error);
-        }
-        finally
-        {
-          await lobbyConnection.disconnect();
-        }
+        await connectToGameRealtime(resolvedGameId);
+        await addPlayerToGameRealtime(resolvedGameId, hostPlayerPayload);
 
         setId(resolvedGameId);
         setPlayerId(hostPlayerId);

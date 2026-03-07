@@ -25,6 +25,7 @@ internal sealed class DoubleEliminationEngine : IBracketEngine
             Players = seededPlayers.Select((player, index) => new BracketPlayerRuntime
             {
                 PlayerId = player.Id,
+                UserId = player.UserId,
                 DisplayName = string.IsNullOrWhiteSpace(player.DisplayName) ? $"Player {index + 1}" : player.DisplayName,
                 Seed = index + 1,
                 Losses = 0,

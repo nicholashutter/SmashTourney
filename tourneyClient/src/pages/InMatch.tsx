@@ -4,18 +4,26 @@ import BasicHeading from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
 import { useGameData } from "@/hooks/useGameData";
-import { RequestService } from "@/services/RequestService";
 import
 {
     BracketSnapshotResponse,
     CurrentMatchResponse,
     GameStateResponse,
-    SubmitMatchVoteRequest,
-    SubmitMatchVoteResponse
+    SubmitMatchVoteRequest
 } from "@/models/entities/Bracket";
 import { Player } from "@/models/entities/Player";
 import { resolvePlayerId } from "@/lib/normalizePlayer";
-import { fetchInMatchViewData } from "@/services/gameFlowService";
+import { areSameId } from "@/lib/idEquality";
+import
+    {
+        connectToGameRealtime,
+        fetchRealtimeBracketViewData,
+        getPlayersInGameRealtime,
+        onBracketUpdatedRealtime,
+        onCurrentMatchUpdatedRealtime,
+        onFlowStateUpdatedRealtime,
+        submitMatchVoteRealtime
+    } from "@/services/RealtimeGameService";
 import { getVoteFeedbackFromError, getVoteFeedbackFromResponse } from "@/services/matchVoteFeedback";
 import { resolveInMatchRedirect } from "@/services/inMatchRouting";
 
@@ -32,6 +40,8 @@ const InMatch = () =>
     const [voteNotice, setVoteNotice] = useState<string | null>(null);
     const [isVoteLockedForActiveMatch, setIsVoteLockedForActiveMatch] = useState(false);
     const activeMatchIdRef = useRef<string | null>(null);
+    const latestLoadRequestRef = useRef(0);
+    const reconcileQueuedRef = useRef(false);
 
     // Builds a lookup table from player identifiers to display names.
     const playersById = useMemo(() =>
@@ -84,11 +94,11 @@ const InMatch = () =>
     const canCurrentUserVote = Boolean(
         playerId &&
         currentMatch &&
-        (currentMatch.playerOneId === playerId || currentMatch.playerTwoId === playerId) &&
+        (areSameId(currentMatch.playerOneId, playerId) || areSameId(currentMatch.playerTwoId, playerId)) &&
         !isVoteLockedForActiveMatch
     );
 
-    // Loads current in-match data from bracket and player endpoints.
+    // Loads current in-match data from realtime game operations.
     const loadMatchData = useCallback(async () =>
     {
         if (!gameId)
@@ -98,9 +108,19 @@ const InMatch = () =>
 
         try
         {
-            const inMatchViewData = await fetchInMatchViewData(gameId);
+            const requestId = latestLoadRequestRef.current + 1;
+            latestLoadRequestRef.current = requestId;
+            const [bracketViewData, playersInGame] = await Promise.all([
+                fetchRealtimeBracketViewData(gameId),
+                getPlayersInGameRealtime(gameId)
+            ]);
 
-            const nextMatchId = inMatchViewData.currentMatch?.matchId ?? null;
+            if (requestId !== latestLoadRequestRef.current)
+            {
+                return;
+            }
+
+            const nextMatchId = bracketViewData.currentMatch?.matchId ?? null;
             if (nextMatchId !== activeMatchIdRef.current)
             {
                 activeMatchIdRef.current = nextMatchId;
@@ -109,10 +129,10 @@ const InMatch = () =>
                 setIsVoteLockedForActiveMatch(false);
             }
 
-            setCurrentMatch(inMatchViewData.currentMatch);
-            setSnapshot(inMatchViewData.snapshot);
-            setGameState(inMatchViewData.gameState);
-            setGamePlayers(inMatchViewData.gamePlayers);
+            setCurrentMatch(bracketViewData.currentMatch);
+            setSnapshot(bracketViewData.snapshot);
+            setGameState(bracketViewData.gameState);
+            setGamePlayers(playersInGame);
         }
         catch (error)
         {
@@ -120,13 +140,7 @@ const InMatch = () =>
         }
     }, [gameId]);
 
-    // Loads initial in-match state when the page opens.
-    useEffect(() =>
-    {
-        loadMatchData();
-    }, [loadMatchData]);
-
-    // Polls while waiting for a votable match (no match yet, or current user is not a participant).
+    // Loads initial in-match state and subscribes to realtime updates.
     useEffect(() =>
     {
         if (!gameId)
@@ -134,21 +148,79 @@ const InMatch = () =>
             return;
         }
 
-        if (currentMatch && canCurrentUserVote)
-        {
-            return;
-        }
+        let isDisposed = false;
 
-        const intervalId = window.setInterval(() =>
+        const scheduleRealtimeReconciliation = () =>
         {
-            loadMatchData();
-        }, 1500);
+            if (reconcileQueuedRef.current)
+            {
+                return;
+            }
+
+            reconcileQueuedRef.current = true;
+            window.setTimeout(() =>
+            {
+                reconcileQueuedRef.current = false;
+                if (!isDisposed)
+                {
+                    void loadMatchData();
+                }
+            }, 0);
+        };
+
+        const registerRealtimeHandlers = async () =>
+        {
+            await connectToGameRealtime(gameId);
+
+            onCurrentMatchUpdatedRealtime((nextCurrentMatch) =>
+            {
+                if (!isDisposed)
+                {
+                    setCurrentMatch(nextCurrentMatch);
+                }
+
+                scheduleRealtimeReconciliation();
+            });
+
+            onBracketUpdatedRealtime((nextSnapshot) =>
+            {
+                if (!isDisposed)
+                {
+                    setSnapshot(nextSnapshot);
+                }
+
+                scheduleRealtimeReconciliation();
+            });
+
+            onFlowStateUpdatedRealtime((nextFlowState) =>
+            {
+                if (!isDisposed)
+                {
+                    setGameState(nextFlowState);
+                }
+
+                scheduleRealtimeReconciliation();
+            });
+
+            await loadMatchData();
+        };
+
+        registerRealtimeHandlers();
 
         return () =>
         {
-            window.clearInterval(intervalId);
+            isDisposed = true;
+            onCurrentMatchUpdatedRealtime(() =>
+            {
+            });
+            onBracketUpdatedRealtime(() =>
+            {
+            });
+            onFlowStateUpdatedRealtime(() =>
+            {
+            });
         };
-    }, [canCurrentUserVote, currentMatch, gameId, loadMatchData]);
+    }, [gameId, loadMatchData]);
 
     // Redirects to the appropriate screen when backend game state indicates in-match is no longer valid.
     useEffect(() =>
@@ -175,10 +247,7 @@ const InMatch = () =>
                 winnerPlayerId: selectedWinnerId
             };
 
-            const voteResult = await RequestService<"submitMatchVote", SubmitMatchVoteRequest, SubmitMatchVoteResponse>("submitMatchVote", {
-                body: payload,
-                routeParams: { gameId }
-            });
+            const voteResult = await submitMatchVoteRealtime(gameId, payload);
 
             const voteFeedback = getVoteFeedbackFromResponse(voteResult);
 

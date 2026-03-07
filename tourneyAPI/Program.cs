@@ -42,7 +42,10 @@ AppSetup.SetupLogging();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(ApplicationDbContext.SetupProd()));
 
-builder.Services.AddSignalR();
+builder.Services.AddSignalR().AddJsonProtocol(options =>
+{
+    options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 // Registers scoped application services.
 builder.Services.AddScoped<IPlayerManager, PlayerManager>();
@@ -128,7 +131,6 @@ app.MapIdentityApi<ApplicationUser>();
 // Extends identity API routes with domain-specific endpoints.
 UserRouter.Map(app);
 PlayerRouter.Map(app);
-GameRouter.Map(app);
 
 
 // Handles graceful shutdown for Ctrl+C.

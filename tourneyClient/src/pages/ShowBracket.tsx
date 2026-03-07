@@ -3,8 +3,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import DrawWinnersBracket from "@/components/brackets/DynamicBracket";
 import { useGameData } from "@/hooks/useGameData";
+import { areSameId } from "@/lib/idEquality";
 import { BracketSnapshotResponse, CurrentMatchResponse, GameStateResponse } from "@/models/entities/Bracket";
-import { fetchBracketViewData } from "@/services/gameFlowService";
+import
+    {
+        connectToGameRealtime,
+        fetchRealtimeBracketViewData,
+        onBracketUpdatedRealtime,
+        onCurrentMatchUpdatedRealtime,
+        onFlowStateUpdatedRealtime
+    } from "@/services/RealtimeGameService";
 
 // Renders the live tournament bracket and routes players into active matches.
 const ShowBracket = () =>
@@ -17,11 +25,13 @@ const ShowBracket = () =>
     const [secondsUntilMatch, setSecondsUntilMatch] = useState<number | null>(null);
     const activeMatchDeadlineRef = useRef<number | null>(null);
     const activeCountdownMatchIdRef = useRef<string | null>(null);
+    const latestLoadRequestRef = useRef(0);
+    const reconcileQueuedRef = useRef(false);
 
     const isPlayerInCurrentMatch = Boolean(
         playerId &&
         currentMatch &&
-        (currentMatch.playerOneId === playerId || currentMatch.playerTwoId === playerId)
+        (areSameId(currentMatch.playerOneId, playerId) || areSameId(currentMatch.playerTwoId, playerId))
     );
 
     // Builds ordered participant labels for first-round bracket rendering.
@@ -36,7 +46,7 @@ const ShowBracket = () =>
         return orderedPlayers.map((player) => player.displayName);
     }, [snapshot]);
 
-    // Loads and refreshes bracket, current match, and flow-state view data.
+    // Loads and subscribes to bracket, current match, and flow-state view data.
     useEffect(() =>
     {
         let mounted = true;
@@ -50,7 +60,14 @@ const ShowBracket = () =>
 
             try
             {
-                const bracketViewData = await fetchBracketViewData(gameId);
+                const requestId = latestLoadRequestRef.current + 1;
+                latestLoadRequestRef.current = requestId;
+                const bracketViewData = await fetchRealtimeBracketViewData(gameId);
+
+                if (requestId !== latestLoadRequestRef.current)
+                {
+                    return;
+                }
 
                 if (mounted)
                 {
@@ -66,13 +83,75 @@ const ShowBracket = () =>
             }
         };
 
-        loadBracketViewData();
-        const refreshInterval = window.setInterval(loadBracketViewData, 2000);
+        const scheduleRealtimeReconciliation = () =>
+        {
+            if (reconcileQueuedRef.current)
+            {
+                return;
+            }
+
+            reconcileQueuedRef.current = true;
+            window.setTimeout(() =>
+            {
+                reconcileQueuedRef.current = false;
+                if (mounted)
+                {
+                    void loadBracketViewData();
+                }
+            }, 0);
+        };
+
+        const registerRealtimeHandlers = async () =>
+        {
+            await connectToGameRealtime(gameId);
+
+            onBracketUpdatedRealtime((nextSnapshot) =>
+            {
+                if (mounted)
+                {
+                    setSnapshot(nextSnapshot);
+                }
+
+                scheduleRealtimeReconciliation();
+            });
+
+            onCurrentMatchUpdatedRealtime((nextCurrentMatch) =>
+            {
+                if (mounted)
+                {
+                    setCurrentMatch(nextCurrentMatch);
+                }
+
+                scheduleRealtimeReconciliation();
+            });
+
+            onFlowStateUpdatedRealtime((nextFlowState) =>
+            {
+                if (mounted)
+                {
+                    setGameState(nextFlowState);
+                }
+
+                scheduleRealtimeReconciliation();
+            });
+
+            await loadBracketViewData();
+        };
+
+        registerRealtimeHandlers();
 
         return () =>
         {
             mounted = false;
-            window.clearInterval(refreshInterval);
+            onBracketUpdatedRealtime(() =>
+            {
+            });
+            onCurrentMatchUpdatedRealtime(() =>
+            {
+            });
+            onFlowStateUpdatedRealtime(() =>
+            {
+            });
         };
     }, [gameId]);
 

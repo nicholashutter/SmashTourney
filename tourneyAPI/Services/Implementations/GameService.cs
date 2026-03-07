@@ -630,6 +630,13 @@ public class GameService : IGameService
             return (new SubmitMatchVoteResponse(gameId, request.MatchId, SubmitMatchVoteStatus.VOTER_NOT_PARTICIPANT, 0, null), 0);
         }
 
+        var playerOneIsBye = IsByeParticipant(bracketRuntimeState, activeMatch.PlayerOneId);
+        var playerTwoIsBye = IsByeParticipant(bracketRuntimeState, activeMatch.PlayerTwoId);
+        if (playerOneIsBye ^ playerTwoIsBye)
+        {
+            return (null, 1);
+        }
+
         var requiredConsensusVotes = ResolveRequiredConsensusVotes(matchParticipantUserIds, activeMatch);
         return (null, requiredConsensusVotes);
     }
@@ -910,8 +917,8 @@ public class GameService : IGameService
     // Returns a forced winner only for bye-involved matches; returns null for real-vs-real matches.
     private Guid? ResolveAutomaticWinner(BracketRuntimeState bracketRuntimeState, Guid playerOneId, Guid playerTwoId)
     {
-        var playerOneIsBye = bracketRuntimeState.ByePlayerIds.Contains(playerOneId);
-        var playerTwoIsBye = bracketRuntimeState.ByePlayerIds.Contains(playerTwoId);
+        var playerOneIsBye = IsByeParticipant(bracketRuntimeState, playerOneId);
+        var playerTwoIsBye = IsByeParticipant(bracketRuntimeState, playerTwoId);
 
         if (!playerOneIsBye && !playerTwoIsBye)
         {
@@ -929,6 +936,28 @@ public class GameService : IGameService
         }
 
         return _selectByeVsByeWinner(playerOneId, playerTwoId);
+    }
+
+    // Detects whether a participant represents a bye slot using runtime metadata.
+    private static bool IsByeParticipant(BracketRuntimeState bracketRuntimeState, Guid participantId)
+    {
+        if (bracketRuntimeState.ByePlayerIds.Contains(participantId))
+        {
+            return true;
+        }
+
+        var participant = bracketRuntimeState.Players.FirstOrDefault(player => player.PlayerId == participantId);
+        if (participant is null)
+        {
+            return false;
+        }
+
+        if (participant.UserId.Equals(AppConstants.ByeUserId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return participant.DisplayName.StartsWith("BYE", StringComparison.OrdinalIgnoreCase);
     }
 
     // Returns a map of participant player ids to user ids for authenticated vote validation.

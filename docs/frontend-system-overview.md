@@ -89,6 +89,8 @@ Business purpose:
 Core files:
 
 - `src/services/RequestService.ts`
+- `src/services/RealtimeGameService.ts`
+- `src/services/PersistentConnection.ts`
 - `src/models/entities/Bracket.ts`
 - `src/services/playerSetupService.ts`
 - `src/services/matchVoteFeedback.ts`
@@ -96,13 +98,14 @@ Core files:
 Business purpose:
 
 - centralize endpoint metadata
-- send typed requests and parse responses
+- send auth requests and parse responses
+- invoke SignalR game-management methods and subscribe to state events
 - normalize session and character mapping payloads
 - convert vote responses/errors into deterministic UI feedback actions
 
 ## UX Reliability Notes
 
-- Realtime updates improve responsiveness in lobby and game transitions.
-- Polling fallbacks keep pages consistent if events are missed.
-- Frontend uses backend `GameState` as source of truth for route decisions.
+- Realtime game events drive lobby, bracket, and in-match transitions.
+- Frontend uses backend `GameState` and `CurrentMatch` SignalR events as source of truth for route decisions.
 - Odd-sized brackets are supported through backend bye auto-resolution, and frontend flows wait for the next real player-votable match.
+- Participant checks use normalized ID comparison to avoid false waiting states caused by GUID casing or whitespace differences.

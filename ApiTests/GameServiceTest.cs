@@ -451,9 +451,9 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         Assert.True(progressionDidNotStall);
     }
 
-    // Confirms one real participant vote can commit real-vs-bye matches when bye metadata is missing in runtime state.
+    // Confirms progression advances past bye rounds when bye metadata is missing in runtime state.
     [Fact]
-    public async Task SubmitMatchVoteAsyncCommitsRealVersusByeWhenByeMetadataIsMissing()
+    public async Task SubmitMatchVoteAsyncAdvancesPastByeWhenByeMetadataIsMissing()
     {
         var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.SINGLE_ELIMINATION, TotalPlayers: 4));
         var users = await SetupDummyUsersAsync(3);
@@ -532,54 +532,250 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
             throw new InvalidOperationException("Expected second match after first match commit in regression test.");
         }
 
-        var secondMatchRealParticipants = players
-            .Where(player => player.Id == secondMatch.PlayerOneId || player.Id == secondMatch.PlayerTwoId)
-            .ToList();
+        var realPlayerIds = players.Select(player => player.Id).ToHashSet();
+        var isRealVsRealMatch = realPlayerIds.Contains(secondMatch.PlayerOneId)
+            && realPlayerIds.Contains(secondMatch.PlayerTwoId);
 
-        if (secondMatchRealParticipants.Count != 1)
+        Assert.True(isRealVsRealMatch);
+    }
+
+    // Confirms current-match resolution still skips bye matches when bye metadata is missing.
+    [Fact]
+    public async Task GetCurrentMatchAsyncSkipsByeMatchesWhenByeMetadataIsMissing()
+    {
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.SINGLE_ELIMINATION, TotalPlayers: 4));
+        var users = await SetupDummyUsersAsync(3);
+        var players = await SetupDummyPlayersAsync(users);
+
+        for (var index = 0; index < players.Count; index++)
         {
-            throw new InvalidOperationException("Expected second match to be real-vs-bye in regression test.");
+            _gameService.AddPlayerToGame(players[index], gameId, users[index].Id);
         }
 
-        var realParticipant = secondMatchRealParticipants[0];
-        var byeParticipantId = secondMatch.PlayerOneId == realParticipant.Id
-            ? secondMatch.PlayerTwoId
-            : secondMatch.PlayerOneId;
-
-        using (var scope = _factory.Services.CreateScope())
+        var started = await _gameService.StartGameAsync(gameId);
+        if (!started)
         {
-            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var persistedByePlayer = await dbContext.Players.FindAsync(byeParticipantId);
-
-            if (persistedByePlayer is null)
-            {
-                dbContext.Players.Add(new Player
-                {
-                    Id = byeParticipantId,
-                    UserId = AppConstants.ByeUserId,
-                    DisplayName = "PersistedBye",
-                    CurrentScore = 0,
-                    CurrentRound = 0,
-                    CurrentGameID = gameId,
-                    CurrentCharacter = new Character()
-                });
-            }
-            else
-            {
-                persistedByePlayer.UserId = AppConstants.ByeUserId;
-            }
-
-            await dbContext.SaveChangesAsync();
+            throw new InvalidOperationException("StartGameAsync failed for missing-bye-metadata current-match regression test.");
         }
 
-        var secondMatchVoteRequest = new SubmitMatchVoteRequest(secondMatch.MatchId, realParticipant.Id);
+        var gameServiceConcrete = _gameService as GameService;
+        if (gameServiceConcrete is null)
+        {
+            throw new InvalidOperationException("Unable to access concrete GameService for current-match regression setup.");
+        }
 
-        var realVersusByeVote = await _gameService.SubmitMatchVoteAsync(gameId, realParticipant.UserId, secondMatchVoteRequest);
+        var bracketStatesField = typeof(GameService).GetField("_bracketStates", BindingFlags.Instance | BindingFlags.NonPublic);
+        if (bracketStatesField?.GetValue(gameServiceConcrete) is not IDictionary bracketStates)
+        {
+            throw new InvalidOperationException("Unable to access bracket runtime state dictionary for current-match regression setup.");
+        }
 
-        var committedWithSingleVote = realVersusByeVote.Status == SubmitMatchVoteStatus.COMMITTED
-            && realVersusByeVote.VoteCount == 1
-            && realVersusByeVote.CommittedWinnerPlayerId == realParticipant.Id;
+        if (!bracketStates.Contains(gameId))
+        {
+            throw new InvalidOperationException("Expected in-memory bracket runtime state for current-match regression setup.");
+        }
 
-        Assert.True(committedWithSingleVote);
+        var runtimeState = bracketStates[gameId];
+        if (runtimeState is null)
+        {
+            throw new InvalidOperationException("Runtime bracket state instance was null in current-match regression setup.");
+        }
+
+        var byePlayerIdsProperty = runtimeState.GetType().GetProperty("ByePlayerIds", BindingFlags.Instance | BindingFlags.Public);
+        var byePlayerIds = byePlayerIdsProperty?.GetValue(runtimeState);
+        var clearMethod = byePlayerIds?.GetType().GetMethod("Clear", Type.EmptyTypes);
+        if (clearMethod is null)
+        {
+            throw new InvalidOperationException("Unable to clear bye metadata in runtime state for current-match regression setup.");
+        }
+
+        clearMethod.Invoke(byePlayerIds, null);
+
+        var currentMatch = await _gameService.GetCurrentMatchAsync(gameId);
+        if (currentMatch is null)
+        {
+            throw new InvalidOperationException("Current match should exist after bye auto-resolution in current-match regression test.");
+        }
+
+        var realPlayerIds = players.Select(player => player.Id).ToHashSet();
+        var isRealVsRealMatch = realPlayerIds.Contains(currentMatch.PlayerOneId)
+            && realPlayerIds.Contains(currentMatch.PlayerTwoId);
+
+        Assert.True(isRealVsRealMatch);
+    }
+
+    // Confirms current-match resolution skips bye rounds in double-elimination when bye metadata is missing.
+    [Fact]
+    public async Task GetCurrentMatchAsyncSkipsByeMatchesWhenByeMetadataIsMissingForDoubleElimination()
+    {
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.DOUBLE_ELIMINATION, TotalPlayers: 4));
+        var users = await SetupDummyUsersAsync(3);
+        var players = await SetupDummyPlayersAsync(users);
+
+        for (var index = 0; index < players.Count; index++)
+        {
+            _gameService.AddPlayerToGame(players[index], gameId, users[index].Id);
+        }
+
+        var started = await _gameService.StartGameAsync(gameId);
+        if (!started)
+        {
+            throw new InvalidOperationException("StartGameAsync failed for double-elimination missing-bye-metadata regression test.");
+        }
+
+        var firstMatch = await _gameService.GetCurrentMatchAsync(gameId);
+        if (firstMatch is null)
+        {
+            throw new InvalidOperationException("Current match should exist before metadata mutation in double-elimination regression test.");
+        }
+
+        var gameServiceConcrete = _gameService as GameService;
+        if (gameServiceConcrete is null)
+        {
+            throw new InvalidOperationException("Unable to access concrete GameService for double-elimination regression setup.");
+        }
+
+        var bracketStatesField = typeof(GameService).GetField("_bracketStates", BindingFlags.Instance | BindingFlags.NonPublic);
+        if (bracketStatesField?.GetValue(gameServiceConcrete) is not IDictionary bracketStates)
+        {
+            throw new InvalidOperationException("Unable to access bracket runtime state dictionary for double-elimination regression setup.");
+        }
+
+        if (!bracketStates.Contains(gameId))
+        {
+            throw new InvalidOperationException("Expected in-memory bracket runtime state for double-elimination regression setup.");
+        }
+
+        var runtimeState = bracketStates[gameId];
+        if (runtimeState is null)
+        {
+            throw new InvalidOperationException("Runtime bracket state instance was null in double-elimination regression setup.");
+        }
+
+        var byePlayerIdsProperty = runtimeState.GetType().GetProperty("ByePlayerIds", BindingFlags.Instance | BindingFlags.Public);
+        var byePlayerIds = byePlayerIdsProperty?.GetValue(runtimeState);
+        var clearMethod = byePlayerIds?.GetType().GetMethod("Clear", Type.EmptyTypes);
+        if (clearMethod is null)
+        {
+            throw new InvalidOperationException("Unable to clear bye metadata in runtime state for double-elimination regression setup.");
+        }
+
+        clearMethod.Invoke(byePlayerIds, null);
+
+        var firstMatchWinnerUserId = players.First(player => player.Id == firstMatch.PlayerOneId).UserId;
+        var firstMatchLoserUserId = players.First(player => player.Id == firstMatch.PlayerTwoId).UserId;
+        var firstMatchVoteRequest = new SubmitMatchVoteRequest(firstMatch.MatchId, firstMatch.PlayerOneId);
+
+        var firstVote = await _gameService.SubmitMatchVoteAsync(gameId, firstMatchWinnerUserId, firstMatchVoteRequest);
+        if (firstVote.Status != SubmitMatchVoteStatus.PENDING)
+        {
+            throw new InvalidOperationException("First vote should be pending for first real-vs-real match in double-elimination regression test.");
+        }
+
+        var secondVote = await _gameService.SubmitMatchVoteAsync(gameId, firstMatchLoserUserId, firstMatchVoteRequest);
+        if (secondVote.Status != SubmitMatchVoteStatus.COMMITTED)
+        {
+            throw new InvalidOperationException("Second vote should commit first real-vs-real match in double-elimination regression test.");
+        }
+
+        var nextMatch = await _gameService.GetCurrentMatchAsync(gameId);
+        if (nextMatch is null)
+        {
+            throw new InvalidOperationException("Expected next match after first match commit in double-elimination regression test.");
+        }
+
+        var realPlayerIds = players.Select(player => player.Id).ToHashSet();
+        var isRealVsRealMatch = realPlayerIds.Contains(nextMatch.PlayerOneId)
+            && realPlayerIds.Contains(nextMatch.PlayerTwoId);
+
+        Assert.True(isRealVsRealMatch);
+    }
+
+    // Confirms bye auto-skip still works when bye ID metadata and BYE display labels are both missing.
+    [Fact]
+    public async Task GetCurrentMatchAsyncSkipsByeMatchesWhenByeMetadataAndLabelAreMissing()
+    {
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.SINGLE_ELIMINATION, TotalPlayers: 4));
+        var users = await SetupDummyUsersAsync(3);
+        var players = await SetupDummyPlayersAsync(users);
+
+        for (var index = 0; index < players.Count; index++)
+        {
+            _gameService.AddPlayerToGame(players[index], gameId, users[index].Id);
+        }
+
+        var started = await _gameService.StartGameAsync(gameId);
+        if (!started)
+        {
+            throw new InvalidOperationException("StartGameAsync failed for bye-metadata-and-label regression test.");
+        }
+
+        var gameServiceConcrete = _gameService as GameService;
+        if (gameServiceConcrete is null)
+        {
+            throw new InvalidOperationException("Unable to access concrete GameService for bye-metadata-and-label regression setup.");
+        }
+
+        var bracketStatesField = typeof(GameService).GetField("_bracketStates", BindingFlags.Instance | BindingFlags.NonPublic);
+        if (bracketStatesField?.GetValue(gameServiceConcrete) is not IDictionary bracketStates)
+        {
+            throw new InvalidOperationException("Unable to access bracket runtime state dictionary for bye-metadata-and-label regression setup.");
+        }
+
+        if (!bracketStates.Contains(gameId))
+        {
+            throw new InvalidOperationException("Expected in-memory bracket runtime state for bye-metadata-and-label regression setup.");
+        }
+
+        var runtimeState = bracketStates[gameId];
+        if (runtimeState is null)
+        {
+            throw new InvalidOperationException("Runtime bracket state instance was null in bye-metadata-and-label regression setup.");
+        }
+
+        var byePlayerIdsProperty = runtimeState.GetType().GetProperty("ByePlayerIds", BindingFlags.Instance | BindingFlags.Public);
+        var byePlayerIds = byePlayerIdsProperty?.GetValue(runtimeState);
+        var clearMethod = byePlayerIds?.GetType().GetMethod("Clear", Type.EmptyTypes);
+        if (clearMethod is null)
+        {
+            throw new InvalidOperationException("Unable to clear bye metadata in runtime state for bye-metadata-and-label regression setup.");
+        }
+
+        clearMethod.Invoke(byePlayerIds, null);
+
+        var playersProperty = runtimeState.GetType().GetProperty("Players", BindingFlags.Instance | BindingFlags.Public);
+        if (playersProperty?.GetValue(runtimeState) is not IEnumerable runtimePlayers)
+        {
+            throw new InvalidOperationException("Unable to read runtime players for bye-metadata-and-label regression setup.");
+        }
+
+        foreach (var runtimePlayer in runtimePlayers)
+        {
+            if (runtimePlayer is null)
+            {
+                continue;
+            }
+
+            var userIdProperty = runtimePlayer.GetType().GetProperty("UserId", BindingFlags.Instance | BindingFlags.Public);
+            var displayNameProperty = runtimePlayer.GetType().GetProperty("DisplayName", BindingFlags.Instance | BindingFlags.Public);
+            var userId = userIdProperty?.GetValue(runtimePlayer) as string;
+
+            if (!string.IsNullOrWhiteSpace(userId) && userId.Equals(AppConstants.ByeUserId, StringComparison.OrdinalIgnoreCase))
+            {
+                displayNameProperty?.SetValue(runtimePlayer, "NullObjectSlot");
+            }
+        }
+
+        var currentMatch = await _gameService.GetCurrentMatchAsync(gameId);
+        if (currentMatch is null)
+        {
+            throw new InvalidOperationException("Current match should exist after bye auto-resolution in bye-metadata-and-label regression test.");
+        }
+
+        var realPlayerIds = players.Select(player => player.Id).ToHashSet();
+        var isRealVsRealMatch = realPlayerIds.Contains(currentMatch.PlayerOneId)
+            && realPlayerIds.Contains(currentMatch.PlayerTwoId);
+
+        Assert.True(isRealVsRealMatch);
     }
 }

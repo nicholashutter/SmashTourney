@@ -69,35 +69,37 @@ Business outcomes:
 - reject duplicate, stale, invalid, or non-participant votes
 - commit winner and advance bracket when consensus is reached
 
-## API Route Catalog
+## Realtime Game Contract Catalog
 
-## Game Lifecycle Routes
+Game lifecycle and bracket progression are handled through SignalR hub methods on `/hubs/GameServiceHub`.
 
-- `POST /Games/CreateGameWithMode`
+Hub methods:
+
+- `CreateGameWithMode(CreateGameOptions)`
   - Creates a new game in single or double elimination.
-
-- `POST /Games/AddPlayer/{gameId}`
+- `AddPlayer(gameId, player)`
   - Adds one authenticated player to a game.
-
-- `POST /Games/StartGame/{gameId}`
+- `StartGame(gameId)`
   - Starts bracket progression for a game.
-
-- `GET /Games/GetBracket/{gameId}`
+- `GetPlayersInGame(gameId)`
+  - Returns players assigned to one game.
+- `GetBracket(gameId)`
   - Returns bracket snapshot data for UI rendering.
-
-- `GET /Games/GetCurrentMatch/{gameId}`
+- `GetCurrentMatch(gameId)`
   - Returns currently active match if one exists.
-
-- `GET /Games/GetFlowState/{gameId}`
+- `GetFlowState(gameId)`
   - Returns high-level game state used by frontend routing.
-
-- `POST /Games/SubmitMatchVote/{gameId}`
+- `SubmitMatchVote(gameId, request)`
   - Accepts one authenticated participant vote and commits the match when participant votes agree.
 
-## Supporting Game Routes
+Realtime events:
 
-- `POST /Games/GetPlayersInGame/{gameId}`
-  - Returns players assigned to one game.
+- `PlayersUpdated`
+- `GameStarted`
+- `FlowStateUpdated`
+- `CurrentMatchUpdated`
+- `BracketUpdated`
+- `VoteSubmitted`
 
 ## User Routes
 
@@ -110,6 +112,8 @@ Business outcomes:
 
 ## Reliability Notes
 
-- The API game state endpoint is authoritative for UI decisions.
-- SignalR events improve realtime responsiveness, while polling endpoints preserve reliability.
+- Realtime game state events are authoritative for UI decisions.
 - Match progression is event-driven from participant vote consensus, not manual round toggles.
+- Bye progression is auto-resolved server-side before current-match and flow-state responses are returned.
+- Real-vs-bye vote paths are treated as single-participant consensus to prevent waiting-state deadlocks.
+- Bye detection uses layered identity checks (runtime bye IDs, null-object user ID, and fallback labels) so progression remains stable when one metadata source is stale.

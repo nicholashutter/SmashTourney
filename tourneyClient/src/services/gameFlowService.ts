@@ -1,12 +1,12 @@
 import { normalizePlayers } from "@/lib/normalizePlayer";
 import { BracketSnapshotResponse, CurrentMatchResponse, GameStateResponse } from "@/models/entities/Bracket";
 import { Player } from "@/models/entities/Player";
-import { RequestService } from "@/services/RequestService";
-
-// Defines response shape returned by GetPlayersInGame route.
-type GetPlayersInGameResponse = {
-    currentPlayers?: Player[];
-};
+import
+    {
+        fetchRealtimeBracketViewData,
+        getFlowStateRealtime,
+        getPlayersInGameRealtime
+    } from "@/services/RealtimeGameService";
 
 // Defines data required by the bracket page.
 export type BracketViewData = {
@@ -23,12 +23,8 @@ export type InMatchViewData = BracketViewData & {
 // Fetches and normalizes players currently assigned to a game.
 export const fetchPlayersInGame = async (gameId: string): Promise<Player[]> =>
 {
-    const response = await RequestService<"getPlayersInGame", Record<string, never>, GetPlayersInGameResponse>("getPlayersInGame", {
-        body: {},
-        routeParams: { gameId }
-    });
-
-    return normalizePlayers(response.currentPlayers ?? []);
+    const players = await getPlayersInGameRealtime(gameId);
+    return normalizePlayers(players);
 };
 
 // Fetches the high-level game state and returns null on failure.
@@ -36,9 +32,7 @@ export const fetchGameState = async (gameId: string): Promise<GameStateResponse 
 {
     try
     {
-        return await RequestService<"getFlowState", never, GameStateResponse>("getFlowState", {
-            routeParams: { gameId }
-        });
+        return await getFlowStateRealtime(gameId);
     }
     catch
     {
@@ -49,38 +43,7 @@ export const fetchGameState = async (gameId: string): Promise<GameStateResponse 
 // Fetches all data needed for bracket view rendering.
 export const fetchBracketViewData = async (gameId: string): Promise<BracketViewData> =>
 {
-    let snapshot: BracketSnapshotResponse | null = null;
-    let currentMatch: CurrentMatchResponse | null = null;
-
-    try
-    {
-        snapshot = await RequestService<"getBracket", never, BracketSnapshotResponse>("getBracket", {
-            routeParams: { gameId }
-        });
-    }
-    catch
-    {
-        snapshot = null;
-    }
-
-    try
-    {
-        currentMatch = await RequestService<"getCurrentMatch", never, CurrentMatchResponse>("getCurrentMatch", {
-            routeParams: { gameId }
-        });
-    }
-    catch
-    {
-        currentMatch = null;
-    }
-
-    const gameState = await fetchGameState(gameId);
-
-    return {
-        snapshot,
-        currentMatch,
-        gameState
-    };
+    return await fetchRealtimeBracketViewData(gameId);
 };
 
 // Fetches all data needed for the in-match view.
