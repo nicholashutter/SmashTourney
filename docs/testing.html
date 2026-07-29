@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SmashTourney — Testing</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="page">
+
+        <header class="masthead">
+            <h1>SmashTourney — Testing</h1>
+            <p class="tagline">What each suite covers and how to run it.</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Overview</a>
+            <a href="api.html">API</a>
+            <a href="frontend.html">Frontend</a>
+            <a href="testing.html" aria-current="page">Testing</a>
+        </nav>
+
+        <h2>Running the suites</h2>
+
+<pre><code># API — xUnit v3
+dotnet test
+
+# Client — Vitest
+cd tourneyClient
+npm test
+
+# Client with coverage (v8 provider)
+npm test -- --coverage</code></pre>
+
+        <p>
+            The API side uses xUnit v3 with <code>Microsoft.AspNetCore.Mvc.Testing</code>, so integration tests run
+            against a real host rather than mocked plumbing. <code>tourneyAPI.csproj</code> declares
+            <code>InternalsVisibleTo("ApiTests")</code>, letting tests reach internal types without widening the
+            public surface for their benefit.
+        </p>
+
+        <h2>API suites</h2>
+
+        <p>Under <code>ApiTests/</code>.</p>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Covers</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>CustomWebApplicationBuilder.cs</code></td>
+                        <td>
+                            Test host factory. Not a suite &mdash; it is the harness the integration tests boot the
+                            API through.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>AuthServiceTest.cs</code></td>
+                        <td>Registration, login, logout, and session validation behaviour.</td>
+                    </tr>
+                    <tr>
+                        <td><code>GameRouterTest.cs</code></td>
+                        <td>
+                            Route-level behaviour for the <code>/Games</code> group &mdash; status codes, payload
+                            shapes, and progression through the flow-state endpoint.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>GameServiceTest.cs</code></td>
+                        <td>
+                            The orchestrator: bracket generation per mode, vote-ledger handling, progression, and
+                            bye auto-resolution for odd player counts.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>PlayerRepositoryTests.cs</code></td>
+                        <td>Player persistence and retrieval.</td>
+                    </tr>
+                    <tr>
+                        <td><code>UserServiceTest.cs</code></td>
+                        <td>User creation and lookup paths.</td>
+                    </tr>
+                    <tr>
+                        <td><code>RealTimeTest.cs</code></td>
+                        <td>
+                            SignalR contract: connecting to the hub, receiving the join acknowledgment, and confirming
+                            game-start broadcasts reach every client in the same group.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>TestContracts/</code></td>
+                        <td>Shared request and response shapes used across the API suites.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>Client suites</h2>
+
+        <p>Under <code>tourneyClient/tests/</code>, run by Vitest against jsdom.</p>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Covers</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>RequestService.test.ts</code></td>
+                        <td>Request construction and response parsing match the API's route contracts.</td>
+                    </tr>
+                    <tr>
+                        <td><code>PersistentConnection.test.ts</code></td>
+                        <td>SignalR client lifecycle and event subscription behaviour.</td>
+                    </tr>
+                    <tr>
+                        <td><code>FrontendLifecycleFlow.test.ts</code></td>
+                        <td>
+                            End-to-end client flow across auth, realtime and REST, exercised for both power-of-two and
+                            odd player counts in single and double elimination.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>InMatchRouting.test.ts</code></td>
+                        <td>
+                            Whether a given viewer belongs in the match view or the bracket view for a given state.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>matchVoteFeedback.test.ts</code></td>
+                        <td>Each vote status maps to the expected UI feedback, for both happy path and refusals.</td>
+                    </tr>
+                    <tr>
+                        <td><code>ValidationService.test.ts</code></td>
+                        <td>Input validation consistently rejects unsafe or malformed client input.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>Coverage against system modules</h2>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Module</th>
+                        <th>Exercised by</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>User access</td><td><code>AuthServiceTest</code>, <code>UserServiceTest</code></td></tr>
+                    <tr><td>Tournament setup</td><td><code>GameRouterTest</code>, <code>GameServiceTest</code></td></tr>
+                    <tr><td>Lobby</td><td><code>GameRouterTest</code>, <code>RealTimeTest</code>, <code>PersistentConnection.test.ts</code></td></tr>
+                    <tr><td>Bracket flow</td><td><code>GameServiceTest</code>, <code>FrontendLifecycleFlow.test.ts</code></td></tr>
+                    <tr><td>Match voting</td><td><code>GameServiceTest</code>, <code>matchVoteFeedback.test.ts</code></td></tr>
+                    <tr><td>Realtime and recovery</td><td><code>RealTimeTest</code>, <code>PersistentConnection.test.ts</code></td></tr>
+                    <tr><td>Routing decisions</td><td><code>InMatchRouting.test.ts</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>Gaps worth knowing</h2>
+
+        <div class="note">
+            <p>
+                <strong>Authorization is under-tested relative to how it is enforced.</strong> Most
+                <code>/Games</code> routes carry no identity check at all (see
+                <a href="api.html">API &rarr; How identity is enforced</a>), so a suite asserting that unauthenticated
+                callers are refused would fail on the current implementation for every route except
+                <code>AddPlayer</code> and <code>SubmitMatchVote</code>. The absence of those assertions is why the
+                gap is not currently visible from a green run.
+            </p>
+        </div>
+
+        <ul>
+            <li>
+                There is no CI workflow in the repository, so the suites are run on demand rather than enforced on
+                push or pull request.
+            </li>
+            <li>
+                <code>GameService</code> is registered as a singleton holding in-memory state; tests that share a host
+                share that state, which is worth keeping in mind when adding suites.
+            </li>
+            <li>
+                Coverage output is written to <code>tourneyClient/coverage/</code> and
+                <code>CoverageReport/</code>, both gitignored.
+            </li>
+        </ul>
+
+        <h2>Suggested gates before merge</h2>
+
+        <ol>
+            <li>All API tests pass (<code>dotnet test</code>).</li>
+            <li>All client tests pass (<code>npm test</code>).</li>
+            <li>Bracket matrices pass for power-of-two and odd player counts, in both elimination modes.</li>
+            <li>Lint is clean (<code>npm run lint</code>), which the dev server also surfaces inline.</li>
+        </ol>
+
+        <footer class="footer">
+            <p>Source of record: <code>ApiTests/</code> and <code>tourneyClient/tests/</code>. See also <code>docs/testing-system-overview.md</code>.</p>
+        </footer>
+
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SmashTourney — System Overview</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="page">
+
+        <!-- Masthead identifies the document and the product in one line. -->
+        <header class="masthead">
+            <h1>SmashTourney — System Overview</h1>
+            <p class="tagline">
+                A Super Smash Bros. Ultimate themed double elimination bracket tracker, written in C# and React.
+            </p>
+        </header>
+
+        <!-- Navigation is repeated on every page so the set browses without an index. -->
+        <nav class="nav">
+            <a href="index.html" aria-current="page">Overview</a>
+            <a href="api.html">API</a>
+            <a href="frontend.html">Frontend</a>
+            <a href="testing.html">Testing</a>
+        </nav>
+
+        <h2>What it is</h2>
+
+        <p>
+            SmashTourney runs tournament brackets for a room of people playing Smash Ultimate together. It works the
+            way a Jackbox party game does: one screen shows the bracket, and everyone else joins from their phone
+            browser and interacts from there. The API is the system of record for tournament progression; the React
+            client renders whatever state the API reports.
+        </p>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Backend</h3>
+                <p>
+                    ASP.NET Core minimal API on <code>net8.0</code>, EF Core over SQLite, ASP.NET Identity for
+                    accounts, SignalR for realtime, Serilog for structured logs.
+                </p>
+            </div>
+            <div class="card">
+                <h3>Frontend</h3>
+                <p>
+                    React 19 with React Router 7, built by Vite 6. Tailwind CSS 4 with shadcn-style UI primitives,
+                    <code>@microsoft/signalr</code> for the realtime client, Vitest for tests.
+                </p>
+            </div>
+            <div class="card">
+                <h3>Tests</h3>
+                <p>
+                    xUnit v3 integration tests against a real host in <code>ApiTests/</code>, and Vitest suites in
+                    <code>tourneyClient/tests/</code>.
+                </p>
+            </div>
+        </div>
+
+        <h2>Repository layout</h2>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Path</th>
+                        <th>What lives there</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>tourneyAPI/</code></td>
+                        <td>The ASP.NET Core API — routers, services, bracket engines, entities, validators.</td>
+                    </tr>
+                    <tr>
+                        <td><code>tourneyClient/</code></td>
+                        <td>The React client — pages, components, services, models, and its own test suite.</td>
+                    </tr>
+                    <tr>
+                        <td><code>ApiTests/</code></td>
+                        <td>xUnit v3 integration and service tests, hosted through a custom web application factory.</td>
+                    </tr>
+                    <tr>
+                        <td><code>docs/</code></td>
+                        <td>This documentation set, alongside the original Markdown overviews.</td>
+                    </tr>
+                    <tr>
+                        <td><code>tourneyAPI.sln</code></td>
+                        <td>Solution tying the API and its test project together.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>How a tournament progresses</h2>
+
+        <p>
+            The API owns one authoritative <code>GameState</code> per game, and the client routes on it rather than
+            tracking progression itself. That single value is what keeps a phone that missed a realtime event from
+            drifting out of sync.
+        </p>
+
+        <ul class="flow">
+            <li>LOBBY_WAITING</li>
+            <li>BRACKET_VIEW</li>
+            <li>IN_MATCH_ACTIVE</li>
+            <li>COMPLETE</li>
+        </ul>
+
+        <ol>
+            <li>A user signs in or registers.</li>
+            <li>A host creates a tournament and picks single or double elimination.</li>
+            <li>Players join by game id and gather in the lobby.</li>
+            <li>The host starts the game; the bracket is generated and broadcast.</li>
+            <li>The two participants of the active match each vote for the winner.</li>
+            <li>On agreement the result commits and the bracket advances to the next match.</li>
+            <li>Play repeats until the game reaches <code>COMPLETE</code>.</li>
+        </ol>
+
+        <h2>Match voting</h2>
+
+        <p>
+            Progression is driven by participant consensus rather than a host clicking through rounds. Both
+            participants in the active match submit a vote; the result commits only when they agree. Every other
+            outcome is enumerated rather than left implicit, which is what lets the client give deterministic
+            feedback.
+        </p>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Meaning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>PENDING</code></td><td>Vote accepted, still waiting on the other participant.</td></tr>
+                    <tr><td><code>COMMITTED</code></td><td>Both participants agreed; the winner is recorded and the bracket advanced.</td></tr>
+                    <tr><td><code>DUPLICATE_VOTE</code></td><td>This voter already voted on this match.</td></tr>
+                    <tr><td><code>CONFLICT</code></td><td>Participants disagreed on the winner.</td></tr>
+                    <tr><td><code>MATCH_NOT_ACTIVE</code></td><td>The match is not the one currently in progress.</td></tr>
+                    <tr><td><code>INVALID_WINNER</code></td><td>The named winner is not a participant of that match.</td></tr>
+                    <tr><td><code>VOTER_NOT_PARTICIPANT</code></td><td>The caller is not one of the two players in the match.</td></tr>
+                    <tr><td><code>GAME_NOT_FOUND</code></td><td>No game exists for the supplied id.</td></tr>
+                    <tr><td><code>BRACKET_NOT_STARTED</code></td><td>The game has not been started yet.</td></tr>
+                    <tr><td><code>APPLY_FAILED</code></td><td>The vote was valid but the bracket refused the transition.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>Bracket model</h2>
+
+        <p>
+            Two engines implement <code>IBracketEngine</code>: <code>SingleEliminationEngine</code> and
+            <code>DoubleEliminationEngine</code>. Matches carry a lane, so a double-elimination bracket can describe
+            its losers path and both grand final games in the same snapshot shape a single-elimination bracket uses.
+        </p>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Lanes</h3>
+                <p><code>WINNERS</code>, <code>LOSERS</code>, <code>GRAND_FINALS</code>, <code>GRAND_FINALS_RESET</code></p>
+            </div>
+            <div class="card">
+                <h3>Match status</h3>
+                <p><code>PENDING</code>, <code>READY</code>, <code>IN_PROGRESS</code>, <code>COMPLETE</code></p>
+            </div>
+            <div class="card">
+                <h3>Modes</h3>
+                <p><code>SINGLE_ELIMINATION</code>, <code>DOUBLE_ELIMINATION</code></p>
+            </div>
+        </div>
+
+        <p>
+            Odd player counts are handled with byes. A reserved bye id
+            (<code>00000000-0000-0000-0000-000000000000</code>, <code>AppConstants.ByeUserId</code>) stands in for the
+            absent opponent, and bye-involved matches resolve on the server so the client never asks a human to vote
+            on a match with only one real player in it.
+        </p>
+
+        <h2>Realtime and recovery</h2>
+
+        <p>
+            SignalR carries a small number of events over the hub at <code>/hubs/GameServiceHub</code>. Connections
+            join a group named for the game id, and broadcasts are scoped to that group.
+        </p>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Direction</th>
+                        <th>Name</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Server &rarr; caller</td><td><code>Successfully Joined</code></td><td>Acknowledges the initial connection.</td></tr>
+                    <tr><td>Client &rarr; server</td><td><code>JoinGameGroup</code></td><td>Subscribes the connection to one game's group.</td></tr>
+                    <tr><td>Client &rarr; server</td><td><code>UpdatePlayers</code></td><td>Asks the server to rebroadcast the player list.</td></tr>
+                    <tr><td>Server &rarr; group</td><td><code>PlayersUpdated</code></td><td>Carries the current player list to the lobby.</td></tr>
+                    <tr><td>Server &rarr; group</td><td><code>GameStarted</code></td><td>Signals that the bracket has been generated.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="note">
+            <p>
+                <strong>Realtime is an accelerator, not the source of truth.</strong> Every screen can also reach its
+                state by polling <code>GetFlowState</code>, <code>GetBracket</code> and <code>GetCurrentMatch</code>.
+                A dropped event costs responsiveness, not correctness.
+            </p>
+        </div>
+
+        <h2>Running it locally</h2>
+
+        <p>The API binds <code>http://localhost:5280</code> and expects the client on <code>http://localhost:5173</code>.</p>
+
+<pre><code># API, without the dummy user seed (default)
+dotnet run --project tourneyAPI
+
+# API, with dummy01..dummy16 seeded for multi-player testing
+dotnet run --project tourneyAPI --launch-profile http-dummy-users
+
+# Client
+cd tourneyClient
+npm install
+npm run dev</code></pre>
+
+        <p>
+            In <code>Development</code> the API seeds a demo identity (<code>demoUser</code> /
+            <code>DemoP@ssword123!</code>) and exposes it at <code>/users/demo-credentials</code>, which the home page
+            uses to offer a one-click sign-in. The dummy seed is governed by
+            <code>DevelopmentSeed:EnableDummyUsers</code> and defaults to <code>false</code>; when disabled, startup
+            removes any previously seeded dummy users so the mode switch stays deterministic between runs.
+        </p>
+
+        <footer class="footer">
+            <p>
+                Generated from the state of <code>main</code>. Companion Markdown documents live beside this file:
+                <code>full-stack-system-overview.md</code>, <code>api-system-overview.md</code>,
+                <code>frontend-system-overview.md</code>, <code>testing-system-overview.md</code>.
+            </p>
+        </footer>
+
+    </div>
+</body>
+
+</html>

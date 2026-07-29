@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SmashTourney — API Reference</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="page">
+
+        <header class="masthead">
+            <h1>SmashTourney — API Reference</h1>
+            <p class="tagline">Routes, contracts, and how identity is actually enforced.</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Overview</a>
+            <a href="api.html" aria-current="page">API</a>
+            <a href="frontend.html">Frontend</a>
+            <a href="testing.html">Testing</a>
+        </nav>
+
+        <h2>Composition</h2>
+
+        <p>
+            <code>Program.cs</code> builds a minimal API host and maps three routers plus the built-in identity
+            endpoints. Service lifetimes are deliberate and worth knowing before changing them.
+        </p>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Registration</th>
+                        <th>Lifetime</th>
+                        <th>Note</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>IGameService</code> &rarr; <code>GameService</code></td>
+                        <td>Singleton</td>
+                        <td>Holds live bracket and vote-ledger state for every in-flight game.</td>
+                    </tr>
+                    <tr>
+                        <td><code>IPlayerManager</code> &rarr; <code>PlayerManager</code></td>
+                        <td>Scoped</td>
+                        <td>Per-request player persistence.</td>
+                    </tr>
+                    <tr>
+                        <td><code>IUserManager</code> &rarr; <code>UserManager</code></td>
+                        <td>Scoped</td>
+                        <td>Per-request user operations.</td>
+                    </tr>
+                    <tr>
+                        <td><code>ApplicationDbContext</code></td>
+                        <td>Scoped</td>
+                        <td>EF Core over SQLite.</td>
+                    </tr>
+                    <tr>
+                        <td><code>IEmailSender</code> &rarr; <code>DisabledEmailSender</code></td>
+                        <td>Transient</td>
+                        <td>Stands in while no mail infrastructure exists; identity confirmation mail is inert.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p>
+            Enums serialize as strings via <code>JsonStringEnumConverter</code>, so clients see
+            <code>"LOBBY_WAITING"</code> rather than an ordinal. CORS allows any <code>localhost</code> or
+            <code>127.0.0.1</code> origin in Development and only <code>AppConstants.ClientUrl</code> otherwise, with
+            credentials permitted in both cases so the identity cookie flows.
+        </p>
+
+        <div class="note">
+            <p>
+                <strong><code>GameService</code> is a singleton holding in-memory bracket state.</strong> Restarting
+                the API discards the progression of any game currently in flight. This is fine for a party running on
+                one machine, and it is the constraint to revisit before any multi-instance or restart-tolerant
+                deployment.
+            </p>
+        </div>
+
+        <h2>How identity is enforced</h2>
+
+        <p>
+            Enforcement is not uniform, and the difference matters when reasoning about what an unauthenticated caller
+            can do. Three distinct mechanisms are in use:
+        </p>
+
+        <ul>
+            <li>
+                <span class="pill pill-required">RequireAuthorization</span>
+                &mdash; the endpoint is gated by the authorization middleware.
+            </li>
+            <li>
+                <span class="pill pill-claims">Claims check</span>
+                &mdash; the handler reads <code>ClaimTypes.NameIdentifier</code> itself and returns
+                <code>401</code> when it is absent.
+            </li>
+            <li>
+                <span class="pill pill-open">Open</span>
+                &mdash; no identity check in the handler and no authorization filter.
+            </li>
+        </ul>
+
+        <div class="note">
+            <p>
+                <strong>Most <code>/Games</code> routes are open.</strong> Only <code>AddPlayer</code> and
+                <code>SubmitMatchVote</code> verify a caller. Creating a game, starting a game, and reading bracket,
+                current match, player list, or flow state all succeed without a session. The whole <code>/Players</code>
+                router is open as well. That is accurate as of this writing rather than a recommendation &mdash; it is
+                recorded here so the gap is visible.
+            </p>
+        </div>
+
+        <h2>Game routes</h2>
+
+        <p>Mapped by <code>GameRouter</code> under the <code>/Games</code> group.</p>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Route</th>
+                        <th>Identity</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/Games/CreateGameWithMode</code></td>
+                        <td><span class="pill pill-open">Open</span></td>
+                        <td>Creates a game from <code>CreateGameOptions</code>; returns the new game id and mode.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/Games/GetPlayersInGame/{gameId}</code></td>
+                        <td><span class="pill pill-open">Open</span></td>
+                        <td>Returns <code>currentPlayers</code> for the game, or <code>404</code> if unknown.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/Games/AddPlayer/{gameId}</code></td>
+                        <td><span class="pill pill-claims">Claims check</span></td>
+                        <td>Binds the caller's user id to a <code>Player</code> and adds it to the game.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/Games/StartGame/{gameId}</code></td>
+                        <td><span class="pill pill-open">Open</span></td>
+                        <td>Generates the bracket and broadcasts <code>GameStarted</code> to the game group.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-get">GET</span></td>
+                        <td><code>/Games/GetBracket/{gameId}</code></td>
+                        <td><span class="pill pill-open">Open</span></td>
+                        <td>Returns a <code>BracketSnapshotResponse</code> for rendering.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-get">GET</span></td>
+                        <td><code>/Games/GetCurrentMatch/{gameId}</code></td>
+                        <td><span class="pill pill-open">Open</span></td>
+                        <td>Returns the active <code>CurrentMatchResponse</code> when one exists.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-get">GET</span></td>
+                        <td><code>/Games/GetFlowState/{gameId}</code></td>
+                        <td><span class="pill pill-open">Open</span></td>
+                        <td>Returns the authoritative <code>GameStateResponse</code> the client routes on.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/Games/SubmitMatchVote/{gameId}</code></td>
+                        <td><span class="pill pill-claims">Claims check</span></td>
+                        <td>Records one participant vote and commits the match on consensus.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>User routes</h2>
+
+        <p>
+            <code>MapIdentityApi&lt;ApplicationUser&gt;()</code> supplies the stock identity endpoints (register,
+            login, refresh, confirmation, password management). <code>UserRouter</code> adds domain endpoints under
+            <code>/users</code>.
+        </p>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Route</th>
+                        <th>Identity</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/users/login</code></td>
+                        <td><span class="pill pill-open">Open</span></td>
+                        <td>Signs a user in and establishes the session cookie.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-get">GET</span></td>
+                        <td><code>/users/demo-credentials</code></td>
+                        <td><span class="pill pill-open">Open</span></td>
+                        <td>Development only &mdash; returns the seeded demo username and password.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-get">GET</span></td>
+                        <td><code>/users/session</code></td>
+                        <td><span class="pill pill-required">RequireAuthorization</span></td>
+                        <td>Reports the signed-in identity for session validation.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/users/logout</code></td>
+                        <td><span class="pill pill-required">RequireAuthorization</span></td>
+                        <td>Signs the user out and releases their game association.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p>
+            Sign-in is intercepted by <code>ConfigureApplicationCookie</code>'s <code>OnSignedIn</code> event, which
+            calls <code>AppSetup.HandleUserSession</code> to attach a server-side session record to the user.
+        </p>
+
+        <h2>Player routes</h2>
+
+        <p>Mapped by <code>PlayerRouter</code> under <code>/Players</code>. Straight CRUD over the player entity.</p>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Route</th>
+                        <th>Identity</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/Players</code></td><td><span class="pill pill-open">Open</span></td><td>Lists players.</td></tr>
+                    <tr><td><span class="method method-post">POST</span></td><td><code>/Players</code></td><td><span class="pill pill-open">Open</span></td><td>Creates a player.</td></tr>
+                    <tr><td><span class="method method-put">PUT</span></td><td><code>/Players</code></td><td><span class="pill pill-open">Open</span></td><td>Updates a player.</td></tr>
+                    <tr><td><span class="method method-delete">DELETE</span></td><td><code>/Players/{Id}</code></td><td><span class="pill pill-open">Open</span></td><td>Deletes a player by id.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>Contracts</h2>
+
+        <p>All defined in <code>Models/Contracts/BracketContracts.cs</code> as sealed records.</p>
+
+        <h3>Requests</h3>
+
+<pre><code>CreateGameOptions(BracketMode BracketMode = SINGLE_ELIMINATION, int TotalPlayers = 0)
+SubmitMatchVoteRequest(Guid MatchId, Guid WinnerPlayerId)
+ReportMatchRequest(Guid MatchId, Guid WinnerPlayerId)</code></pre>
+
+        <p>
+            <code>ReportMatchRequest</code> is declared but no route currently binds it; direct result reporting was
+            superseded by the vote flow.
+        </p>
+
+        <h3>Responses</h3>
+
+<pre><code>SubmitMatchVoteResponse(Guid GameId, Guid MatchId, SubmitMatchVoteStatus Status,
+                        int VoteCount, Guid? CommittedWinnerPlayerId)
+
+BracketPlayerView(Guid PlayerId, string DisplayName, int Seed, int Losses, bool Eliminated)
+
+BracketMatchView(Guid MatchId, BracketLane Lane, int Round, int MatchNumber,
+                 Guid? PlayerOneId, Guid? PlayerTwoId, Guid? WinnerId,
+                 BracketMatchStatus Status,
+                 Guid? NextMatchForWinner, Guid? NextMatchForLoser)
+
+BracketSnapshotResponse(Guid GameId, BracketMode Mode, bool GameStarted,
+                        bool IsGrandFinalResetRequired,
+                        IReadOnlyList&lt;BracketPlayerView&gt; Players,
+                        IReadOnlyList&lt;BracketMatchView&gt; Matches)
+
+CurrentMatchResponse(Guid GameId, Guid MatchId, BracketLane Lane,
+                     int Round, int MatchNumber, Guid PlayerOneId, Guid PlayerTwoId)
+
+GameStateResponse(Guid GameId, GameState State, bool GameStarted, Guid? CurrentMatchId,
+                  Guid? CurrentMatchPlayerOneId, Guid? CurrentMatchPlayerTwoId)</code></pre>
+
+        <p>
+            <code>NextMatchForWinner</code> and <code>NextMatchForLoser</code> are what make the snapshot
+            self-describing: the client can draw connectors without knowing the seeding rules, and the same shape
+            serves both elimination modes.
+        </p>
+
+        <h2>Bracket engines</h2>
+
+        <p>
+            <code>IBracketEngine</code> has two implementations under <code>Services/Brackets/</code>.
+            <code>BracketRuntimeModels.cs</code> holds the mutable runtime state that the read-only view records above
+            are projected from.
+        </p>
+
+        <div class="grid">
+            <div class="card">
+                <h3>SingleEliminationEngine</h3>
+                <p>One lane. A loss eliminates. Byes fill an incomplete first round.</p>
+            </div>
+            <div class="card">
+                <h3>DoubleEliminationEngine</h3>
+                <p>
+                    Winners and losers lanes, with <code>GRAND_FINALS</code> and a conditional
+                    <code>GRAND_FINALS_RESET</code> when the losers-bracket player takes the first grand final.
+                    <code>IsGrandFinalResetRequired</code> on the snapshot reports that condition.
+                </p>
+            </div>
+        </div>
+
+        <h2>Errors and validation</h2>
+
+        <p>
+            <code>Utilities/Exceptions/</code> holds domain exceptions used instead of bare throws, including
+            <code>BracketGenerationException</code>, <code>GameNotFoundException</code>,
+            <code>PlayerNotFoundException</code>, <code>RoundMismatchException</code>, and validation exceptions per
+            entity. <code>Utilities/ModelValidators/</code> holds <code>GameValidator</code>,
+            <code>PlayerValidator</code> and <code>UserValidator</code>.
+        </p>
+
+        <p>
+            Vote handling is the exception to exception-driven flow: <code>SubmitMatchVoteStatus</code> reports refusal
+            as data on a successful response rather than as a thrown error, because refusal is expected traffic
+            &mdash; two phones racing the same button is normal, not exceptional.
+        </p>
+
+        <footer class="footer">
+            <p>Source of record: <code>tourneyAPI/</code>. See also <code>docs/api-system-overview.md</code>.</p>
+        </footer>
+
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SmashTourney — Frontend</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="page">
+
+        <header class="masthead">
+            <h1>SmashTourney — Frontend</h1>
+            <p class="tagline">Routes, guards, services, and how screens decide what to show.</p>
+        </header>
+
+        <nav class="nav">
+            <a href="index.html">Overview</a>
+            <a href="api.html">API</a>
+            <a href="frontend.html" aria-current="page">Frontend</a>
+            <a href="testing.html">Testing</a>
+        </nav>
+
+        <h2>Stack</h2>
+
+        <p>
+            React 19 rendered by Vite 6, routed with React Router 7. Styling is Tailwind CSS 4 through
+            <code>@tailwindcss/vite</code>, with shadcn-style primitives built on Radix and
+            <code>class-variance-authority</code>. Realtime uses <code>@microsoft/signalr</code>. ESLint runs inside
+            the dev server via <code>vite-plugin-eslint</code>, so lint errors surface while developing rather than
+            only in CI.
+        </p>
+
+        <h2>Routes</h2>
+
+        <p>
+            Declared in <code>src/main.tsx</code>. Public routes sit at the top level; everything tournament-related
+            is nested inside <code>RequireAuth</code>.
+        </p>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Path</th>
+                        <th>Page</th>
+                        <th>Access</th>
+                        <th>Role</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>/</code></td><td><code>HomePage</code></td><td><span class="pill pill-open">Public</span></td><td>Sign in, with a demo-account autofill in Development.</td></tr>
+                    <tr><td><code>/signUp</code></td><td><code>SignUp</code></td><td><span class="pill pill-open">Public</span></td><td>Account registration.</td></tr>
+                    <tr><td><code>/createTourney</code></td><td><code>CreateTourney</code></td><td><span class="pill pill-required">Guarded</span></td><td>Creates a game and picks the elimination mode.</td></tr>
+                    <tr><td><code>/joinTourney</code></td><td><code>JoinTourney</code></td><td><span class="pill pill-required">Guarded</span></td><td>Joins an existing game by id.</td></tr>
+                    <tr><td><code>/tourneyMenu</code></td><td><code>TourneyMenu</code></td><td><span class="pill pill-required">Guarded</span></td><td>Chooses between creating and joining.</td></tr>
+                    <tr><td><code>/lobby</code></td><td><code>Lobby</code></td><td><span class="pill pill-required">Guarded</span></td><td>Pre-game player gathering; host starts from here.</td></tr>
+                    <tr><td><code>/showBracket</code></td><td><code>ShowBracket</code></td><td><span class="pill pill-required">Guarded</span></td><td>Bracket rendering and waiting state.</td></tr>
+                    <tr><td><code>/inMatch</code></td><td><code>InMatch</code></td><td><span class="pill pill-required">Guarded</span></td><td>Winner voting for the two active participants.</td></tr>
+                    <tr><td><code>*</code></td><td><code>NotFound</code></td><td><span class="pill pill-open">Public</span></td><td>Fallback.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="note">
+            <p>
+                <strong><code>src/pages/GuestSignUp.tsx</code> exists but is not routed.</strong> It is unreachable
+                from <code>main.tsx</code> as written &mdash; either an unfinished guest-entry flow or leftover code.
+                Worth resolving one way or the other.
+            </p>
+        </div>
+
+        <h2>Guards and shared state</h2>
+
+        <div class="grid">
+            <div class="card">
+                <h3><code>RequireAuth</code></h3>
+                <p>Wraps the tournament routes as a layout route and keeps unauthenticated visitors out.</p>
+            </div>
+            <div class="card">
+                <h3><code>GameSessionGuard</code></h3>
+                <p>
+                    Mounted above the router outlet, so it observes every navigation. Keeps a player from wandering
+                    out of an active game by accident.
+                </p>
+            </div>
+            <div class="card">
+                <h3><code>GameDataProvider</code> / <code>GameIdContext</code></h3>
+                <p>
+                    Wraps the whole app and carries the active game id and player data across routes, with
+                    <code>GameDataContext.ts</code> holding the context object and <code>useGameData</code> the
+                    accessor hook.
+                </p>
+            </div>
+        </div>
+
+        <h2>Services</h2>
+
+        <p>All under <code>src/services/</code>. This is where API and realtime contracts are centralized.</p>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Module</th>
+                        <th>Responsibility</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>RequestService.ts</code></td>
+                        <td>
+                            Single typed entry point for HTTP. Routes are named keys with metadata, so call sites pass
+                            <code>"getFlowState"</code> and route params rather than assembling URLs.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>PersistentConnection.ts</code></td>
+                        <td>SignalR lifecycle — connect, join the game group, subscribe to hub events.</td>
+                    </tr>
+                    <tr>
+                        <td><code>gameFlowService.ts</code></td>
+                        <td>
+                            Composes the per-screen fetches. Exposes <code>BracketViewData</code> and
+                            <code>InMatchViewData</code>, and returns <code>null</code> on state fetch failure rather
+                            than throwing, so a transient error does not unmount a live screen.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>inMatchRouting.ts</code></td>
+                        <td>Decides whether a client belongs in the match view or back on the bracket.</td>
+                    </tr>
+                    <tr>
+                        <td><code>matchVoteFeedback.ts</code></td>
+                        <td>Maps each <code>SubmitMatchVoteStatus</code> to a deterministic UI action.</td>
+                    </tr>
+                    <tr>
+                        <td><code>playerSetupService.ts</code></td>
+                        <td>Normalizes player and character selection payloads before submission.</td>
+                    </tr>
+                    <tr>
+                        <td><code>validationService.ts</code></td>
+                        <td>Client-side input rules, rejecting malformed input before it reaches the API.</td>
+                    </tr>
+                    <tr>
+                        <td><code>drawService.ts</code></td>
+                        <td>Geometry helpers for bracket rendering.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>Components</h2>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Primitives</h3>
+                <p>
+                    <code>BasicButton</code>, <code>BasicInput</code>, <code>SubmitButton</code>,
+                    <code>HeadingOne</code>, <code>HeadingTwo</code>
+                </p>
+            </div>
+            <div class="card">
+                <h3>Domain</h3>
+                <p><code>PlayerList</code>, <code>StartGame</code>, <code>Vs</code>, <code>brackets/DynamicBracket</code></p>
+            </div>
+            <div class="card">
+                <h3>UI library</h3>
+                <p><code>ui/card</code>, <code>ui/dropdown-menu</code> &mdash; Radix-backed shadcn primitives.</p>
+            </div>
+        </div>
+
+        <p>
+            <code>DynamicBracket</code> is currently the only component under <code>brackets/</code>, and it renders
+            from the <code>BracketSnapshotResponse</code> the API returns rather than computing structure locally.
+        </p>
+
+        <h2>Models</h2>
+
+        <p>
+            <code>src/models/</code> mirrors the API's shapes in TypeScript: <code>entities/Bracket.ts</code> carries
+            the snapshot, current-match and game-state response types; <code>entities/Player.ts</code>,
+            <code>ApplicationUser.ts</code> and <code>SessionIdentity.ts</code> cover identity and participants. The
+            full Smash Ultimate roster is modelled twice &mdash; once server-side under
+            <code>tourneyAPI/Models/Entities/Characters/</code> and once client-side under
+            <code>src/models/entities/Characters/</code> &mdash; with enums for
+            <code>CharacterId</code>, <code>CharacterName</code>, <code>Archetype</code>, <code>WeightClass</code>,
+            <code>FallSpeed</code> and <code>TierPlacement</code>.
+            <code>lib/loadCharacterCatalog.ts</code> assembles the catalog for use in the UI.
+        </p>
+
+        <h2>Styling</h2>
+
+        <p>
+            Two stylesheets are in play. <code>src/index.css</code> is the Tailwind 4 entry point and defines the
+            oklch design tokens for light and dark, plus the fixed Smash background image and Arial base font.
+            <code>src/assets/rawMarkup/TourneyStyles.css</code> is hand-written CSS for the bracket structure &mdash;
+            columns, match boxes, and the red connector lines &mdash; with per-column rules for connector heights.
+        </p>
+
+        <div class="note">
+            <p>
+                <strong>The two stylesheets do not share a palette.</strong> <code>TourneyStyles.css</code> hardcodes
+                <code>#222</code> / <code>#ddd</code> and a literal <code>red</code>, while <code>index.css</code>
+                drives everything else from oklch custom properties. Bracket connector heights are also fixed per
+                column via <code>nth-child</code> rules up to five columns, which will not follow a bracket deeper
+                than that.
+            </p>
+        </div>
+
+        <h2>How a screen decides what to show</h2>
+
+        <p>
+            No screen infers progression on its own. Each fetches <code>GetFlowState</code> and routes on the
+            <code>GameState</code> it gets back, with SignalR events prompting an earlier refetch than polling alone
+            would.
+        </p>
+
+        <ul class="flow">
+            <li>LOBBY_WAITING &rarr; /lobby</li>
+            <li>BRACKET_VIEW &rarr; /showBracket</li>
+            <li>IN_MATCH_ACTIVE &rarr; /inMatch or /showBracket</li>
+            <li>COMPLETE &rarr; results</li>
+        </ul>
+
+        <p>
+            <code>IN_MATCH_ACTIVE</code> is the one state that splits by viewer: the two participants named in the
+            current match go to the voting screen, and everyone else stays on the bracket. That decision lives in
+            <code>inMatchRouting.ts</code>.
+        </p>
+
+        <footer class="footer">
+            <p>Source of record: <code>tourneyClient/src/</code>. See also <code>docs/frontend-system-overview.md</code>.</p>
+        </footer>
+
+    </div>
+</body>
+
+</html>

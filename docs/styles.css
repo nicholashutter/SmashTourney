@@ -1,0 +1,369 @@
+/* Shared stylesheet for the SmashTourney HTML documentation set. */
+
+/* Design Tokens */
+/* Values follow tourneyClient/src/index.css so the docs read as part of the
+   same product. Light values come from :root, dark values from .dark. */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.129 0.042 264.695);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --border: oklch(0.929 0.013 255.508);
+  --primary: oklch(0.208 0.042 265.755);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.577 0.245 27.325);
+
+  /* The bracket connector lines in TourneyStyles.css are red. That red is the
+     one strong accent this product already owns, so the docs reuse it rather
+     than introducing a second identity. */
+  --accent-line: oklch(0.577 0.245 27.325);
+
+  --mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+
+/* Dark Theme */
+/* Honours the OS preference and the explicit .dark class the client already
+   toggles, so both entry points land on the same palette. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: oklch(0.129 0.042 264.695);
+    --foreground: oklch(0.984 0.003 247.858);
+    --card: oklch(0.208 0.042 265.755);
+    --card-foreground: oklch(0.984 0.003 247.858);
+    --muted: oklch(0.279 0.041 260.031);
+    --muted-foreground: oklch(0.704 0.04 256.788);
+    --border: oklch(1 0 0 / 14%);
+    --primary: oklch(0.929 0.013 255.508);
+    --primary-foreground: oklch(0.208 0.042 265.755);
+    --destructive: oklch(0.704 0.191 22.216);
+    --accent-line: oklch(0.704 0.191 22.216);
+  }
+}
+
+.dark {
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --border: oklch(1 0 0 / 14%);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.704 0.191 22.216);
+  --accent-line: oklch(0.704 0.191 22.216);
+}
+
+/* General Styles */
+/* Arial matches the family declared in both index.css and TourneyStyles.css. */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  margin: 0;
+  padding: 0;
+  line-height: 1.6;
+}
+
+/* Layout */
+.page {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+/* Masthead */
+.masthead {
+  border-bottom: 2px solid var(--accent-line);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.masthead h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.9rem;
+  letter-spacing: -0.01em;
+}
+
+.masthead .tagline {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+
+/* Navigation */
+/* Every page carries the same nav so the set is browsable without an index. */
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.nav a {
+  display: inline-block;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--foreground);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.nav a:hover {
+  border-color: var(--accent-line);
+}
+
+.nav a[aria-current="page"] {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+
+/* Headings */
+h2 {
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.35rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.35rem;
+}
+
+h3 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.05rem;
+}
+
+/* Cards */
+.card {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+
+.card h3 {
+  margin-top: 0;
+}
+
+/* Card Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.grid .card {
+  margin: 0;
+}
+
+/* Tables */
+/* Wide tables scroll inside their own container so the page body never scrolls
+   sideways on a phone — this product is used from phones by design. */
+.table-scroll {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 32rem;
+  font-size: 0.92rem;
+}
+
+th,
+td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background-color: var(--muted);
+  font-weight: bold;
+}
+
+/* Code */
+code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background-color: var(--muted);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+pre {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  background-color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+/* HTTP Method Badges */
+.method {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.method-get {
+  color: oklch(0.6 0.118 184.704);
+}
+
+.method-post {
+  color: oklch(0.646 0.222 41.116);
+}
+
+.method-put {
+  color: oklch(0.769 0.188 70.08);
+}
+
+.method-delete {
+  color: var(--destructive);
+}
+
+/* Status Pills */
+/* Used to mark how a route actually enforces identity, which is not uniform. */
+.pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.pill-open {
+  color: var(--muted-foreground);
+}
+
+.pill-claims {
+  color: oklch(0.646 0.222 41.116);
+  border-color: currentColor;
+}
+
+.pill-required {
+  color: oklch(0.6 0.118 184.704);
+  border-color: currentColor;
+}
+
+/* Callouts */
+.note {
+  border-left: 3px solid var(--accent-line);
+  background-color: var(--muted);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 0.75rem 1rem;
+  margin: 1.25rem 0;
+}
+
+.note p:first-child {
+  margin-top: 0;
+}
+
+.note p:last-child {
+  margin-bottom: 0;
+}
+
+.note strong {
+  color: var(--accent-line);
+}
+
+/* Lists */
+ul,
+ol {
+  padding-left: 1.4rem;
+}
+
+li {
+  margin: 0.3rem 0;
+}
+
+/* State Flow */
+/* A simple horizontal chain used to show GameState progression. */
+.flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flow li {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: var(--card);
+}
+
+.flow li::after {
+  content: "\2192";
+  color: var(--accent-line);
+  margin-left: 0.7rem;
+  font-family: Arial, sans-serif;
+}
+
+.flow li:last-child::after {
+  content: "";
+  margin-left: 0;
+}
+
+/* Footer */
+.footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+}
+
+/* Links */
+a {
+  color: inherit;
+}
+
+.footer a,
+.card a,
+p a,
+li a {
+  color: var(--accent-line);
+}
+
+/* Small Screens */
+@media (max-width: 40rem) {
+  .page {
+    padding: 1.25rem 0.9rem 3rem;
+  }
+
+  .masthead h1 {
+    font-size: 1.5rem;
+  }
+}
