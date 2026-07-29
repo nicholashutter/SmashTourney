@@ -25,6 +25,14 @@ internal sealed class BracketMatchRuntime
     public BracketMatchStatus Status { get; set; } = BracketMatchStatus.PENDING;
     public Guid? NextMatchForWinner { get; set; }
     public Guid? NextMatchForLoser { get; set; }
+
+    // Identifies which participant slot of the next match this result feeds.
+    // The bracket is built as a fixed tree before play starts, so an advancing
+    // player has a reserved position rather than whichever slot happens to be
+    // free — that is what keeps a bracket's shape independent of the order
+    // results are reported in.
+    public int NextSlotForWinner { get; set; }
+    public int NextSlotForLoser { get; set; }
 }
 
 // Stores in-memory runtime state used to build and progress tournament brackets.

@@ -10,6 +10,9 @@ internal sealed class SingleEliminationEngine : IBracketEngine
     public BracketMode Mode => BracketMode.SINGLE_ELIMINATION;
 
     // Builds the initial single-elimination runtime state from registered players.
+    //
+    // The full tree is built here rather than grown as results arrive. See
+    // BracketTreeBuilder for why.
     public BracketRuntimeState Initialize(Guid gameId, IReadOnlyList<Player> players)
     {
         var seededPlayers = players
@@ -32,11 +35,19 @@ internal sealed class SingleEliminationEngine : IBracketEngine
             }).ToList()
         };
 
-        SeedInitialRound(state, state.Players.Select(player => player.PlayerId).ToList());
+        if (state.Players.Count < 2)
+        {
+            return state;
+        }
+
+        BracketTreeBuilder.BuildWinnersLane(
+            state,
+            state.Players.Select(player => player.PlayerId).ToList());
+
         return state;
     }
 
-    // Applies a completed match result and advances winners to the next round.
+    // Applies a completed match result and advances the winner along its link.
     public bool TryReportMatch(BracketRuntimeState state, Guid matchId, Guid winnerPlayerId)
     {
         var match = state.Matches.FirstOrDefault(existingMatch => existingMatch.MatchId == matchId);
@@ -66,8 +77,21 @@ internal sealed class SingleEliminationEngine : IBracketEngine
         match.Status = BracketMatchStatus.COMPLETE;
 
         MarkPlayerEliminated(state, loserPlayerId);
-        AddToWinnersPool(state, match.Round + 1, winnerPlayerId);
-        EvaluateChampionTransition(state);
+
+        if (match.NextMatchForWinner is null)
+        {
+            // No onward link means this was the final: its winner takes the
+            // bracket.
+            state.WinnersChampionId = winnerPlayerId;
+            return true;
+        }
+
+        var nextMatch = state.Matches.FirstOrDefault(candidate => candidate.MatchId == match.NextMatchForWinner);
+        if (nextMatch is not null)
+        {
+            BracketTreeBuilder.SeatPlayer(nextMatch, match.NextSlotForWinner, winnerPlayerId);
+        }
+
         return true;
     }
 
@@ -102,6 +126,9 @@ internal sealed class SingleEliminationEngine : IBracketEngine
     }
 
     // Returns the next ready winners-bracket match for gameplay orchestration.
+    //
+    // Only one match is offered at a time. Everyone is in the same room sharing
+    // one console, so a second concurrent match would have nowhere to be played.
     public CurrentMatchResponse? BuildCurrentMatch(BracketRuntimeState state)
     {
         var currentMatch = state.Matches
@@ -126,64 +153,6 @@ internal sealed class SingleEliminationEngine : IBracketEngine
         );
     }
 
-    // Seeds first-round winners-bracket matches from the ordered player list.
-    private static void SeedInitialRound(BracketRuntimeState state, List<Guid> initialPlayers)
-    {
-        for (int index = 0; index < initialPlayers.Count; index += 2)
-        {
-            var playerOne = initialPlayers[index];
-            var playerTwo = index + 1 < initialPlayers.Count ? initialPlayers[index + 1] : Guid.Empty;
-
-            if (playerTwo == Guid.Empty)
-            {
-                AddToWinnersPool(state, 2, playerOne);
-                continue;
-            }
-
-            state.Matches.Add(new BracketMatchRuntime
-            {
-                MatchId = Guid.NewGuid(),
-                Lane = BracketLane.WINNERS,
-                Round = 1,
-                MatchNumber = ++state.WinnersMatchCounter,
-                PlayerOneId = playerOne,
-                PlayerTwoId = playerTwo,
-                Status = BracketMatchStatus.READY
-            });
-        }
-    }
-
-    // Queues winners into the next round and materializes matches when pairs are available.
-    private static void AddToWinnersPool(BracketRuntimeState state, int round, Guid playerId)
-    {
-        if (!state.WinnersPools.ContainsKey(round))
-        {
-            state.WinnersPools[round] = new List<Guid>();
-        }
-
-        var pool = state.WinnersPools[round];
-
-        pool.Add(playerId);
-
-        while (pool.Count >= 2)
-        {
-            var playerOne = pool[0];
-            var playerTwo = pool[1];
-            pool.RemoveRange(0, 2);
-
-            state.Matches.Add(new BracketMatchRuntime
-            {
-                MatchId = Guid.NewGuid(),
-                Lane = BracketLane.WINNERS,
-                Round = round,
-                MatchNumber = ++state.WinnersMatchCounter,
-                PlayerOneId = playerOne,
-                PlayerTwoId = playerTwo,
-                Status = BracketMatchStatus.READY
-            });
-        }
-    }
-
     // Marks a player as eliminated after a recorded bracket loss.
     private static void MarkPlayerEliminated(BracketRuntimeState state, Guid playerId)
     {
@@ -195,28 +164,5 @@ internal sealed class SingleEliminationEngine : IBracketEngine
 
         player.Losses = 1;
         player.Eliminated = true;
-    }
-
-    // Detects bracket completion and resolves the winners champion identity.
-    private static void EvaluateChampionTransition(BracketRuntimeState state)
-    {
-        var hasOpenMatches = state.Matches.Any(match =>
-            match.Lane == BracketLane.WINNERS &&
-            (match.Status == BracketMatchStatus.READY ||
-             match.Status == BracketMatchStatus.IN_PROGRESS ||
-             match.Status == BracketMatchStatus.PENDING));
-
-        var hasPendingPoolParticipants = state.WinnersPools.Values.Any(pool => pool.Count > 0);
-
-        if (hasOpenMatches || hasPendingPoolParticipants)
-        {
-            return;
-        }
-
-        var champion = state.Players.FirstOrDefault(player => !player.Eliminated);
-        if (champion is not null)
-        {
-            state.WinnersChampionId = champion.PlayerId;
-        }
     }
 }

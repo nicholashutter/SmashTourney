@@ -455,8 +455,18 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     [Fact]
     public async Task SubmitMatchVoteAsyncCommitsRealVersusByeWhenByeMetadataIsMissing()
     {
-        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.SINGLE_ELIMINATION, TotalPlayers: 4));
-        var users = await SetupDummyUsersAsync(3);
+        // Five players in a bracket of eight, which leaves bye matches still
+        // standing once the game has started.
+        //
+        // Bye auto-resolution walks matches in play order and stops at the first
+        // one it cannot decide, so a bye sitting behind a real-vs-real match
+        // survives startup. Three players in a bracket of four no longer works
+        // for this: standard seeding puts the bye on the top seed, so it is the
+        // very first match and is consumed before the test can strip the
+        // metadata. The behavior under test is unchanged — this only needs a
+        // shape where an undecided bye match is still reachable.
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.SINGLE_ELIMINATION, TotalPlayers: 8));
+        var users = await SetupDummyUsersAsync(5);
         var players = await SetupDummyPlayersAsync(users);
 
         for (var index = 0; index < players.Count; index++)
@@ -503,45 +513,66 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
 
         clearMethod.Invoke(byePlayerIds, null);
 
-        var firstMatch = await _gameService.GetCurrentMatchAsync(gameId);
-        if (firstMatch is null)
+        // Walks to the real-vs-bye match, committing any real-vs-real match met
+        // on the way.
+        //
+        // Which opening match holds the bye depends on seeding. Standard seed
+        // order pairs the top seed against the bottom slot, and GameService
+        // appends synthetic byes last, so the bye match can legitimately come
+        // first. The behavior under test — one real vote committing a bye match
+        // when bye metadata is missing — does not depend on that ordering, so
+        // this searches for the match rather than assuming its position.
+        CurrentMatchResponse? realVersusByeMatch = null;
+        var realVersusByeParticipants = new List<Player>();
+
+        for (var attempt = 0; attempt < 4 && realVersusByeMatch is null; attempt++)
         {
-            throw new InvalidOperationException("Current match was null before first vote in regression test.");
+            var candidateMatch = await _gameService.GetCurrentMatchAsync(gameId);
+            if (candidateMatch is null)
+            {
+                break;
+            }
+
+            var candidateRealParticipants = players
+                .Where(player => player.Id == candidateMatch.PlayerOneId || player.Id == candidateMatch.PlayerTwoId)
+                .ToList();
+
+            if (candidateRealParticipants.Count == 1)
+            {
+                realVersusByeMatch = candidateMatch;
+                realVersusByeParticipants = candidateRealParticipants;
+                break;
+            }
+
+            if (candidateRealParticipants.Count != 2)
+            {
+                throw new InvalidOperationException("Expected an opening match with at least one real participant in regression test.");
+            }
+
+            var candidateVoteRequest = new SubmitMatchVoteRequest(candidateMatch.MatchId, candidateMatch.PlayerOneId);
+            var candidatePlayerOneUserId = players.First(player => player.Id == candidateMatch.PlayerOneId).UserId;
+            var candidatePlayerTwoUserId = players.First(player => player.Id == candidateMatch.PlayerTwoId).UserId;
+
+            var pendingVote = await _gameService.SubmitMatchVoteAsync(gameId, candidatePlayerOneUserId, candidateVoteRequest);
+            if (pendingVote.Status != SubmitMatchVoteStatus.PENDING)
+            {
+                throw new InvalidOperationException("First vote should be pending for a real-vs-real match in regression test.");
+            }
+
+            var committingVote = await _gameService.SubmitMatchVoteAsync(gameId, candidatePlayerTwoUserId, candidateVoteRequest);
+            if (committingVote.Status != SubmitMatchVoteStatus.COMMITTED)
+            {
+                throw new InvalidOperationException("Second vote should commit a real-vs-real match in regression test.");
+            }
         }
 
-        var firstVoteWinnerId = firstMatch.PlayerOneId;
-        var firstMatchPlayerOneUserId = players.First(player => player.Id == firstMatch.PlayerOneId).UserId;
-        var firstMatchPlayerTwoUserId = players.First(player => player.Id == firstMatch.PlayerTwoId).UserId;
-
-        var firstMatchVoteRequest = new SubmitMatchVoteRequest(firstMatch.MatchId, firstVoteWinnerId);
-        var firstVote = await _gameService.SubmitMatchVoteAsync(gameId, firstMatchPlayerOneUserId, firstMatchVoteRequest);
-        if (firstVote.Status != SubmitMatchVoteStatus.PENDING)
+        if (realVersusByeMatch is null || realVersusByeParticipants.Count != 1)
         {
-            throw new InvalidOperationException("First vote should be pending for first real-vs-real match in regression test.");
+            throw new InvalidOperationException("Expected a real-vs-bye match in regression test.");
         }
 
-        var secondVote = await _gameService.SubmitMatchVoteAsync(gameId, firstMatchPlayerTwoUserId, firstMatchVoteRequest);
-        if (secondVote.Status != SubmitMatchVoteStatus.COMMITTED)
-        {
-            throw new InvalidOperationException("Second vote should commit first real-vs-real match in regression test.");
-        }
-
-        var secondMatch = await _gameService.GetCurrentMatchAsync(gameId);
-        if (secondMatch is null)
-        {
-            throw new InvalidOperationException("Expected second match after first match commit in regression test.");
-        }
-
-        var secondMatchRealParticipants = players
-            .Where(player => player.Id == secondMatch.PlayerOneId || player.Id == secondMatch.PlayerTwoId)
-            .ToList();
-
-        if (secondMatchRealParticipants.Count != 1)
-        {
-            throw new InvalidOperationException("Expected second match to be real-vs-bye in regression test.");
-        }
-
-        var realParticipant = secondMatchRealParticipants[0];
+        var secondMatch = realVersusByeMatch;
+        var realParticipant = realVersusByeParticipants[0];
         var byeParticipantId = secondMatch.PlayerOneId == realParticipant.Id
             ? secondMatch.PlayerTwoId
             : secondMatch.PlayerOneId;
