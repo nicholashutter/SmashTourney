@@ -1,7 +1,62 @@
 {
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
     "version": "0.2.0",
     "configurations": [
         {
+            // ASP.NET Core minimal API. Program.cs calls
+            // builder.WebHost.UseUrls(AppConstants.ServerURL), so the port is fixed
+            // in code at http://localhost:5280 regardless of launchSettings profiles.
+            // No serverReadyAction here on purpose: the Vite client is the UI, the API
+            // has no page worth opening.
+            "name": "SmashTourney: API (dev)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "SmashTourney: Build API",
+            "program": "${workspaceFolder}/tourneyAPI/bin/Debug/net8.0/tourneyAPI.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/tourneyAPI",
+            "stopAtEntry": false,
+            "console": "internalConsole",
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            // Same as above, plus the dummy-user seed the "http-dummy-users"
+            // launchSettings profile turns on (AppConstants.EnableDummyUsersConfigKey =
+            // "DevelopmentSeed:EnableDummyUsers"; the "__" form is the env-var spelling).
+            "name": "SmashTourney: API (dev + dummy users)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "SmashTourney: Build API",
+            "program": "${workspaceFolder}/tourneyAPI/bin/Debug/net8.0/tourneyAPI.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/tourneyAPI",
+            "stopAtEntry": false,
+            "console": "internalConsole",
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "DevelopmentSeed__EnableDummyUsers": "true"
+            }
+        },
+        {
+            // Browser debugging against the Vite dev server. vite.config.ts sets no
+            // server.port, so Vite uses its default 5173 - which is also what the API
+            // hard-codes as AppConstants.ClientUrl.
+            // The preLaunchTask starts Vite in the background and releases the launch
+            // as soon as Vite prints "ready in ...".
+            // Debugging in Edge instead: change "type" to "msedge".
+            "name": "SmashTourney: Client (Vite)",
+            "type": "chrome",
+            "request": "launch",
+            "preLaunchTask": "SmashTourney: Client Dev Server (Vite)",
+            "url": "http://localhost:5173",
+            "webRoot": "${workspaceFolder}/tourneyClient"
+        },
+        {
+            // Pre-existing config, kept as-is: one terminal that spawns the client in a
+            // second window and then runs the API via dotnet run (no debugger attached).
             "name": "Run Dev PS",
             "type": "node-terminal",
             "request": "launch",
@@ -9,11 +64,39 @@
             "cwd": "${workspaceFolder}"
         },
         {
+            // Pre-existing config, kept as-is: the bash equivalent of "Run Dev PS".
             "name": "Run Dev Bash",
             "type": "node-terminal",
             "request": "launch",
             "command": "bash -lc \"cd '${workspaceFolder}/tourneyClient' && npm run dev & cd '${workspaceFolder}' && dotnet run --project tourneyAPI --launch-profile http-dummy-users\"",
             "cwd": "${workspaceFolder}"
+        }
+    ],
+    "compounds": [
+        {
+            // The everyday entry point: debug the API and the browser client together.
+            "name": "SmashTourney: Full Stack",
+            "configurations": [
+                "SmashTourney: API (dev)",
+                "SmashTourney: Client (Vite)"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "group": "smashtourney",
+                "order": 1
+            }
+        },
+        {
+            "name": "SmashTourney: Full Stack (dummy users)",
+            "configurations": [
+                "SmashTourney: API (dev + dummy users)",
+                "SmashTourney: Client (Vite)"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "group": "smashtourney",
+                "order": 2
+            }
         }
     ]
 }

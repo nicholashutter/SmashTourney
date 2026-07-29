@@ -2,6 +2,157 @@
     "version": "2.0.0",
     "tasks": [
         {
+            // preLaunchTask for "SmashTourney: API (dev)". Building the .csproj also
+            // builds the referenced Entities / Routers / Services projects.
+            "label": "SmashTourney: Build API",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/tourneyAPI/tourneyAPI.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$msCompile",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared",
+                "clear": true
+            }
+        },
+        {
+            // ApiTests uses Microsoft.Testing.Platform (UseMicrosoftTestingPlatformRunner),
+            // so "dotnet test <csproj>" is the supported invocation.
+            "label": "SmashTourney: Test API (xUnit v3)",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "test",
+                "${workspaceFolder}/ApiTests/ApiTests.csproj"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "SmashTourney: Install Client Deps",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "install"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/tourneyClient"
+            },
+            "problemMatcher": []
+        },
+        {
+            // isBackground is essential: without it the compound launch would sit
+            // forever waiting for a dev server that never exits.
+            // The background matcher watches Vite's startup banner and reports the task
+            // "done" the moment Vite prints "ready in <n> ms" / the Local: URL.
+            "label": "SmashTourney: Client Dev Server (Vite)",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "run",
+                "dev"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/tourneyClient"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "vite",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}/tourneyClient"
+                ],
+                // Matches the "file:line:col: error: message" shape that vite /
+                // vite-plugin-eslint emit; harmless if nothing ever matches.
+                "pattern": {
+                    "regexp": "^\\s*(.*?):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^\\s*(VITE\\s+v[\\d.]+|.*(restarting|hmr update|page reload).*)",
+                    "endsPattern": "(ready in \\d+\\s*m?s|Local:\\s+https?://localhost)"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "group": "smashtourney-dev"
+            }
+        },
+        {
+            // package.json: "build": "tsc -b && vite build"
+            "label": "SmashTourney: Build Client",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "run",
+                "build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/tourneyClient"
+            },
+            "group": "build",
+            "problemMatcher": "$tsc"
+        },
+        {
+            // Note the "-b": tourneyClient/tsconfig.json is a solution-style file
+            // ("files": [], references -> tsconfig.app.json + tsconfig.node.json), so a
+            // bare "npx tsc --noEmit" would check zero files. "tsc -b --noEmit" walks the
+            // references and checks src/ and vite.config.ts. Verified to exit 0.
+            "label": "SmashTourney: Typecheck Client",
+            "type": "shell",
+            "command": "npx",
+            "args": [
+                "tsc",
+                "-b",
+                "--noEmit"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/tourneyClient"
+            },
+            "problemMatcher": "$tsc"
+        },
+        {
+            // "run" so it exits instead of dropping into vitest watch mode; the
+            // package.json "test" script is bare "vitest", which would watch.
+            "label": "SmashTourney: Test Client (vitest)",
+            "type": "shell",
+            "command": "npx",
+            "args": [
+                "vitest",
+                "run"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/tourneyClient"
+            },
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            // Pre-existing task, kept as-is.
             "label": "Run Dev PS",
             "type": "shell",
             "command": "powershell",
@@ -16,6 +167,7 @@
             }
         },
         {
+            // Pre-existing task, kept as-is.
             "label": "Run Dev Bash",
             "type": "shell",
             "command": "bash",
