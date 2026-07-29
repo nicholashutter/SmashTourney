@@ -2,6 +2,7 @@ import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
 import PageShell from "@/components/PageShell";
+import StatusBanner, { StatusMessage } from "@/components/StatusBanner";
 import { useState, type ChangeEvent } from "react";
 import { RequestService } from "@/services/RequestService";
 import { SERVER_ERROR } from "@/constants/AppConstants";
@@ -15,6 +16,7 @@ const SignUp = () =>
   const [userName, setUserName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [status, setStatus] = useState<StatusMessage | null>(null);
   const navigate = useNavigate();
 
   // Stores username input for registration.
@@ -45,7 +47,7 @@ const SignUp = () =>
 
     if (!isUserNameValid || !isPasswordValid)
     {
-      window.alert(SERVER_ERROR("Invalid Characters"));
+      setStatus({ text: SERVER_ERROR("Invalid Characters"), tone: "error" });
       return;
     }
 
@@ -62,13 +64,13 @@ const SignUp = () =>
         }
       );
 
-      window.alert("Account created successfully. You are now moving to the sign-in page.");
-
+      // The redirect to sign-in is the confirmation; a banner here would only
+      // flicker as the page unmounts.
       navigate("/");
     }
     catch (err)
     {
-      window.alert("We could not create your account. You will stay on this page so you can try again.");
+      setStatus({ text: "We could not create your account. Try again.", tone: "error" });
       console.error(err);
     }
 
@@ -81,6 +83,7 @@ const SignUp = () =>
         <BasicInput labelText="Username:" htmlFor="username" name="username" id="username" value={userName} onChange={handleUserNameChange} />
         <BasicInput labelText="Email:" htmlFor="email" name="email" id="email" value={email} onChange={handleEmailChange} />
         <BasicInput labelText="Password:" htmlFor="password" name="password" id="password" value={password} onChange={handlePasswordChange} />
+        <StatusBanner status={status} />
         <SubmitButton buttonLabel="Sign Up" onSubmit={
           handleSubmit
         } />

@@ -22,7 +22,7 @@ const GuestSignUp = () =>
   // Submits guest session creation and routes to tournament menu.
   const handleSubmit = async () =>
   {
-    window.alert("Guest signup is no longer supported. Please sign up or sign in.");
+    console.info("Guest signup is no longer supported; redirecting to sign-in.");
     navigate("/");
   }
 

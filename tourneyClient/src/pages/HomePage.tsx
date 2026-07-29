@@ -10,6 +10,7 @@ import BasicHeading from "@/components/HeadingOne";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
 import PageShell from "@/components/PageShell";
+import StatusBanner, { StatusMessage } from "@/components/StatusBanner";
 
 // Renders the sign-in page and starts the authenticated user flow.
 const HomePage = () =>
@@ -18,6 +19,7 @@ const HomePage = () =>
 
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
+  const [status, setStatus] = useState<StatusMessage | null>(null);
 
   // Stores username input from the sign-in form.
   const handleUserNameChange = (e: ChangeEvent<HTMLInputElement>) =>
@@ -39,7 +41,7 @@ const HomePage = () =>
 
     if (!isUserNameValid || !isPasswordValid)
     {
-      window.alert(INVALID_CHARACTERS("Login"));
+      setStatus({ text: INVALID_CHARACTERS("Login"), tone: "error" });
       return;
     }
 
@@ -58,12 +60,13 @@ const HomePage = () =>
         }
       )
 
-      window.alert("Signed in successfully. You are now moving to the tournament menu.");
+      // No success message: the navigation is the confirmation, and a banner
+      // that unmounts immediately would only ever be seen as a flicker.
       navigate("/tourneyMenu");
     }
     catch (err)
     {
-      window.alert("Sign in failed. You will stay on this page so you can try again.");
+      setStatus({ text: "Sign in failed. Check your details and try again.", tone: "error" });
       console.error(err);
     }
   }
@@ -75,6 +78,7 @@ const HomePage = () =>
           <BasicInput labelText="Username:" htmlFor="username" name="username" id="username" value={userName} onChange={handleUserNameChange} />
           <BasicInput labelText="Password:" htmlFor="password" name="password" id="password" value={password} onChange={handlePasswordChange} />
 
+          <StatusBanner status={status} />
           <SubmitButton buttonLabel="Sign In" onSubmit={handleSubmit} />
           <HeadingTwo headingText="Or" />
           <BasicButton buttonLabel="Sign Up" href="/signUp" />

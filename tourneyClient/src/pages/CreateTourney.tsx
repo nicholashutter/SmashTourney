@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router';
 import { useGameData } from "@/hooks/useGameData";
 import HeadingTwo from "@/components/HeadingTwo";
 import PageShell from "@/components/PageShell";
+import StatusBanner, { StatusMessage } from "@/components/StatusBanner";
 import { Character } from "@/models/entities/Character";
 import { CreateGameWithModeRequest, CreateGameWithModeResponse } from "@/models/entities/Bracket";
 import { CharacterName } from "@/models/Enums/CharacterName";
@@ -41,6 +42,7 @@ const CreateTourney = () =>
   const [displayName, setDisplayName] = useState("");
   const [characters, setCharacters] = useState<Character[]>([]);
   const [currentCharacter, setCurrentCharacter] = useState({} as Character);
+  const [status, setStatus] = useState<StatusMessage | null>(null);
 
   // Loads all selectable character definitions for host setup.
   useEffect(() =>
@@ -65,7 +67,7 @@ const CreateTourney = () =>
     }
     else
     {
-      window.alert(INVALID_CHARACTERS("Number of Players"));
+      setStatus({ text: INVALID_CHARACTERS("Number of Players"), tone: "error" });
     }
 
   }
@@ -80,7 +82,7 @@ const CreateTourney = () =>
     }
     else
     {
-      window.alert(INVALID_CHARACTERS("Display Name"));
+      setStatus({ text: INVALID_CHARACTERS("Display Name"), tone: "error" });
     }
   }
 
@@ -109,7 +111,7 @@ const CreateTourney = () =>
     const requestedTotalPlayers = Number.parseInt(numPlayers, 10);
     if (!validateTotalPlayers(requestedTotalPlayers))
     {
-      window.alert(INVALID_CHARACTERS("Number of Players"));
+      setStatus({ text: INVALID_CHARACTERS("Number of Players"), tone: "error" });
       return;
     }
 
@@ -123,7 +125,7 @@ const CreateTourney = () =>
 
     if (!mappedCharacter)
     {
-      window.alert(INVALID_CHARACTERS("Character Selection"));
+      setStatus({ text: INVALID_CHARACTERS("Character Selection"), tone: "error" });
       return;
     }
 
@@ -170,7 +172,7 @@ const CreateTourney = () =>
 
         if (!hostUserId)
         {
-          window.alert("Your session appears to have expired. Please log in again.");
+          setStatus({ text: "Your session has expired. Please sign in again.", tone: "error" });
           navigate("/");
           return;
         }
@@ -179,7 +181,7 @@ const CreateTourney = () =>
 
         if (!hostDisplayName)
         {
-          window.alert(INVALID_CHARACTERS("Display Name"));
+          setStatus({ text: INVALID_CHARACTERS("Display Name"), tone: "error" });
           return;
         }
 
@@ -226,18 +228,17 @@ const CreateTourney = () =>
         setPlayerId(hostPlayerId);
         setIsHost(true);
 
-        window.alert("Tournament created successfully. You are now moving to the lobby as the host.");
         navigate("/lobby");
       }
       else
       {
-        window.alert("We could not create the tournament. You will stay on the create page so you can try again.");
+        setStatus({ text: "We could not create the tournament. Try again.", tone: "error" });
       }
     }
     catch (error)
     {
       console.error("Create Tourney submit failed", error);
-      window.alert("We could not create the tournament. You will stay on the create page so you can try again.");
+      setStatus({ text: "We could not create the tournament. Try again.", tone: "error" });
     }
 
   }
@@ -261,6 +262,7 @@ const CreateTourney = () =>
             selectedCharacter={currentCharacter.id ? currentCharacter : null}
             onSelect={setCurrentCharacter}
           />
+          <StatusBanner status={status} />
           <SubmitButton buttonLabel="Create Tourney" onSubmit={handleSubmit} />
         </div>
     </PageShell>

@@ -1,5 +1,6 @@
 import PlayerList from '@/components/PlayerList';
 import PageShell from '@/components/PageShell';
+import StatusBanner, { StatusMessage } from '@/components/StatusBanner';
 import BasicButton from '@/components/BasicButton';
 import SubmitButton from '@/components/SubmitButton';
 import HeadingTwo from "@/components/HeadingTwo";
@@ -31,6 +32,7 @@ const Lobby = () =>
     const [players, setPlayers] = useState<Player[]>([]);
     const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
     const [joinNotice, setJoinNotice] = useState<string | null>(null);
+    const [status, setStatus] = useState<StatusMessage | null>(null);
     const lobbyConnectionRef = useRef<PersistentConnection | null>(null);
 
     // Reads game-session values shared by create/join flow pages.
@@ -217,7 +219,7 @@ const Lobby = () =>
         {
             if (!gameId)
             {
-                window.alert("Start game failed because this lobby does not have a session code. You will stay in the lobby.");
+                setStatus({ text: "This lobby has no session code, so it cannot be started.", tone: "error" });
                 return;
             }
 
@@ -231,12 +233,13 @@ const Lobby = () =>
                 await lobbyConnectionRef.current.notifyGameStarted(gameId);
             }
 
-            window.alert("All players are in. Starting the tournament now and moving everyone to the bracket view.");
+            // Everyone moves to the bracket immediately; a dialog here would
+            // hold the host on a dead screen while every other phone advanced.
             navigate("/showBracket");
         }
         catch (err)
         {
-            window.alert("We could not start the game. You will stay in the lobby so you can try again.");
+            setStatus({ text: "We could not start the game. Try again.", tone: "error" });
             console.log(err);
         }
 
@@ -263,6 +266,7 @@ const Lobby = () =>
                         </p>
                     </div>
                     <HeadingTwo headingText="Waiting for players to join..." />
+                    <StatusBanner status={status} />
                     {isHost &&
                         <SubmitButton buttonLabel="All Players In" onSubmit={
                             handleSubmit

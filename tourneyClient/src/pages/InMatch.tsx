@@ -4,6 +4,7 @@ import BasicHeading from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
 import PageShell from "@/components/PageShell";
+import StatusBanner, { StatusMessage } from "@/components/StatusBanner";
 import { useGameData } from "@/hooks/useGameData";
 import { RequestService } from "@/services/RequestService";
 import
@@ -30,7 +31,7 @@ const InMatch = () =>
     const [gameState, setGameState] = useState<GameStateResponse | null>(null);
     const [gamePlayers, setGamePlayers] = useState<Player[]>([]);
     const [selectedWinnerId, setSelectedWinnerId] = useState<string | null>(null);
-    const [voteNotice, setVoteNotice] = useState<string | null>(null);
+    const [status, setStatus] = useState<StatusMessage | null>(null);
     const [isVoteLockedForActiveMatch, setIsVoteLockedForActiveMatch] = useState(false);
     const activeMatchIdRef = useRef<string | null>(null);
 
@@ -106,7 +107,7 @@ const InMatch = () =>
             {
                 activeMatchIdRef.current = nextMatchId;
                 setSelectedWinnerId(null);
-                setVoteNotice(null);
+                setStatus(null);
                 setIsVoteLockedForActiveMatch(false);
             }
 
@@ -195,12 +196,15 @@ const InMatch = () =>
 
             if (voteFeedback.noticeMessage)
             {
-                setVoteNotice(voteFeedback.noticeMessage);
+                setStatus({ text: voteFeedback.noticeMessage, tone: "info" });
             }
 
+            // A critical outcome is shown in the same place as a routine one,
+            // just in the error tone. Blocking a participant behind a dialog
+            // stalled the match for the other player too.
             if (voteFeedback.alertMessage)
             {
-                window.alert(voteFeedback.alertMessage);
+                setStatus({ text: voteFeedback.alertMessage, tone: "error" });
             }
 
             if (voteFeedback.refreshMatchData)
@@ -227,12 +231,15 @@ const InMatch = () =>
 
             if (voteFeedback.noticeMessage)
             {
-                setVoteNotice(voteFeedback.noticeMessage);
+                setStatus({ text: voteFeedback.noticeMessage, tone: "info" });
             }
 
+            // A critical outcome is shown in the same place as a routine one,
+            // just in the error tone. Blocking a participant behind a dialog
+            // stalled the match for the other player too.
             if (voteFeedback.alertMessage)
             {
-                window.alert(voteFeedback.alertMessage);
+                setStatus({ text: voteFeedback.alertMessage, tone: "error" });
             }
 
             if (voteFeedback.refreshMatchData)
@@ -276,9 +283,7 @@ const InMatch = () =>
                     {!currentMatch && (
                         <SubmitButton buttonLabel="Refresh Match" onSubmit={loadMatchData} />
                     )}
-                    {voteNotice && (
-                        <HeadingTwo headingText={voteNotice} />
-                    )}
+                    <StatusBanner status={status} />
                 </div>
         </PageShell>
 

@@ -50,7 +50,7 @@ const ShowBracket = () =>
             catch (error)
             {
                 console.error("Failed to load bracket snapshot", error);
-                window.alert("We could not refresh the bracket right now. You will stay on this screen and it will try again.");
+                console.warn("Bracket refresh failed; the next poll will retry.");
             }
         };
 

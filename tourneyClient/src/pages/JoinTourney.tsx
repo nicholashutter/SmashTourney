@@ -14,7 +14,6 @@ import { v4 as uuidv4 } from "uuid";
 import { PersistentConnection } from "@/services/PersistentConnection"
 import BasicInput from "@/components/BasicInput";
 import BasicHeading from "@/components/HeadingOne";
-import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
 import FighterSelect from "@/components/FighterSelect";
@@ -22,6 +21,7 @@ import { isValidGuid, normalizeGameId, resolveCharacterMappings } from "@/servic
 import { AddPlayerPayload } from "@/models/types/playerPayload";
 import { loadCharacterCatalog } from "@/lib/loadCharacterCatalog";
 import PageShell from "@/components/PageShell";
+import StatusBanner, { StatusMessage } from "@/components/StatusBanner";
 
 // Renders player join flow for an existing tournament lobby.
 
@@ -39,7 +39,7 @@ const JoinTourney = () =>
 
   // Stores the joining player's selected character.
   const [currentCharacter, setCurrentCharacter] = useState({} as Character);
-  const [joinStatus, setJoinStatus] = useState("Idle");
+  const [status, setStatus] = useState<StatusMessage | null>(null);
   const [isJoining, setIsJoining] = useState(false);
 
 
@@ -67,7 +67,7 @@ const JoinTourney = () =>
     }
     else
     {
-      window.alert(INVALID_CHARACTERS("GameId"));
+      setStatus({ text: INVALID_CHARACTERS("GameId"), tone: "error" });
     }
 
   }
@@ -82,7 +82,7 @@ const JoinTourney = () =>
     }
     else
     {
-      window.alert(INVALID_CHARACTERS("Display Name"));
+      setStatus({ text: INVALID_CHARACTERS("Display Name"), tone: "error" });
     }
 
   }
@@ -99,19 +99,19 @@ const JoinTourney = () =>
 
     if (!normalizedGameId)
     {
-      window.alert(INVALID_CHARACTERS("GameId"));
+      setStatus({ text: INVALID_CHARACTERS("GameId"), tone: "error" });
       return;
     }
 
     if (!isValidGuid(normalizedGameId))
     {
-      window.alert("Session code must be a valid GUID.");
+      setStatus({ text: "Session code must be a valid GUID.", tone: "error" });
       return;
     }
 
     if (!displayName.trim())
     {
-      window.alert(INVALID_CHARACTERS("Display Name"));
+      setStatus({ text: INVALID_CHARACTERS("Display Name"), tone: "error" });
       return;
     }
 
@@ -125,7 +125,7 @@ const JoinTourney = () =>
 
     if (!mappedCharacter)
     {
-      window.alert(INVALID_CHARACTERS("Character Selection"));
+      setStatus({ text: INVALID_CHARACTERS("Character Selection"), tone: "error" });
       return;
     }
 
@@ -158,7 +158,7 @@ const JoinTourney = () =>
     try
     {
       setIsJoining(true);
-      setJoinStatus("Joining room...");
+      setStatus({ text: "Joining room...", tone: "info" });
 
       await RequestService(
         "addPlayers",
@@ -174,16 +174,14 @@ const JoinTourney = () =>
       await lobbyConnection.createPlayerConnection(normalizedGameId);
       await lobbyConnection.updateOthers(normalizedGameId);
 
-      setJoinStatus("Join successful. Opening lobby...");
+      setStatus({ text: "Join successful. Opening lobby...", tone: "success" });
       setIsHost(false);
-      window.alert("You joined the tournament successfully. You are now moving to the lobby.");
       navigate("/lobby");
     }
     catch (err)
     {
       console.error(err);
-      setJoinStatus("Join failed. Please try again.");
-      window.alert("We could not join that tournament. You will stay on this page so you can fix details and try again.");
+      setStatus({ text: "Join failed. Check your details and try again.", tone: "error" });
     }
     finally
     {
@@ -206,7 +204,7 @@ const JoinTourney = () =>
             selectedCharacter={currentCharacter.id ? currentCharacter : null}
             onSelect={setCurrentCharacter}
           />
-          <HeadingTwo headingText={joinStatus} />
+          <StatusBanner status={status} />
           <SubmitButton buttonLabel={isJoining ? "Joining..." : "Join Room"} onSubmit={handleSubmit} />
           <BasicButton buttonLabel="Return to Main Menu" href="/" />
 
