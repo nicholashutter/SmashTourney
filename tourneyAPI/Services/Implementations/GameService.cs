@@ -1,5 +1,6 @@
 namespace Services;
 
+using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Text.Json;
 using Contracts;
@@ -17,8 +18,15 @@ public class GameService : IGameService
     private readonly Func<Guid, Guid, Guid> _selectByeVsByeWinner;
 
     private readonly Dictionary<Guid, BracketRuntimeState> _bracketStates = new();
-    private readonly Dictionary<Guid, Dictionary<Guid, Dictionary<string, Guid>>> _matchVoteLedger = new();
-    private readonly SemaphoreSlim _voteLedgerGate = new(1, 1);
+
+    // One gate per game, held across read-modify-persist.
+    //
+    // Every player is on their own phone hitting the same game at the same
+    // moment, so concurrent requests are the normal case rather than the edge
+    // one. Without this, two votes landing together could each read the state,
+    // each advance it, and each write their own version over the other's.
+    // The gate is per game so one tournament never waits on another.
+    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _gameGates = new();
 
     private readonly Dictionary<BracketMode, IBracketEngine> _bracketEngines = new()
     {
@@ -56,8 +64,33 @@ public class GameService : IGameService
         return game.Id;
     }
 
+    // Acquires the per-game gate, released when the returned handle is disposed.
+    private async Task<IDisposable> LockGameAsync(Guid gameId)
+    {
+        var gate = _gameGates.GetOrAdd(gameId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync();
+        return new GameGateRelease(gate);
+    }
+
+    // Releases a per-game gate exactly once.
+    private sealed class GameGateRelease : IDisposable
+    {
+        private SemaphoreSlim? _gate;
+
+        public GameGateRelease(SemaphoreSlim gate)
+        {
+            _gate = gate;
+        }
+
+        public void Dispose()
+        {
+            var gate = Interlocked.Exchange(ref _gate, null);
+            gate?.Release();
+        }
+    }
+
     // Creates a new game with caller-specified options.
-    public async Task<Guid> CreateGame(CreateGameOptions options)
+    public async Task<Guid> CreateGame(CreateGameOptions options, string? hostUserId = null)
     {
         var requestedMode = options?.BracketMode ?? BracketMode.SINGLE_ELIMINATION;
         var requestedTotalPlayers = options?.TotalPlayers ?? 0;
@@ -66,7 +99,8 @@ public class GameService : IGameService
         {
             Id = Guid.NewGuid(),
             BracketMode = requestedMode,
-            byes = requestedTotalPlayers
+            byes = requestedTotalPlayers,
+            HostUserId = hostUserId
         };
 
         await InsertGameAsync(game);
@@ -183,6 +217,59 @@ public class GameService : IGameService
             .ToListAsync();
 
         return game;
+    }
+
+    // Resolves a returning user's identity and place in a game.
+    //
+    // Everything here comes from the game id and the caller's identity cookie,
+    // which is exactly what a reopened URL still has. Nothing is taken from the
+    // client, so a player cannot come back claiming to be someone else or
+    // claiming to be the host.
+    public async Task<PlayerSessionResponse?> GetPlayerSessionAsync(Guid gameId, string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return null;
+        }
+
+        Game? game;
+        Player? player;
+
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            game = await dbContext.Games.FirstOrDefaultAsync(currentGame => currentGame.Id == gameId);
+            if (game is null)
+            {
+                return null;
+            }
+
+            player = await dbContext.Players
+                .FirstOrDefaultAsync(currentPlayer =>
+                    currentPlayer.CurrentGameID == gameId && currentPlayer.UserId == userId);
+        }
+
+        if (player is null)
+        {
+            return null;
+        }
+
+        var gameStateResponse = await GetGameStateAsync(gameId);
+
+        var resolvedState = gameStateResponse?.State ?? GameState.LOBBY_WAITING;
+        var resolvedGameStarted = gameStateResponse?.GameStarted ?? false;
+
+        var isHost = !string.IsNullOrWhiteSpace(game.HostUserId)
+            && string.Equals(game.HostUserId, userId, StringComparison.Ordinal);
+
+        return new PlayerSessionResponse(
+            gameId,
+            player.Id,
+            player.DisplayName,
+            isHost,
+            resolvedState,
+            resolvedGameStarted);
     }
 
     // Returns players assigned to a specific game.
@@ -346,6 +433,8 @@ public class GameService : IGameService
     // Starts bracket processing for a game.
     public async Task<bool> StartGameAsync(Guid gameId)
     {
+        using var gate = await LockGameAsync(gameId);
+
         Log.Information("Start game {GameId}", gameId);
 
         var game = await GetGameByIdAsync(gameId);
@@ -372,7 +461,7 @@ public class GameService : IGameService
             .Select(player => player.Id)
             .ToHashSet();
 
-        _matchVoteLedger.Remove(gameId);
+        initializedState.PendingVotes.Clear();
 
         await AutoResolveByeMatchesAsync(gameId, initializedState, bracketEngine, persistChanges: false);
         _bracketStates[gameId] = initializedState;
@@ -408,13 +497,17 @@ public class GameService : IGameService
         dbContext.SaveChanges();
 
         _bracketStates.Remove(gameId);
-        _matchVoteLedger.Remove(gameId);
+        _gameGates.TryRemove(gameId, out _);
         return true;
     }
 
     // Builds a bracket snapshot response for client display.
     public async Task<BracketSnapshotResponse?> GetBracketSnapshotAsync(Guid gameId)
     {
+        // Gated even though this reads: auto-resolving byes below mutates and
+        // persists, so it is a writer wearing a reader's name.
+        using var gate = await LockGameAsync(gameId);
+
         var bracketRuntimeState = await HydrateBracketStateAsync(gameId);
         if (bracketRuntimeState is null)
         {
@@ -436,6 +529,8 @@ public class GameService : IGameService
     // Builds the current active match for gameplay.
     public async Task<CurrentMatchResponse?> GetCurrentMatchAsync(Guid gameId)
     {
+        using var gate = await LockGameAsync(gameId);
+
         var bracketRuntimeState = await HydrateBracketStateAsync(gameId);
         if (bracketRuntimeState is null)
         {
@@ -457,6 +552,8 @@ public class GameService : IGameService
     // Returns the high-level game state used by the frontend state machine.
     public async Task<GameStateResponse?> GetGameStateAsync(Guid gameId)
     {
+        using var gate = await LockGameAsync(gameId);
+
         var game = await GetGameByIdAsync(gameId);
         if (game is null)
         {
@@ -505,6 +602,13 @@ public class GameService : IGameService
     // Applies a reported match result and advances bracket state.
     public async Task<bool> ReportMatchResultAsync(Guid gameId, ReportMatchRequest request)
     {
+        using var gate = await LockGameAsync(gameId);
+        return await ReportMatchResultCoreAsync(gameId, request);
+    }
+
+    // Applies a reported match result. Callers must already hold the game gate.
+    private async Task<bool> ReportMatchResultCoreAsync(Guid gameId, ReportMatchRequest request)
+    {
         var bracketRuntimeState = await HydrateBracketStateAsync(gameId);
         if (bracketRuntimeState is null)
         {
@@ -524,7 +628,7 @@ public class GameService : IGameService
             return false;
         }
 
-        RemoveLedgerForMatch(gameId, request.MatchId);
+        bracketRuntimeState.PendingVotes.Remove(request.MatchId);
 
         await AutoResolveByeMatchesAsync(gameId, bracketRuntimeState, bracketEngine, persistChanges: false);
 
@@ -540,6 +644,11 @@ public class GameService : IGameService
     // Accepts one authenticated player vote and commits match when both players agree on winner.
     public async Task<SubmitMatchVoteResponse> SubmitMatchVoteAsync(Guid gameId, string voterUserId, SubmitMatchVoteRequest request)
     {
+        // The gate is taken once, here, and held through validation, recording
+        // and application. Taking it separately per step would let a second
+        // voter slip in between them and be told the match is no longer active.
+        using var gate = await LockGameAsync(gameId);
+
         var validationResult = await ValidateVoteSubmissionAsync(gameId, voterUserId, request);
         if (validationResult.FailureResponse is not null)
         {
@@ -558,7 +667,7 @@ public class GameService : IGameService
             return ledgerResponse;
         }
 
-        var applied = await ReportMatchResultAsync(gameId, new ReportMatchRequest(request.MatchId, request.WinnerPlayerId));
+        var applied = await ReportMatchResultCoreAsync(gameId, new ReportMatchRequest(request.MatchId, request.WinnerPlayerId));
         if (!applied)
         {
             return new SubmitMatchVoteResponse(
@@ -635,6 +744,9 @@ public class GameService : IGameService
     }
 
     // Stores one vote and determines whether match consensus has been reached.
+    //
+    // Callers must already hold the game gate; the whole vote sequence runs
+    // under it rather than each step taking its own.
     private async Task<SubmitMatchVoteResponse?> RecordVoteAsync(
         Guid gameId,
         Guid matchId,
@@ -642,46 +754,44 @@ public class GameService : IGameService
         Guid votedWinnerPlayerId,
         int requiredConsensusVotes)
     {
-        await _voteLedgerGate.WaitAsync();
-        try
+        var bracketRuntimeState = await HydrateBracketStateAsync(gameId);
+        if (bracketRuntimeState is null)
         {
-            if (!_matchVoteLedger.ContainsKey(gameId))
-            {
-                _matchVoteLedger[gameId] = new Dictionary<Guid, Dictionary<string, Guid>>();
-            }
-
-            var gameVotes = _matchVoteLedger[gameId];
-            if (!gameVotes.ContainsKey(matchId))
-            {
-                gameVotes[matchId] = new Dictionary<string, Guid>();
-            }
-
-            var matchVotes = gameVotes[matchId];
-            if (matchVotes.ContainsKey(voterUserId))
-            {
-                return new SubmitMatchVoteResponse(gameId, matchId, SubmitMatchVoteStatus.DUPLICATE_VOTE, matchVotes.Count, null);
-            }
-
-            matchVotes[voterUserId] = votedWinnerPlayerId;
-
-            var distinctWinners = matchVotes.Values.Distinct().Count();
-            if (distinctWinners > 1)
-            {
-                matchVotes.Clear();
-                return new SubmitMatchVoteResponse(gameId, matchId, SubmitMatchVoteStatus.CONFLICT, 0, null);
-            }
-
-            if (matchVotes.Count < requiredConsensusVotes)
-            {
-                return new SubmitMatchVoteResponse(gameId, matchId, SubmitMatchVoteStatus.PENDING, matchVotes.Count, null);
-            }
-
-            return null;
+            return new SubmitMatchVoteResponse(gameId, matchId, SubmitMatchVoteStatus.GAME_NOT_FOUND, 0, null);
         }
-        finally
+
+        if (!bracketRuntimeState.PendingVotes.ContainsKey(matchId))
         {
-            _voteLedgerGate.Release();
+            bracketRuntimeState.PendingVotes[matchId] = new Dictionary<string, Guid>();
         }
+
+        var matchVotes = bracketRuntimeState.PendingVotes[matchId];
+        if (matchVotes.ContainsKey(voterUserId))
+        {
+            return new SubmitMatchVoteResponse(gameId, matchId, SubmitMatchVoteStatus.DUPLICATE_VOTE, matchVotes.Count, null);
+        }
+
+        matchVotes[voterUserId] = votedWinnerPlayerId;
+
+        var distinctWinners = matchVotes.Values.Distinct().Count();
+        if (distinctWinners > 1)
+        {
+            matchVotes.Clear();
+            await PersistBracketStateAsync(gameId, bracketRuntimeState);
+            return new SubmitMatchVoteResponse(gameId, matchId, SubmitMatchVoteStatus.CONFLICT, 0, null);
+        }
+
+        if (matchVotes.Count < requiredConsensusVotes)
+        {
+            // A vote that is waiting on the other player is written out too.
+            // It is the state most likely to be interrupted — one player has
+            // tapped and the other is still deciding — so it is the one that
+            // most needs to survive a restart.
+            await PersistBracketStateAsync(gameId, bracketRuntimeState);
+            return new SubmitMatchVoteResponse(gameId, matchId, SubmitMatchVoteStatus.PENDING, matchVotes.Count, null);
+        }
+
+        return null;
     }
 
     // Resolves required consensus votes based on authenticated participants in the active match.
@@ -950,20 +1060,4 @@ public class GameService : IGameService
         return players.ToDictionary(player => player.Id, player => player.UserId);
     }
 
-    // Removes cached votes for one match after resolution.
-    private void RemoveLedgerForMatch(Guid gameId, Guid matchId)
-    {
-        if (!_matchVoteLedger.ContainsKey(gameId))
-        {
-            return;
-        }
-
-        var gameVotes = _matchVoteLedger[gameId];
-        gameVotes.Remove(matchId);
-
-        if (gameVotes.Count == 0)
-        {
-            _matchVoteLedger.Remove(gameId);
-        }
-    }
 }

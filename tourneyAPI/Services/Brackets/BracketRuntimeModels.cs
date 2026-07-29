@@ -49,8 +49,15 @@ internal sealed class BracketRuntimeState
     public List<BracketMatchRuntime> Matches { get; set; } = new();
     public HashSet<Guid> ByePlayerIds { get; set; } = new();
 
-    public Dictionary<int, List<Guid>> WinnersPools { get; } = new();
-    public Dictionary<int, List<Guid>> LosersPools { get; } = new();
+    // Votes cast for a match that has not reached consensus yet, keyed by match
+    // and then by voting user.
+    //
+    // This lived in a field on the service, which meant a restart between the
+    // first player tapping a winner and the second one doing so lost the first
+    // vote silently. Keeping it here is what makes it part of the same
+    // write-through as the bracket itself: one serialize, one row, one story
+    // about what the tournament currently is.
+    public Dictionary<Guid, Dictionary<string, Guid>> PendingVotes { get; set; } = new();
 
     public int WinnersMatchCounter { get; set; }
     public int LosersMatchCounter { get; set; }

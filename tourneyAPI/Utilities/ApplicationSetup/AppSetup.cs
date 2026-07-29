@@ -189,6 +189,25 @@ public class AppSetup
             "DummyPass!01..DummyPass!16");
     }
 
+    // Creates the SQLite schema when the database file does not have one yet.
+    //
+    // Nothing did this outside the test host, so a first run on a clean machine
+    // failed on its very first query. The tests have always called EnsureCreated
+    // for exactly this reason; production needs the same call rather than a
+    // database file someone happened to make by hand once.
+    public static async Task EnsureDatabaseCreatedAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var schemaWasCreated = await dbContext.Database.EnsureCreatedAsync();
+
+        if (schemaWasCreated)
+        {
+            Log.Information("Created database schema because none existed yet.");
+        }
+    }
+
     public static async Task ClearDevelopmentGamesForDummyProfileAsync(IServiceProvider services, IHostEnvironment environment, IConfiguration configuration)
     {
         if (!environment.IsDevelopment())
