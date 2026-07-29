@@ -15,7 +15,10 @@ public static class PlayerRouter
     // Registers all player API endpoints.
     public static void Map(WebApplication app)
     {
-        var playerRoutes = app.MapGroup("/Players");
+        // Authorization is applied to the whole group. These are unscoped CRUD
+        // endpoints over the player table — an unauthenticated DELETE here would
+        // remove any player in any game.
+        var playerRoutes = app.MapGroup("/Players").RequireAuthorization();
 
         playerRoutes.MapGet("/", async (HttpContext context, ApplicationDbContext db, IPlayerManager playerManager) =>
         {

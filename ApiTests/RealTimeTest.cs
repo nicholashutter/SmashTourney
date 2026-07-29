@@ -1,7 +1,10 @@
 namespace ApiTests;
 
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
+using Services;
 
 // Verifies realtime broadcast behavior that keeps clients synchronized during tournament play.
 public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
@@ -9,21 +12,80 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
     private readonly CustomWebApplicationFactory<Program> _factory;
     private const string InMemoryHubUrl = "wss://localhost/hubs/GameServiceHub";
 
-    // Initializes realtime test host access.
+    // Initializes realtime test host access and ensures database availability.
+    //
+    // These tests previously never touched the database, because an anonymous
+    // hub connection needed no account. Now that the hub requires a session
+    // they register a user first, so the identity schema has to exist.
     public RealTimeTest(CustomWebApplicationFactory<Program> factory)
     {
         _factory = factory;
+
+        using var scope = _factory.Services.CreateScope();
+        var database = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        database.Database.EnsureCreated();
     }
 
-    // Creates a SignalR client connected to the in-memory test server.
-    private HubConnection CreateClient()
+    // Attaches a captured identity cookie to every hub request.
+    //
+    // The test server's handler carries no cookie jar, so the negotiate call
+    // would arrive anonymous and be refused. Replaying the cookie by hand is the
+    // smallest way to give the hub connection a real session.
+    private sealed class AuthenticatedHubHandler : DelegatingHandler
+    {
+        private readonly string _cookieHeader;
+
+        public AuthenticatedHubHandler(HttpMessageHandler innerHandler, string cookieHeader)
+            : base(innerHandler)
+        {
+            _cookieHeader = cookieHeader;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            request.Headers.Remove("Cookie");
+            request.Headers.Add("Cookie", _cookieHeader);
+            return base.SendAsync(request, cancellationToken);
+        }
+    }
+
+    // Registers a user, signs in, and returns the resulting cookie header.
+    private async Task<string> SignInAndCaptureCookieAsync()
+    {
+        using var client = new HttpClient(_factory.Server.CreateHandler())
+        {
+            BaseAddress = new Uri("https://localhost")
+        };
+
+        var credentials = new
+        {
+            Email = $"realtime_{Guid.NewGuid()}@example.com",
+            Password = "SecureP@ssw0rd123!"
+        };
+
+        var registerResponse = await client.PostAsJsonAsync("/register", credentials);
+        registerResponse.EnsureSuccessStatusCode();
+
+        var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", credentials);
+        loginResponse.EnsureSuccessStatusCode();
+
+        var setCookieValues = loginResponse.Headers.GetValues("Set-Cookie");
+        return string.Join("; ", setCookieValues.Select(value => value.Split(';')[0]));
+    }
+
+    // Creates an authenticated SignalR client connected to the in-memory server.
+    private async Task<HubConnection> CreateClientAsync()
     {
         var server = _factory.Server;
+        var cookieHeader = await SignInAndCaptureCookieAsync();
 
         return new HubConnectionBuilder()
             .WithUrl(InMemoryHubUrl, options =>
             {
-                options.HttpMessageHandlerFactory = _ => server.CreateHandler();
+                options.HttpMessageHandlerFactory = _ =>
+                    new AuthenticatedHubHandler(server.CreateHandler(), cookieHeader);
             })
             .Build();
     }
@@ -39,6 +101,20 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
         Assert.NotEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    // Confirms an anonymous client cannot open a hub connection.
+    [Fact]
+    public async Task HubRefusesUnauthenticatedConnection()
+    {
+        var connection = new HubConnectionBuilder()
+            .WithUrl(InMemoryHubUrl, options =>
+            {
+                options.HttpMessageHandlerFactory = _ => _factory.Server.CreateHandler();
+            })
+            .Build();
+
+        await Assert.ThrowsAnyAsync<Exception>(() => connection.StartAsync());
+    }
+
     // Confirms a newly connected client receives the join acknowledgment event.
     [Fact]
     public async Task SuccessMessageOnPlayerConnection()
@@ -46,7 +122,7 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
         const string expectedResult = "Success";
 
         var completionSource = new TaskCompletionSource<string>();
-        var connection = CreateClient();
+        var connection = await CreateClientAsync();
 
         connection.On("Successfully Joined", () =>
         {
@@ -66,8 +142,8 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
     {
         var gameId = Guid.NewGuid().ToString();
 
-        var hostConnection = CreateClient();
-        var guestConnection = CreateClient();
+        var hostConnection = await CreateClientAsync();
+        var guestConnection = await CreateClientAsync();
 
         var hostReceived = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         var guestReceived = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);

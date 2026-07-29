@@ -117,7 +117,10 @@ await AppSetup.SeedDevelopmentUsersAsync(app.Services, app.Environment, app.Conf
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapHub<ConnectionHub>(AppConstants.HubURL);
+// The hub carries player lists and game-start events, so it is game data and is
+// protected like everything else. The browser client already negotiates with
+// withCredentials, so the identity cookie rides along with the connection.
+app.MapHub<ConnectionHub>(AppConstants.HubURL).RequireAuthorization();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 

@@ -136,7 +136,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     private async Task<(Guid GameId, CurrentMatchResponse Match, AuthenticatedPlayerSession PlayerOneSession, AuthenticatedPlayerSession PlayerTwoSession)>
         SetupStartedTwoPlayerMatchAsync()
     {
-        var hostClient = NewClient();
+        var hostClient = await CreateAuthenticatedClientAsync("host");
         var gameId = await CreateGameAsync(hostClient);
 
         var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 2);
@@ -196,7 +196,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         int playerCount,
         int maxIterations)
     {
-        var hostClient = NewClient();
+        var hostClient = await CreateAuthenticatedClientAsync("host");
         var gameResponse = await CreateGameWithModeAsync(hostClient, bracketMode);
         var gameId = gameResponse.GameId;
 
@@ -331,7 +331,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task AddPlayersReturnsSuccess()
     {
-        var client = NewClient();
+        var client = await CreateAuthenticatedClientAsync("host");
         var gameId = await CreateGameAsync(client);
         var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 10);
 
@@ -353,8 +353,13 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task AddPlayerWithoutAuthentication_ReturnsUnauthorized()
     {
+        // The game itself has to be created by someone signed in, since every
+        // /Games route now requires a session. Only the AddPlayer call is made
+        // anonymously — that is the thing under test.
+        var hostClient = await CreateAuthenticatedClientAsync("host");
+        var gameId = await CreateGameAsync(hostClient);
+
         var unauthenticatedClient = NewClient();
-        var gameId = await CreateGameAsync(unauthenticatedClient);
 
         var response = await unauthenticatedClient.PostAsJsonAsync(
             $"/Games/AddPlayer/{gameId}",
@@ -378,7 +383,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task AuthenticatedCreateTourneyFlow_AllowsSessionAndAddPlayer()
     {
-        var gameId = await CreateGameAsync(NewClient());
+        var gameId = await CreateGameAsync(await CreateAuthenticatedClientAsync("host"));
 
         var authenticatedClient = NewClient(handleCookies: true);
         var registerRequest = new RegisterRequest
@@ -407,7 +412,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task AddPlayerWithoutUserIdInBody_UsesClaimUserIdAndReturnsSuccess()
     {
-        var gameId = await CreateGameAsync(NewClient());
+        var gameId = await CreateGameAsync(await CreateAuthenticatedClientAsync("host"));
 
         var authenticatedClient = NewClient(handleCookies: true);
         var registerRequest = new RegisterRequest
@@ -460,7 +465,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task AddPlayerAcceptsStringEnumPayloadFromJoinTourney()
     {
-        var gameId = await CreateGameAsync(NewClient());
+        var gameId = await CreateGameAsync(await CreateAuthenticatedClientAsync("host"));
 
         var authenticatedClient = NewClient(handleCookies: true);
         var registerRequest = new RegisterRequest
@@ -501,7 +506,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task StartGameStartsGameSuccessfully()
     {
-        var client = NewClient();
+        var client = await CreateAuthenticatedClientAsync("host");
         var gameId = await CreateGameAsync(client);
         var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 10);
 
@@ -519,7 +524,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task SingleEliminationBracketEndpointsReturnSnapshotAndCurrentMatch()
     {
-        var client = NewClient();
+        var client = await CreateAuthenticatedClientAsync("host");
         var gameId = await CreateGameAsync(client);
 
         var playerSessions = await CreateDummyEntitiesWithAuthenticationAsync(gameId, 4);
@@ -552,7 +557,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task CreateGameWithModeReturnsRequestedBracketMode()
     {
-        var client = NewClient();
+        var client = await CreateAuthenticatedClientAsync("host");
         var response = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
 
         Assert.True(response.GameId != Guid.Empty && response.BracketMode == BracketMode.DOUBLE_ELIMINATION);
@@ -562,7 +567,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task DoubleEliminationBracketEndpointsReturnSnapshotAndSupportCurrentMatchRoute()
     {
-        var client = NewClient();
+        var client = await CreateAuthenticatedClientAsync("host");
         var gameResponse = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
         var gameId = gameResponse.GameId;
 
@@ -619,7 +624,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task GetFlowStateReturnsAuthoritativeStateForStartedGame()
     {
-        var client = NewClient();
+        var client = await CreateAuthenticatedClientAsync("host");
         var gameResponse = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
         var gameId = gameResponse.GameId;
 
@@ -649,7 +654,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task DoubleEliminationApiEndToEndFlowProgressesUntilNoCurrentMatch()
     {
-        var client = NewClient();
+        var client = await CreateAuthenticatedClientAsync("host");
         var gameResponse = await CreateGameWithModeAsync(client, BracketMode.DOUBLE_ELIMINATION);
         var gameId = gameResponse.GameId;
 
@@ -877,5 +882,99 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
             && runResult.ReportedMatches <= (playerCount * 2) - 1;
 
         Assert.True(runResult.GameId != Guid.Empty && hasValidRange);
+    }
+
+    // Confirms every game route refuses an anonymous caller.
+    //
+    // Their absence is why none of this showed up in a green run: the routes
+    // were open, and nothing asked whether they should be. Reads are included
+    // deliberately — a game id is not a credential, so bracket and flow state
+    // are protected the same as the writes.
+    [Theory]
+    [InlineData("POST", "/Games/CreateGameWithMode")]
+    [InlineData("POST", "/Games/GetPlayersInGame/{gameId}")]
+    [InlineData("POST", "/Games/AddPlayer/{gameId}")]
+    [InlineData("POST", "/Games/StartGame/{gameId}")]
+    [InlineData("GET", "/Games/GetBracket/{gameId}")]
+    [InlineData("GET", "/Games/GetCurrentMatch/{gameId}")]
+    [InlineData("GET", "/Games/GetFlowState/{gameId}")]
+    [InlineData("POST", "/Games/SubmitMatchVote/{gameId}")]
+    public async Task GameRoutesWithoutAuthentication_ReturnUnauthorized(string method, string routeTemplate)
+    {
+        var hostClient = await CreateAuthenticatedClientAsync("host");
+        var gameId = await CreateGameAsync(hostClient);
+
+        var unauthenticatedClient = NewClient();
+        var route = routeTemplate.Replace("{gameId}", gameId.ToString());
+
+        var response = method == "GET"
+            ? await unauthenticatedClient.GetAsync(route)
+            : await unauthenticatedClient.PostAsJsonAsync(route, new { });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    // Confirms the player CRUD routes refuse an anonymous caller.
+    //
+    // These are unscoped over the whole player table, so an open DELETE here
+    // removed any player in any game.
+    [Theory]
+    [InlineData("GET", "/Players")]
+    [InlineData("POST", "/Players")]
+    [InlineData("PUT", "/Players")]
+    [InlineData("DELETE", "/Players/00000000-0000-0000-0000-000000000001")]
+    public async Task PlayerRoutesWithoutAuthentication_ReturnUnauthorized(string method, string route)
+    {
+        var unauthenticatedClient = NewClient();
+
+        var response = method switch
+        {
+            "GET" => await unauthenticatedClient.GetAsync(route),
+            "DELETE" => await unauthenticatedClient.DeleteAsync(route),
+            "PUT" => await unauthenticatedClient.PutAsJsonAsync(route, new { }),
+            _ => await unauthenticatedClient.PostAsJsonAsync(route, new { })
+        };
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    // Confirms sign-in stays reachable without an existing session.
+    //
+    // /users is closed by default, so login opts out explicitly. If that
+    // exemption is ever lost nobody can sign in at all, which is the kind of
+    // lockout worth a test rather than a comment.
+    //
+    // This signs in for real rather than checking a status code, because the
+    // handler answers bad credentials with 401 as well — a rejected password
+    // and a rejected anonymous request are indistinguishable by status alone.
+    [Fact]
+    public async Task LoginRemainsReachableWithoutSession()
+    {
+        var email = $"anon_{Guid.NewGuid()}@example.com";
+        const string password = "SecureP@ssw0rd123!";
+
+        var registrationClient = NewClient();
+        var registerResponse = await registrationClient.PostAsJsonAsync(
+            "/register",
+            new RegisterRequest { Email = email, Password = password });
+        registerResponse.EnsureSuccessStatusCode();
+
+        var unauthenticatedClient = NewClient(handleCookies: true);
+        var response = await unauthenticatedClient.PostAsJsonAsync(
+            "/users/login",
+            new { UserName = email, Password = password });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // Confirms the development demo credentials route is not behind authorization.
+    [Fact]
+    public async Task DemoCredentialsRouteIsNotBehindAuthorization()
+    {
+        var unauthenticatedClient = NewClient();
+
+        var response = await unauthenticatedClient.GetAsync("/users/demo-credentials");
+
+        Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }

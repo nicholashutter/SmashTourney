@@ -14,7 +14,14 @@ public static class GameRouter
     // Registers all game API endpoints.
     public static void Map(WebApplication app)
     {
-        var gameRoutes = app.MapGroup("/Games");
+        // Authorization is applied to the whole group rather than per route.
+        //
+        // Every tournament action belongs to a signed-in user, so the default
+        // has to be closed: a route added later is protected because it joined
+        // this group, not because someone remembered to protect it. Handlers
+        // that need the caller's identity still read it from claims — this only
+        // guarantees there is an identity to read.
+        var gameRoutes = app.MapGroup("/Games").RequireAuthorization();
 
         gameRoutes.MapPost("/CreateGameWithMode", async (HttpContext context, IGameService gameService, CreateGameOptions options) =>
         {

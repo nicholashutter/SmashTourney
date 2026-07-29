@@ -22,7 +22,11 @@ public static class UserRouter
     // Registers all user API endpoints.
     public static void Map(WebApplication app)
     {
-        var userRoutes = app.MapGroup("/users");
+        // Closed by default, with the two routes that cannot require a session
+        // opting out explicitly below. Sign-in obviously cannot demand proof of
+        // sign-in, but that exemption belongs on the route that needs it rather
+        // than being the default for everything under /users.
+        var userRoutes = app.MapGroup("/users").RequireAuthorization();
 
         userRoutes.MapPost("/login", async (
             LoginRequest loginRequest,
@@ -56,7 +60,7 @@ public static class UserRouter
             }
 
             return Results.Ok(new { Message = "Login successful" });
-        });
+        }).AllowAnonymous();
 
         userRoutes.MapGet("/demo-credentials", (IHostEnvironment environment) =>
         {
@@ -70,7 +74,7 @@ public static class UserRouter
                 UserName = AppConstants.DemoUserName,
                 Password = AppConstants.DemoUserPassword
             });
-        });
+        }).AllowAnonymous();
 
         userRoutes.MapGet("/session", (ClaimsPrincipal user) =>
         {
