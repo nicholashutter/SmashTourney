@@ -25,7 +25,7 @@ import
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { isValidGuid, normalizeGameId, resolveCharacterMappings } from "@/services/playerSetupService";
-import { AddPlayerPayload, BackendCharacterPayload } from "@/models/types/playerPayload";
+import { AddPlayerPayload } from "@/models/types/playerPayload";
 import { loadCharacterCatalog } from "@/lib/loadCharacterCatalog";
 
 // Renders player join flow for an existing tournament lobby.
