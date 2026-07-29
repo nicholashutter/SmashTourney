@@ -24,6 +24,7 @@ import { getSessionIdentity, resolveCharacterMappings } from "@/services/playerS
 import { AddPlayerPayload } from "@/models/types/playerPayload";
 import { loadCharacterCatalog } from "@/lib/loadCharacterCatalog";
 import FighterSelect from "@/components/FighterSelect";
+import { lobbyPath } from "@/services/gameRoutes";
 
 // Renders host setup flow to create a tournament and join its lobby.
 const CreateTourney = () =>
@@ -228,7 +229,7 @@ const CreateTourney = () =>
         setPlayerId(hostPlayerId);
         setIsHost(true);
 
-        navigate("/lobby");
+        navigate(lobbyPath(resolvedGameId));
       }
       else
       {

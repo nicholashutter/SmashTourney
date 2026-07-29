@@ -8,6 +8,21 @@ public sealed record CreateGameOptions(
     int TotalPlayers = 0
 );
 
+// Describes a returning player's place in a game and where they belong now.
+//
+// A player who drops has lost only what their browser tab was holding. Their
+// identity cookie outlives the tab and their player row is already stored
+// against the game, so given the game id from the URL the server can rebuild
+// the whole session. This is what it answers with.
+public sealed record PlayerSessionResponse(
+    Guid GameId,
+    Guid PlayerId,
+    string DisplayName,
+    bool IsHost,
+    GameState State,
+    bool GameStarted
+);
+
 // Represents the winner selection for a reported bracket match.
 public sealed record ReportMatchRequest(
     Guid MatchId,

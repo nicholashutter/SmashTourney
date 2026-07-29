@@ -1,5 +1,5 @@
 import { useState, useEffect, type ChangeEvent } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { useGameData } from "@/hooks/useGameData";
 import { validateInput } from "@/services/validationService";
@@ -22,6 +22,7 @@ import { AddPlayerPayload } from "@/models/types/playerPayload";
 import { loadCharacterCatalog } from "@/lib/loadCharacterCatalog";
 import PageShell from "@/components/PageShell";
 import StatusBanner, { StatusMessage } from "@/components/StatusBanner";
+import { lobbyPath } from "@/services/gameRoutes";
 
 // Renders player join flow for an existing tournament lobby.
 
@@ -29,6 +30,7 @@ const JoinTourney = () =>
 {
   // Handles route navigation after join flow events.
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const { setGameId, gameId, setPlayerId, playerId, setIsHost } = useGameData();
   // Stores joining player's display name.
@@ -55,6 +57,21 @@ const JoinTourney = () =>
 
     fetchAllCharacters();
   }, []);
+
+  // Prefills the session code when arriving from a game link.
+  //
+  // Someone who opens a shared URL for a tournament they have not joined is
+  // sent here, and they already told us which game they meant by clicking the
+  // link. Making them retype a GUID from a phone would be the wrong ending to
+  // that story.
+  useEffect(() =>
+  {
+    const gameIdFromLink = searchParams.get("gameId");
+    if (gameIdFromLink)
+    {
+      setGameId(normalizeGameId(gameIdFromLink));
+    }
+  }, [searchParams, setGameId]);
 
   // Stores validated session code input.
   const handleGameIdChange = (e: ChangeEvent<HTMLInputElement>) =>
@@ -176,7 +193,7 @@ const JoinTourney = () =>
 
       setStatus({ text: "Join successful. Opening lobby...", tone: "success" });
       setIsHost(false);
-      navigate("/lobby");
+      navigate(lobbyPath(normalizedGameId));
     }
     catch (err)
     {

@@ -1,10 +1,12 @@
 import { CurrentMatchResponse, GameState } from "@/models/entities/Bracket";
+import { lobbyPath, showBracketPath } from "@/services/gameRoutes";
 
 // Resolves whether in-match view should redirect based on game state and participant context.
 export const resolveInMatchRedirect = (
     gameState: GameState | null,
     currentMatch: CurrentMatchResponse | null,
-    playerId: string | null
+    playerId: string | null,
+    gameId: string
 ): string | null =>
 {
     if (!gameState)
@@ -14,17 +16,17 @@ export const resolveInMatchRedirect = (
 
     if (gameState === "LOBBY_WAITING")
     {
-        return "/lobby";
+        return lobbyPath(gameId);
     }
 
     if (gameState === "BRACKET_VIEW" || gameState === "COMPLETE")
     {
-        return "/showBracket";
+        return showBracketPath(gameId);
     }
 
     if (!currentMatch)
     {
-        return "/showBracket";
+        return showBracketPath(gameId);
     }
 
     const isPlayerInCurrentMatch = Boolean(
@@ -33,7 +35,7 @@ export const resolveInMatchRedirect = (
 
     if (!isPlayerInCurrentMatch)
     {
-        return "/showBracket";
+        return showBracketPath(gameId);
     }
 
     return null;

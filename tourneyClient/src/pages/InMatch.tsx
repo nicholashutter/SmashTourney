@@ -156,12 +156,17 @@ const InMatch = () =>
     // Redirects to the appropriate screen when backend game state indicates in-match is no longer valid.
     useEffect(() =>
     {
-        const redirectPath = resolveInMatchRedirect(gameState?.state ?? null, currentMatch, playerId);
+        if (!gameId)
+        {
+            return;
+        }
+
+        const redirectPath = resolveInMatchRedirect(gameState?.state ?? null, currentMatch, playerId, gameId);
         if (redirectPath)
         {
             navigate(redirectPath, { replace: true });
         }
-    }, [currentMatch, gameState?.state, navigate, playerId]);
+    }, [currentMatch, gameId, gameState?.state, navigate, playerId]);
 
     // Submits the selected winner for the current active match.
     const handleLockVote = async () =>

@@ -27,7 +27,12 @@ public static class GameRouter
         {
             Log.Information("Request Type: Post \n URL: '/Games/CreateGameWithMode' \n Time:{Timestamp}", DateTime.UtcNow);
 
-            Guid gameId = await gameService.CreateGame(options);
+            // The creator is recorded as host from their claims, not from the
+            // request body, so host-ness is something the server knows rather
+            // than something a client can assert on its way back in.
+            var hostUserId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            Guid gameId = await gameService.CreateGame(options, hostUserId);
 
             var response = new { GameId = gameId, options.BracketMode };
 
@@ -115,6 +120,32 @@ public static class GameRouter
             }
 
             return Results.Ok(currentMatch);
+        });
+
+        // Rebuilds a dropped player's session from the game id in their URL.
+        //
+        // This is the whole reconnect story: a phone that lost its tab still has
+        // the identity cookie, and the player row is already stored against the
+        // game, so the client can ask "who am I here and where do I belong" and
+        // be told. A 404 means this user is genuinely not in this game, which
+        // the client treats as an invitation to join rather than an error.
+        gameRoutes.MapGet("/GetPlayerSession/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        {
+            Log.Information("Request Type: Get \n URL: '/Games/GetPlayerSession' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var playerSession = await gameService.GetPlayerSessionAsync(gameId, userId);
+            if (playerSession is null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(playerSession);
         });
 
         gameRoutes.MapGet("/GetFlowState/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>

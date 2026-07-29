@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { RequestService } from "@/services/RequestService";
 import { ApplicationUser } from '@/models/entities/ApplicationUser';
 import { validateInput } from "@/services/validationService";
@@ -11,11 +11,13 @@ import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
 import PageShell from "@/components/PageShell";
 import StatusBanner, { StatusMessage } from "@/components/StatusBanner";
+import { readReturnPath } from "@/services/returnPath";
 
 // Renders the sign-in page and starts the authenticated user flow.
 const HomePage = () =>
 {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
@@ -62,7 +64,11 @@ const HomePage = () =>
 
       // No success message: the navigation is the confirmation, and a banner
       // that unmounts immediately would only ever be seen as a flicker.
-      navigate("/tourneyMenu");
+      //
+      // Anyone sent here mid-journey — usually by clicking a game link with a
+      // lapsed session — is put back on the page they asked for.
+      const returnPath = readReturnPath(location.search);
+      navigate(returnPath ?? "/tourneyMenu");
     }
     catch (err)
     {

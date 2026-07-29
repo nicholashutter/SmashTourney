@@ -56,9 +56,9 @@
                     <tr><td><code>/createTourney</code></td><td><code>CreateTourney</code></td><td><span class="pill pill-required">Guarded</span></td><td>Creates a game and picks the elimination mode.</td></tr>
                     <tr><td><code>/joinTourney</code></td><td><code>JoinTourney</code></td><td><span class="pill pill-required">Guarded</span></td><td>Joins an existing game by id.</td></tr>
                     <tr><td><code>/tourneyMenu</code></td><td><code>TourneyMenu</code></td><td><span class="pill pill-required">Guarded</span></td><td>Chooses between creating and joining.</td></tr>
-                    <tr><td><code>/lobby</code></td><td><code>Lobby</code></td><td><span class="pill pill-required">Guarded</span></td><td>Pre-game player gathering; host starts from here.</td></tr>
-                    <tr><td><code>/showBracket</code></td><td><code>ShowBracket</code></td><td><span class="pill pill-required">Guarded</span></td><td>Bracket rendering and waiting state.</td></tr>
-                    <tr><td><code>/inMatch</code></td><td><code>InMatch</code></td><td><span class="pill pill-required">Guarded</span></td><td>Winner voting for the two active participants.</td></tr>
+                    <tr><td><code>/lobby/:gameId</code></td><td><code>Lobby</code></td><td><span class="pill pill-required">Guarded</span></td><td>Pre-game player gathering; host starts from here.</td></tr>
+                    <tr><td><code>/showBracket/:gameId</code></td><td><code>ShowBracket</code></td><td><span class="pill pill-required">Guarded</span></td><td>Bracket rendering and waiting state.</td></tr>
+                    <tr><td><code>/inMatch/:gameId</code></td><td><code>InMatch</code></td><td><span class="pill pill-required">Guarded</span></td><td>Winner voting for the two active participants.</td></tr>
                     <tr><td><code>*</code></td><td><code>NotFound</code></td><td><span class="pill pill-open">Public</span></td><td>Fallback.</td></tr>
                 </tbody>
             </table>
@@ -224,16 +224,48 @@
         </p>
 
         <ul class="flow">
-            <li>LOBBY_WAITING &rarr; /lobby</li>
-            <li>BRACKET_VIEW &rarr; /showBracket</li>
-            <li>IN_MATCH_ACTIVE &rarr; /inMatch or /showBracket</li>
+            <li>LOBBY_WAITING &rarr; /lobby/:gameId</li>
+            <li>BRACKET_VIEW &rarr; /showBracket/:gameId</li>
+            <li>IN_MATCH_ACTIVE &rarr; /inMatch/:gameId or /showBracket/:gameId</li>
             <li>COMPLETE &rarr; results</li>
         </ul>
 
         <p>
             <code>IN_MATCH_ACTIVE</code> is the one state that splits by viewer: the two participants named in the
             current match go to the voting screen, and everyone else stays on the bracket. That decision lives in
-            <code>inMatchRouting.ts</code>.
+            <code>inMatchRouting.ts</code>, and every destination is built by <code>gameRoutes.ts</code> so no screen
+            can construct a path that has lost the game id.
+        </p>
+
+        <h2>Getting back in after a drop</h2>
+
+        <p>
+            Phones drop. A backgrounded tab gets reclaimed, the browser is closed by accident, the network goes. All of
+            that clears <code>sessionStorage</code>, which is where the session lives, so anything held only there is
+            gone. Two things survive: the identity cookie, which is <code>HttpOnly</code> and outlives the tab, and
+            whatever is in the URL.
+        </p>
+
+        <p>
+            That is why the game screens carry <code>:gameId</code>. <code>GameRouteGuard</code> wraps all three, reads
+            the id from the path, and asks <code>GetPlayerSession/{gameId}</code> who the signed-in user is in that
+            game. Nothing is taken from the client, so a returning player cannot come back as somebody else or claim to
+            be the host. The screen underneath renders only once the answer is in, so no page has to cope with a
+            half-restored session.
+        </p>
+
+        <ul class="flow">
+            <li>Session already loaded &rarr; render immediately</li>
+            <li>Server resolves the player &rarr; restore identity, host flag, and state, then render</li>
+            <li><code>404</code>, meaning not a participant &rarr; <code>/joinTourney</code> with the code prefilled</li>
+            <li>Request failed &rarr; a reconnect message, not a redirect that would lose the URL</li>
+        </ul>
+
+        <p>
+            Sign-in participates in this too. <code>RequireAuth</code> attaches the attempted path as a
+            <code>next</code> parameter instead of discarding it, and <code>HomePage</code> returns the player there
+            after they sign in &mdash; so a lapsed session costs a login, not the tournament. Only same-site absolute
+            paths are accepted back, which <code>returnPath.ts</code> enforces.
         </p>
 
         <footer class="footer">

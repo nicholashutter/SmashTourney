@@ -5,6 +5,7 @@ import DrawWinnersBracket from "@/components/brackets/DynamicBracket";
 import { useGameData } from "@/hooks/useGameData";
 import { BracketSnapshotResponse, CurrentMatchResponse, GameStateResponse } from "@/models/entities/Bracket";
 import { fetchBracketViewData } from "@/services/gameFlowService";
+import { inMatchPath } from "@/services/gameRoutes";
 
 // Renders the live tournament bracket and routes players into active matches.
 const ShowBracket = () =>
@@ -92,9 +93,9 @@ const ShowBracket = () =>
             const msRemaining = Math.max(0, deadline - Date.now());
             setSecondsUntilMatch(Math.ceil(msRemaining / 1000));
 
-            if (msRemaining === 0)
+            if (msRemaining === 0 && gameId)
             {
-                navigate("/inMatch", { replace: true });
+                navigate(inMatchPath(gameId), { replace: true });
             }
         };
 
@@ -105,7 +106,7 @@ const ShowBracket = () =>
         {
             window.clearInterval(countdownInterval);
         };
-    }, [currentMatch?.matchId, gameState?.state, isPlayerInCurrentMatch, navigate, setGameStarted]);
+    }, [currentMatch?.matchId, gameId, gameState?.state, isPlayerInCurrentMatch, navigate, setGameStarted]);
 
     return (
 

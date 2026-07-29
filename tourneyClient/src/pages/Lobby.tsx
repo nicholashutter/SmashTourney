@@ -12,6 +12,7 @@ import { useGameData } from '@/hooks/useGameData';
 import { useNavigate } from 'react-router';
 import { normalizePlayers, resolvePlayerId } from '@/lib/normalizePlayer';
 import { fetchGameState, fetchPlayersInGame } from '@/services/gameFlowService';
+import { showBracketPath } from '@/services/gameRoutes';
 
 
 // Renders the lobby and handles realtime player updates before game start.
@@ -99,7 +100,7 @@ const Lobby = () =>
                 if (!isDisposed && flowState && flowState.state !== "LOBBY_WAITING")
                 {
                     setGameStarted(true);
-                    navigate("/showBracket", { replace: true });
+                    navigate(showBracketPath(targetGameId), { replace: true });
                     return true;
                 }
             }
@@ -167,7 +168,7 @@ const Lobby = () =>
             }
 
             setGameStarted(true);
-            navigate("/showBracket", { replace: true });
+            navigate(showBracketPath(startedGameId), { replace: true });
         };
 
         const initializeLobby = async () =>
@@ -235,7 +236,7 @@ const Lobby = () =>
 
             // Everyone moves to the bracket immediately; a dialog here would
             // hold the host on a dead screen while every other phone advanced.
-            navigate("/showBracket");
+            navigate(showBracketPath(gameId));
         }
         catch (err)
         {

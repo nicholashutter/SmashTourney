@@ -10,8 +10,12 @@ public interface IGameService
     // Creates a new game using default settings.
     Task<Guid> CreateGame();
 
-    // Creates a new game with explicit bracket options.
-    Task<Guid> CreateGame(CreateGameOptions options);
+    // Creates a new game with explicit bracket options, recording its host.
+    Task<Guid> CreateGame(CreateGameOptions options, string? hostUserId = null);
+
+    // Resolves a returning user's identity and place in a game, or null when
+    // that user has no player in it.
+    Task<PlayerSessionResponse?> GetPlayerSessionAsync(Guid gameId, string userId);
 
     // Ends an existing game and clears its runtime state.
     bool EndGame(Guid endGameId);

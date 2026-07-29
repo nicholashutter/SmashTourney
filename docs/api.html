@@ -78,10 +78,18 @@
 
         <div class="note">
             <p>
-                <strong><code>GameService</code> is a singleton holding in-memory bracket state.</strong> Restarting
-                the API discards the progression of any game currently in flight. This is fine for a party running on
-                one machine, and it is the constraint to revisit before any multi-instance or restart-tolerant
-                deployment.
+                <strong><code>GameService</code> is a singleton, but its bracket state is written through to
+                SQLite.</strong> Every change &mdash; starting a game, reporting a result, auto-resolving a bye, and a
+                vote still waiting on the other player &mdash; is serialized to <code>Game.BracketStateJson</code>
+                before the call returns. <code>HydrateBracketStateAsync</code> reads it back whenever memory is cold, so
+                the in-memory dictionary is a cache and the database is the record. A restarted API resumes a
+                tournament mid-bracket, and mid-vote.
+            </p>
+            <p>
+                Each game has its own gate, held across read-modify-persist, because every player is on a separate
+                phone hitting the same game at once. What is still single-instance is that gate: it coordinates
+                requests within one process, so running two API instances against one database would need a shared
+                lock rather than this one.
             </p>
         </div>
 
@@ -174,6 +182,17 @@
                         <td><code>/Games/GetFlowState/{gameId}</code></td>
                         <td><span class="pill pill-open">Open</span></td>
                         <td>Returns the authoritative <code>GameStateResponse</code> the client routes on.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-get">GET</span></td>
+                        <td><code>/Games/GetPlayerSession/{gameId}</code></td>
+                        <td><span class="pill pill-claims">Claims check</span></td>
+                        <td>
+                            Rebuilds a returning player's session &mdash; their player id, display name, whether they
+                            host, and the state their game is in. Everything comes from the game id and the caller's
+                            identity cookie, so a phone that lost its tab can get back in. <code>404</code> means the
+                            caller has no player in that game.
+                        </td>
                     </tr>
                     <tr>
                         <td><span class="method method-post">POST</span></td>

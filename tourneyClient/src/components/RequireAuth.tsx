@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 import { RequestService } from "@/services/RequestService";
+import { signInPathReturningTo } from "@/services/returnPath";
 
 type AuthState = "loading" | "authenticated" | "unauthenticated";
 
@@ -8,6 +9,7 @@ type AuthState = "loading" | "authenticated" | "unauthenticated";
 const RequireAuth = () =>
 {
     const [authState, setAuthState] = useState<AuthState>("loading");
+    const location = useLocation();
 
     useEffect(() =>
     {
@@ -46,9 +48,12 @@ const RequireAuth = () =>
         return <div className="text-white text-center p-6">Checking authentication...</div>;
     }
 
+    // The attempted destination travels with the redirect. A player clicking
+    // their tournament link on a phone whose session has lapsed should sign in
+    // and land back in the game, not at the menu wondering where it went.
     if (authState === "unauthenticated")
     {
-        return <Navigate to="/" replace />;
+        return <Navigate to={signInPathReturningTo(`${location.pathname}${location.search}`)} replace />;
     }
 
     return <Outlet />;
