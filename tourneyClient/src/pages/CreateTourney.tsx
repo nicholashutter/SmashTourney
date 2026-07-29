@@ -22,13 +22,7 @@ import { PersistentConnection } from "@/services/PersistentConnection";
 import { getSessionIdentity, resolveCharacterMappings } from "@/services/playerSetupService";
 import { AddPlayerPayload } from "@/models/types/playerPayload";
 import { loadCharacterCatalog } from "@/lib/loadCharacterCatalog";
-import
-{
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import FighterSelect from "@/components/FighterSelect";
 
 // Renders host setup flow to create a tournament and join its lobby.
 const CreateTourney = () =>
@@ -262,18 +256,11 @@ const CreateTourney = () =>
           <HeadingTwo headingText={`Enter Total Players (Up to ${MAX_SUPPORTED_PLAYERS})`} />
           <BasicInput labelText="" htmlFor="maxPlayers" name="maxPlayers" id="maxPlayers" value={numPlayers} onChange={handleMaxPlayers} />
           <BasicInput labelText="Enter Player Name:" htmlFor="playerName" id="displayName" name="displayName" value={displayName} onChange={handleDisplayNameChange} />
-          <DropdownMenu>
-            <DropdownMenuTrigger className="shrink p-2 m-2 bg-white hover:ring-2 hover:ring-green-400 text-black  font-bold rounded shadow-md 
-      transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">{currentCharacter.characterName || "Choose Your Fighter"}</DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {characters.map((character, index) => (
-                <DropdownMenuItem key={index}
-                  onSelect={() => setCurrentCharacter(character)}>
-                  {character.characterName}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <FighterSelect
+            characters={characters}
+            selectedCharacter={currentCharacter.id ? currentCharacter : null}
+            onSelect={setCurrentCharacter}
+          />
           <SubmitButton buttonLabel="Create Tourney" onSubmit={handleSubmit} />
         </div>
     </PageShell>

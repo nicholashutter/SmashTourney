@@ -17,13 +17,7 @@ import BasicHeading from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
-import
-{
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import FighterSelect from "@/components/FighterSelect";
 import { isValidGuid, normalizeGameId, resolveCharacterMappings } from "@/services/playerSetupService";
 import { AddPlayerPayload } from "@/models/types/playerPayload";
 import { loadCharacterCatalog } from "@/lib/loadCharacterCatalog";
@@ -207,19 +201,11 @@ const JoinTourney = () =>
             id="gameId" name="gameId" value={gameId ?? ""} onChange={handleGameIdChange} />
           <BasicInput labelText="Enter Player Name:" htmlFor="playerName"
             id="displayName" name="displayName" value={displayName} onChange={handleDisplayNameChange} />
-          <DropdownMenu>
-            <DropdownMenuTrigger className="shrink p-2 m-2 bg-white hover:ring-2 hover:ring-green-400 text-black  font-bold rounded shadow-md 
-      transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">{currentCharacter.characterName || "Choose Your Fighter"}</DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {characters.map((character, index) => (
-                <DropdownMenuItem key={index}
-                  onSelect={() => setCurrentCharacter(character)}>
-                  {character.characterName}
-
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <FighterSelect
+            characters={characters}
+            selectedCharacter={currentCharacter.id ? currentCharacter : null}
+            onSelect={setCurrentCharacter}
+          />
           <HeadingTwo headingText={joinStatus} />
           <SubmitButton buttonLabel={isJoining ? "Joining..." : "Join Room"} onSubmit={handleSubmit} />
           <BasicButton buttonLabel="Return to Main Menu" href="/" />
