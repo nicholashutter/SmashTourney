@@ -8,6 +8,9 @@ using CustomExceptions;
 using Microsoft.AspNetCore.Identity;
 using Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Storage;
 
 public class AppSetup
 {
@@ -189,23 +192,80 @@ public class AppSetup
             "DummyPass!01..DummyPass!16");
     }
 
-    // Creates the SQLite schema when the database file does not have one yet.
+    // Brings the database up to the current schema, creating it if absent.
     //
-    // Nothing did this outside the test host, so a first run on a clean machine
-    // failed on its very first query. The tests have always called EnsureCreated
-    // for exactly this reason; production needs the same call rather than a
-    // database file someone happened to make by hand once.
-    public static async Task EnsureDatabaseCreatedAsync(IServiceProvider services)
+    // Migrations cannot be generated here — writing one is a design-time job for
+    // `dotnet ef migrations add`, which diffs the model against a snapshot and
+    // emits C#. What startup can do is apply the ones already committed, which
+    // is what makes "if not exists" work for a schema that keeps changing rather
+    // than only for an empty folder.
+    //
+    // This replaces an EnsureCreated call. EnsureCreated builds today's schema
+    // and then never touches it again, so the first added column would have left
+    // every existing database quietly wrong.
+    public static async Task ApplyDatabaseMigrationsAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        var schemaWasCreated = await dbContext.Database.EnsureCreatedAsync();
+        await BaselineExistingSchemaAsync(dbContext);
 
-        if (schemaWasCreated)
+        var pendingMigrations = (await dbContext.Database.GetPendingMigrationsAsync()).ToList();
+
+        if (pendingMigrations.Count == 0)
         {
-            Log.Information("Created database schema because none existed yet.");
+            return;
         }
+
+        Log.Information("Applying {MigrationCount} pending database migration(s).", pendingMigrations.Count);
+
+        await dbContext.Database.MigrateAsync();
+    }
+
+    // Adopts a database whose tables were created before migrations existed.
+    //
+    // A database built by the previous EnsureCreated call has the right tables
+    // but no migration history, so EF believes nothing has been applied and
+    // tries to create those tables again — which fails on "table already
+    // exists" and takes startup down with it. Recording the migrations as
+    // applied, without running them, is the standard way to adopt an existing
+    // schema. It only fires when the schema is genuinely already there.
+    private static async Task BaselineExistingSchemaAsync(ApplicationDbContext dbContext)
+    {
+        if (!await dbContext.Database.CanConnectAsync())
+        {
+            return;
+        }
+
+        var appliedMigrations = await dbContext.Database.GetAppliedMigrationsAsync();
+        if (appliedMigrations.Any())
+        {
+            return;
+        }
+
+        var databaseCreator = dbContext.GetService<IRelationalDatabaseCreator>();
+        if (!await databaseCreator.HasTablesAsync())
+        {
+            return;
+        }
+
+        var historyRepository = dbContext.GetService<IHistoryRepository>();
+        await dbContext.Database.ExecuteSqlRawAsync(historyRepository.GetCreateIfNotExistsScript());
+
+        var migrationsAssembly = dbContext.GetService<IMigrationsAssembly>();
+        var productVersion = typeof(DbContext).Assembly.GetName().Version?.ToString() ?? "8.0.0";
+
+        foreach (var migrationId in migrationsAssembly.Migrations.Keys)
+        {
+            var insertHistoryRow = historyRepository.GetInsertScript(
+                new HistoryRow(migrationId, productVersion));
+
+            await dbContext.Database.ExecuteSqlRawAsync(insertHistoryRow);
+        }
+
+        Log.Warning(
+            "Adopted an existing database that predates migrations. Recorded {MigrationCount} migration(s) as already applied.",
+            migrationsAssembly.Migrations.Count);
     }
 
     public static async Task ClearDevelopmentGamesForDummyProfileAsync(IServiceProvider services, IHostEnvironment environment, IConfiguration configuration)

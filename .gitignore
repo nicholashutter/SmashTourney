@@ -18,8 +18,10 @@ API_Docs/
 
 tourneyAPI/obj
 Servies/obj
-# Entity Framework migrations
-Migrations/
+# EF migrations are source, not build output, and are deliberately tracked.
+# They are the record of how the schema got to its current shape, and startup
+# applies them — ignoring them means a clean clone cannot build its database.
+# Only the packaged bundle executable stays out.
 *.efbundle
 
 # Rider IDE files

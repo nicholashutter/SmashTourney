@@ -110,7 +110,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 var app = builder.Build();
 
 // Schema first: every startup step below this line queries tables.
-await AppSetup.EnsureDatabaseCreatedAsync(app.Services);
+await AppSetup.ApplyDatabaseMigrationsAsync(app.Services);
 await AppSetup.ClearDevelopmentGamesForDummyProfileAsync(app.Services, app.Environment, app.Configuration);
 await AppSetup.SeedDevelopmentUsersAsync(app.Services, app.Environment, app.Configuration);
 
