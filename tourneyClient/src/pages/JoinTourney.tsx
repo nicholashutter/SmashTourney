@@ -27,6 +27,7 @@ import
 import { isValidGuid, normalizeGameId, resolveCharacterMappings } from "@/services/playerSetupService";
 import { AddPlayerPayload } from "@/models/types/playerPayload";
 import { loadCharacterCatalog } from "@/lib/loadCharacterCatalog";
+import PageShell from "@/components/PageShell";
 
 // Renders player join flow for an existing tournament lobby.
 
@@ -199,9 +200,7 @@ const JoinTourney = () =>
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-dvh w-dvw">
-      <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
-        <title>Join Tourney</title>
+    <PageShell pageTitle="Join Tourney">
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
           <BasicHeading headingText="Join Room" headingColors="white" />
           <BasicInput labelText="Session Code:" htmlFor="sessionCode"
@@ -226,8 +225,7 @@ const JoinTourney = () =>
           <BasicButton buttonLabel="Return to Main Menu" href="/" />
 
         </div>
-      </div>
-    </div >
+    </PageShell>
   );
 };
 

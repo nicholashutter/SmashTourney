@@ -1,23 +1,21 @@
 
 import BasicButton from "@/components/BasicButton";
 import BasicHeading from "@/components/HeadingOne";
+import PageShell from "@/components/PageShell";
 
 // Renders the fallback route when no client page matches the URL.
 const NotFound = () =>
 {
 
     return (
-        <div className="flex flex-col items-center justify-center h-dvh w-dvw">
-            <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
-                <title>Not Found</title>
-                <div className='shrink flex flex-col text-2xl p-4 m-4 '>
+        <PageShell pageTitle="Not Found">
+            <div className='shrink flex flex-col text-2xl p-4 m-4 '>
 
-                    <BasicHeading headingText="The page you are looking for cannot be found." headingColors="white" />
-                    <BasicButton buttonLabel="Return Home" href="/" />
+                <BasicHeading headingText="The page you are looking for cannot be found." headingColors="white" />
+                <BasicButton buttonLabel="Return Home" href="/" />
 
-                </div>
             </div>
-        </div>
+        </PageShell>
     );
 };
 

@@ -5,6 +5,7 @@ import HeadingOne from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
 import BasicButton from "@/components/BasicButton";
+import PageShell from "@/components/PageShell";
 
 // Renders guest signup flow using temporary guest-session credentials.
 const GuestSignUp = () =>
@@ -26,9 +27,7 @@ const GuestSignUp = () =>
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-dvh w-dvw">
-      <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
-        <title>Guest Sign Up</title>
+    <PageShell pageTitle="Guest Sign Up">
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
           <HeadingOne headingText="Guest Sign Up" headingColors="white" />
           <BasicInput labelText="Username:" htmlFor="userName" name="userName"
@@ -37,8 +36,7 @@ const GuestSignUp = () =>
           <HeadingTwo headingText="Already have An Account?" />
           <BasicButton buttonLabel="Sign In Here" href="/" />
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 };
 

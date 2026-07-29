@@ -9,6 +9,7 @@ import { INVALID_CHARACTERS, MAX_SUPPORTED_PLAYERS } from "@/constants/AppConsta
 import { useNavigate } from 'react-router';
 import { useGameData } from "@/hooks/useGameData";
 import HeadingTwo from "@/components/HeadingTwo";
+import PageShell from "@/components/PageShell";
 import { Character } from "@/models/entities/Character";
 import { CreateGameWithModeRequest, CreateGameWithModeResponse } from "@/models/entities/Bracket";
 import { CharacterName } from "@/models/Enums/CharacterName";
@@ -248,9 +249,7 @@ const CreateTourney = () =>
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-dvh w-dvw">
-      <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
-        <title>Create Tourney</title>
+    <PageShell pageTitle="Create Tourney">
         <div className='shrink flex flex-col text-2xl p-4 m-4 '>
           <BasicHeading headingText="Create Tourney" headingColors="white" />
 
@@ -277,8 +276,7 @@ const CreateTourney = () =>
           </DropdownMenu>
           <SubmitButton buttonLabel="Create Tourney" onSubmit={handleSubmit} />
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }
 

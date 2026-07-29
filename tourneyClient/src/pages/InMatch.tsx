@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import BasicHeading from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton from "@/components/SubmitButton";
+import PageShell from "@/components/PageShell";
 import { useGameData } from "@/hooks/useGameData";
 import { RequestService } from "@/services/RequestService";
 import
@@ -243,9 +244,7 @@ const InMatch = () =>
 
     return (
 
-        <div className="flex flex-col items-center justify-center h-dvh w-dvw">
-            <div className="flex flex-col content-center text-center bg-black/25 rounded shadow-md text-white m-2 text-4xl max-w-9/10 ">
-                <title>{playerOneName}VS. {playerTwoName}</title>
+        <PageShell pageTitle={`${playerOneName}VS. ${playerTwoName}`}>
                 <div className='shrink flex flex-col text-2xl p-4 m-4 '>
                     <BasicHeading headingText={`${playerOneName} VS. ${playerTwoName}`} headingColors="white" />
                     {currentMatch ? (
@@ -281,8 +280,7 @@ const InMatch = () =>
                         <HeadingTwo headingText={voteNotice} />
                     )}
                 </div>
-            </div>
-        </div>
+        </PageShell>
 
     );
 }
