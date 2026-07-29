@@ -78,6 +78,21 @@ export type GameStateResponse = {
     currentMatchPlayerTwoId?: string;
 };
 
+// Defines one tournament row in the games browser.
+//
+// This is everything the browser knows about a game, and deliberately not the
+// roster: the list has to stay small enough to draw on a phone over a party's
+// wifi with a dozen tournaments running.
+export type GameSummary = {
+    gameId: string;
+    bracketMode: BracketMode;
+    playerCount: number;
+    state: GameState;
+    createdUtc: string;
+    isHost: boolean;
+    hasJoined: boolean;
+};
+
 // Defines vote-ledger statuses returned by submit-vote route.
 export type SubmitMatchVoteStatus =
     | "PENDING"

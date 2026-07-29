@@ -28,6 +28,19 @@ public class GameService : IGameService
     // The gate is per game so one tournament never waits on another.
     private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _gameGates = new();
 
+    // How long a finished tournament stays around before it is swept.
+    //
+    // Long enough that the room can still pull up who won over the next round of
+    // drinks, short enough that a season of parties does not turn into a table
+    // full of dead brackets.
+    private static readonly TimeSpan CompletedGameRetention = TimeSpan.FromHours(2);
+
+    // How long a silent game survives before it is treated as abandoned.
+    //
+    // Measured from the last real activity rather than from creation, so a long
+    // tournament is never mistaken for a stale one.
+    private static readonly TimeSpan AbandonedGameRetention = TimeSpan.FromHours(12);
+
     private readonly Dictionary<BracketMode, IBracketEngine> _bracketEngines = new()
     {
         [BracketMode.SINGLE_ELIMINATION] = new SingleEliminationEngine(),
@@ -387,6 +400,12 @@ public class GameService : IGameService
             }
         }
 
+        // A lobby filling up is the clearest sign a game is still wanted, and it
+        // is the only activity a game sees before it starts. Without this, a
+        // lobby that people are actively joining would age exactly like one
+        // nobody ever opened.
+        game.LastActivityUtc = DateTime.UtcNow;
+
         if (existingPlayer is not null)
         {
             existingPlayer.UserId = userId;
@@ -499,6 +518,207 @@ public class GameService : IGameService
         _bracketStates.Remove(gameId);
         _gameGates.TryRemove(gameId, out _);
         return true;
+    }
+
+    // Ends a game on behalf of a user, refusing anyone who does not host it.
+    //
+    // The check lives here rather than only in the route because this is the
+    // operation that destroys a tournament everyone else is still playing. A
+    // game id travels in URLs and gets shared around a room, so it is not a
+    // credential — the only thing that authorizes this is the stored host id
+    // matching the caller's own claim.
+    //
+    // A game with no recorded host cannot be ended by anyone, which is the safe
+    // way round: refusing an end is recoverable, deleting a live tournament for
+    // the wrong person is not.
+    public async Task<EndGameStatus> EndGameAsync(Guid gameId, string requestingUserId)
+    {
+        if (string.IsNullOrWhiteSpace(requestingUserId))
+        {
+            return EndGameStatus.NOT_HOST;
+        }
+
+        // Held for the same reason every other mutation holds it: a vote landing
+        // mid-delete would otherwise persist bracket state onto a row that is on
+        // its way out.
+        using var gate = await LockGameAsync(gameId);
+
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var game = await dbContext.Games.FirstOrDefaultAsync(currentGame => currentGame.Id == gameId);
+        if (game is null)
+        {
+            return EndGameStatus.GAME_NOT_FOUND;
+        }
+
+        var callerIsHost = !string.IsNullOrWhiteSpace(game.HostUserId)
+            && string.Equals(game.HostUserId, requestingUserId, StringComparison.Ordinal);
+
+        if (!callerIsHost)
+        {
+            Log.Warning("Refused EndGame for game {GameId} because user {UserId} does not host it", gameId, requestingUserId);
+            return EndGameStatus.NOT_HOST;
+        }
+
+        await DeleteGamesAsync(dbContext, new List<Game> { game });
+
+        Log.Information("Game {GameId} ended by its host", gameId);
+        return EndGameStatus.ENDED;
+    }
+
+    // Returns a small description of every game as one specific user sees it.
+    //
+    // The state here is read from the persisted bracket rather than from the
+    // live runtime dictionary, and nothing it touches is written back. Listing
+    // games is something anyone can do at any moment, including while a match is
+    // being voted on, so it deliberately stays outside the per-game gates rather
+    // than queueing behind every tournament in the building.
+    public async Task<List<GameSummaryResponse>> GetGameSummariesAsync(string userId)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var games = await dbContext.Games.AsNoTracking().ToListAsync();
+        if (games.Count == 0)
+        {
+            return new List<GameSummaryResponse>();
+        }
+
+        // Two flat queries rather than a per-game round trip, because this is
+        // the one route whose cost grows with the number of tournaments running.
+        var playerCountsByGame = await dbContext.Players
+            .AsNoTracking()
+            .GroupBy(player => player.CurrentGameID)
+            .Select(group => new { GameId = group.Key, PlayerCount = group.Count() })
+            .ToDictionaryAsync(entry => entry.GameId, entry => entry.PlayerCount);
+
+        var joinedGameIds = new HashSet<Guid>();
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            var callerGameIds = await dbContext.Players
+                .AsNoTracking()
+                .Where(player => player.UserId == userId)
+                .Select(player => player.CurrentGameID)
+                .ToListAsync();
+
+            joinedGameIds = callerGameIds.ToHashSet();
+        }
+
+        var summaries = new List<GameSummaryResponse>();
+
+        foreach (var game in games)
+        {
+            var playerCount = playerCountsByGame.TryGetValue(game.Id, out var count) ? count : 0;
+
+            var isHost = !string.IsNullOrWhiteSpace(game.HostUserId)
+                && string.Equals(game.HostUserId, userId, StringComparison.Ordinal);
+
+            summaries.Add(new GameSummaryResponse(
+                game.Id,
+                game.BracketMode,
+                playerCount,
+                ResolvePersistedGameState(game),
+                game.currentDate,
+                isHost,
+                joinedGameIds.Contains(game.Id)));
+        }
+
+        return summaries
+            .OrderByDescending(summary => summary.CreatedUtc)
+            .ToList();
+    }
+
+    // Deletes games that have finished or gone silent, returning how many went.
+    //
+    // Nothing ever removed a game before this, so every lobby anyone opened by
+    // mistake stayed in the database forever and showed up in the browser next
+    // to the real ones. There is no scheduler in this application to hang a
+    // sweep off, so it is driven from the listing route instead — the moment
+    // stale games would actually be seen is a reasonable moment to remove them.
+    public async Task<int> PruneStaleGamesAsync()
+    {
+        var now = DateTime.UtcNow;
+        var completedCutoff = now - CompletedGameRetention;
+        var abandonedCutoff = now - AbandonedGameRetention;
+
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var staleGames = await dbContext.Games
+            .Where(game =>
+                (game.CompletedUtc != null && game.CompletedUtc < completedCutoff)
+                || game.LastActivityUtc < abandonedCutoff)
+            .ToListAsync();
+
+        if (staleGames.Count == 0)
+        {
+            return 0;
+        }
+
+        await DeleteGamesAsync(dbContext, staleGames);
+
+        Log.Information("Pruned {GameCount} finished or abandoned games", staleGames.Count);
+        return staleGames.Count;
+    }
+
+    // Removes games, their players, and any runtime state still held for them.
+    private async Task DeleteGamesAsync(ApplicationDbContext dbContext, List<Game> gamesToDelete)
+    {
+        var gameIds = gamesToDelete.Select(game => game.Id).ToList();
+
+        var players = await dbContext.Players
+            .Where(player => gameIds.Contains(player.CurrentGameID))
+            .ToListAsync();
+
+        if (players.Count > 0)
+        {
+            dbContext.Players.RemoveRange(players);
+        }
+
+        dbContext.Games.RemoveRange(gamesToDelete);
+        await dbContext.SaveChangesAsync();
+
+        // The in-memory state is dropped alongside the row so a recycled id can
+        // never inherit a dead tournament's bracket.
+        foreach (var gameId in gameIds)
+        {
+            _bracketStates.Remove(gameId);
+            _gameGates.TryRemove(gameId, out _);
+        }
+    }
+
+    // Resolves a game's flow state from its stored bracket, without mutating it.
+    //
+    // GetGameStateAsync cannot be used for a list: it takes the game's gate and
+    // auto-resolves byes, so asking it about twenty games would advance twenty
+    // brackets as a side effect of drawing a menu.
+    private GameState ResolvePersistedGameState(Game game)
+    {
+        if (string.IsNullOrWhiteSpace(game.BracketStateJson))
+        {
+            return GameState.LOBBY_WAITING;
+        }
+
+        BracketRuntimeState? bracketRuntimeState;
+
+        try
+        {
+            bracketRuntimeState = JsonSerializer.Deserialize<BracketRuntimeState>(game.BracketStateJson);
+        }
+        catch (JsonException exception)
+        {
+            Log.Warning(exception, "Unable to read persisted bracket state for game {GameId} while listing games", game.Id);
+            return GameState.LOBBY_WAITING;
+        }
+
+        if (bracketRuntimeState is null || !_bracketEngines.ContainsKey(bracketRuntimeState.Mode))
+        {
+            return GameState.LOBBY_WAITING;
+        }
+
+        var bracketEngine = _bracketEngines[bracketRuntimeState.Mode];
+        return ResolveGameState(bracketRuntimeState, bracketEngine.BuildCurrentMatch(bracketRuntimeState));
     }
 
     // Builds a bracket snapshot response for client display.
@@ -868,6 +1088,22 @@ public class GameService : IGameService
 
         game.BracketMode = bracketRuntimeState.Mode;
         game.BracketStateJson = JsonSerializer.Serialize(bracketRuntimeState);
+
+        // Every write is also a sign of life, so the cleanup clock is reset from
+        // the one place all bracket progress already funnels through rather than
+        // from each of the dozen call sites that could have forgotten.
+        game.LastActivityUtc = DateTime.UtcNow;
+
+        if (game.CompletedUtc is null && _bracketEngines.ContainsKey(bracketRuntimeState.Mode))
+        {
+            var bracketEngine = _bracketEngines[bracketRuntimeState.Mode];
+            var resolvedState = ResolveGameState(bracketRuntimeState, bracketEngine.BuildCurrentMatch(bracketRuntimeState));
+
+            if (resolvedState == GameState.COMPLETE)
+            {
+                game.CompletedUtc = DateTime.UtcNow;
+            }
+        }
 
         await dbContext.SaveChangesAsync();
     }

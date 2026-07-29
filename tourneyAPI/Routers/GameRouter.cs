@@ -39,6 +39,62 @@ public static class GameRouter
             return Results.Ok(response);
         });
 
+        // Lists every tournament on the server, as this caller sees it.
+        //
+        // Until now there was no way to find out what existed: joining meant
+        // being told a GUID and typing it into a phone. Any signed-in user may
+        // see this list — it is the room's noticeboard, and the payload is
+        // deliberately thin enough that being on it gives nothing away beyond
+        // "this game exists and has this many people in it".
+        //
+        // The stale sweep runs here because this application has no scheduler to
+        // hang one off, and this is the request where dead games would otherwise
+        // be seen.
+        gameRoutes.MapGet("/GetActiveGames", async (HttpContext context, IGameService gameService) =>
+        {
+            Log.Information("Request Type: Get \n URL: '/Games/GetActiveGames' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            await gameService.PruneStaleGamesAsync();
+
+            var gameSummaries = await gameService.GetGameSummariesAsync(userId);
+
+            return Results.Ok(gameSummaries);
+        });
+
+        // Ends a tournament and deletes it along with its players.
+        //
+        // Group authorization only guarantees somebody is signed in, which is
+        // nowhere near enough for a route that destroys a game other people are
+        // still playing. The host check is done by the service against the
+        // stored host id, so the caller's claim is the only thing that can
+        // authorize it — a shared game id cannot.
+        gameRoutes.MapPost("/EndGame/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
+        {
+            Log.Information("Request Type: Post \n URL: '/Games/EndGame' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var endGameStatus = await gameService.EndGameAsync(gameId, userId);
+
+            return endGameStatus switch
+            {
+                EndGameStatus.ENDED => Results.Ok($"Game {gameId} ended"),
+                EndGameStatus.GAME_NOT_FOUND => Results.NotFound(),
+                EndGameStatus.NOT_HOST => Results.Json("Only the host can end this game.", statusCode: 403),
+                _ => Results.Problem("Internal Server Error")
+            };
+        });
+
         gameRoutes.MapPost("/GetPlayersInGame/{gameId}", async (HttpContext context, Guid gameId, IGameService gameService) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/GetPlayersInGame' \n Time:{Timestamp}", DateTime.UtcNow);

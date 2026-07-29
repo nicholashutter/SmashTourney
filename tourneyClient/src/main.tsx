@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router";
 import { NotFound } from './pages/NotFound.tsx';
 import { CreateTourney } from './pages/CreateTourney.tsx';
 import { JoinTourney } from './pages/JoinTourney.tsx';
+import { BrowseTourneys } from './pages/BrowseTourneys.tsx';
 import { SignUp } from './pages/SignUp.tsx';
 import { TourneyMenu } from './pages/TourneyMenu.tsx';
 import { Lobby } from './pages/Lobby.tsx';
@@ -37,6 +38,7 @@ createRoot(rootElement).render(
         <Route element={<RequireAuth />}>
           <Route path="/createTourney" element={<CreateTourney />} />
           <Route path="/joinTourney" element={<JoinTourney />} />
+          <Route path="/browseTourneys" element={<BrowseTourneys />} />
           <Route path="/tourneyMenu" element={<TourneyMenu />} />
 
           {/* The three in-game screens carry the game id in the path, and sit

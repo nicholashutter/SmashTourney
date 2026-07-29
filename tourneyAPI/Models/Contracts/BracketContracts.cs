@@ -23,6 +23,36 @@ public sealed record PlayerSessionResponse(
     bool GameStarted
 );
 
+// Describes one tournament as it appears in the games browser.
+//
+// Deliberately small. The browser exists so somebody on a phone can find the
+// room they are meant to be in, and that decision needs a handful of facts:
+// how big it is, whether it has started, and whether they already belong to it.
+// Sending the full player roster with characters for every game on the server
+// would be several kilobytes per row to answer a question nobody asked yet —
+// the game screens fetch that once a game has actually been chosen.
+public sealed record GameSummaryResponse(
+    Guid GameId,
+    BracketMode BracketMode,
+    int PlayerCount,
+    GameState State,
+    DateTime CreatedUtc,
+    bool IsHost,
+    bool HasJoined
+);
+
+// Describes the outcome of a request to end a game.
+//
+// NOT_HOST is separate from GAME_NOT_FOUND on purpose: ending someone else's
+// tournament is a refusal, not a missing thing, and the client says different
+// words for each.
+public enum EndGameStatus
+{
+    ENDED,
+    GAME_NOT_FOUND,
+    NOT_HOST
+}
+
 // Represents the winner selection for a reported bracket match.
 public sealed record ReportMatchRequest(
     Guid MatchId,

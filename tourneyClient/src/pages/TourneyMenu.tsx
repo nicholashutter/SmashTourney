@@ -17,7 +17,14 @@ const TourneyMenu = () =>
 
           <BasicHeading headingText="Where Do We Start?" headingColors="white" />
           <BasicButton buttonLabel="Host Tourney" href="/createTourney" />
-          <BasicButton buttonLabel="Join Tourney" href="/joinTourney" />
+
+          {/* Browsing comes before the session-code entry because it is the
+              answer for almost everyone: several tournaments can be running at
+              once now, and picking yours off a list beats being read a GUID
+              across a noisy room. The code entry stays for anyone joining a
+              game they were sent a link to. */}
+          <BasicButton buttonLabel="Browse Tourneys" href="/browseTourneys" />
+          <BasicButton buttonLabel="Join With A Session Code" href="/joinTourney" />
 
 
         </div>

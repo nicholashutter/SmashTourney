@@ -20,6 +20,15 @@ public interface IGameService
     // Ends an existing game and clears its runtime state.
     bool EndGame(Guid endGameId);
 
+    // Ends a game on behalf of a specific user, refusing anyone but its host.
+    Task<EndGameStatus> EndGameAsync(Guid gameId, string requestingUserId);
+
+    // Returns a lightweight description of every game, as seen by one user.
+    Task<List<GameSummaryResponse>> GetGameSummariesAsync(string userId);
+
+    // Deletes games that are finished or abandoned, returning how many went.
+    Task<int> PruneStaleGamesAsync();
+
     // Returns one game by identifier.
     Task<Game?> GetGameByIdAsync(Guid gameId);
 

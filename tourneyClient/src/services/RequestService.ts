@@ -54,6 +54,12 @@ const RequestBuilder = {
     path: "/Games/GetPlayerSession/{gameId}",
     params: ["gameId"]
   },
+  getActiveGames: { method: "GET", path: "/Games/GetActiveGames" },
+  endGame: {
+    method: "POST",
+    path: "/Games/EndGame/{gameId}",
+    params: ["gameId"]
+  },
 
   register: { method: "POST", path: "/Users/Register" },
   login: { method: "POST", path: "/users/login" },
