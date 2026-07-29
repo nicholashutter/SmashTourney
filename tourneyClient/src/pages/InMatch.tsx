@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router";
 import BasicHeading from "@/components/HeadingOne";
 import HeadingTwo from "@/components/HeadingTwo";
@@ -259,19 +260,48 @@ const InMatch = () =>
                             {canCurrentUserVote ? (
                                 <>
                                     <HeadingTwo headingText="Who Won?" />
-                                    <SubmitButton buttonLabel={`${playerOneName}${selectedWinnerId === currentMatch.playerOneId ? " ✓" : ""}`} onSubmit={() =>
-                                    {
-                                        setSelectedWinnerId(currentMatch.playerOneId);
-                                    }
-                                    } />
-                                    <SubmitButton buttonLabel={`${playerTwoName}${selectedWinnerId === currentMatch.playerTwoId ? " ✓" : ""}`} onSubmit={() =>
-                                    {
-                                        setSelectedWinnerId(currentMatch.playerTwoId);
-                                    }
-                                    } />
-                                    {selectedWinnerId && (
-                                        <SubmitButton buttonLabel="Lock in Vote." onSubmit={handleLockVote} />
-                                    )}
+
+                                    {/* The chosen winner is scaled and ringed rather than
+                                        marked with a tick appended to its label. Both
+                                        players are tapping this on their own phone under
+                                        time pressure, so which one is selected has to be
+                                        obvious at a glance, not read. */}
+                                    <motion.div
+                                        animate={{ scale: selectedWinnerId === currentMatch.playerOneId ? 1.04 : 1 }}
+                                        transition={{ type: "spring", stiffness: 340, damping: 24 }}
+                                        className={`rounded ${selectedWinnerId === currentMatch.playerOneId ? "ring-4 ring-yellow-400" : ""}`}
+                                    >
+                                        <SubmitButton buttonLabel={playerOneName} onSubmit={() =>
+                                        {
+                                            setSelectedWinnerId(currentMatch.playerOneId);
+                                        }
+                                        } />
+                                    </motion.div>
+
+                                    <motion.div
+                                        animate={{ scale: selectedWinnerId === currentMatch.playerTwoId ? 1.04 : 1 }}
+                                        transition={{ type: "spring", stiffness: 340, damping: 24 }}
+                                        className={`rounded ${selectedWinnerId === currentMatch.playerTwoId ? "ring-4 ring-yellow-400" : ""}`}
+                                    >
+                                        <SubmitButton buttonLabel={playerTwoName} onSubmit={() =>
+                                        {
+                                            setSelectedWinnerId(currentMatch.playerTwoId);
+                                        }
+                                        } />
+                                    </motion.div>
+
+                                    <AnimatePresence>
+                                        {selectedWinnerId && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                transition={{ duration: 0.2 }}
+                                            >
+                                                <SubmitButton buttonLabel="Lock in Vote." onSubmit={handleLockVote} />
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </>
                             ) : (
                                 <HeadingTwo headingText="Match in progress. Waiting for result..." />
