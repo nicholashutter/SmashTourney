@@ -194,19 +194,24 @@
         <h2>Styling</h2>
 
         <p>
-            Two stylesheets are in play. <code>src/index.css</code> is the Tailwind 4 entry point and defines the
-            oklch design tokens for light and dark, plus the fixed Smash background image and Arial base font.
-            <code>src/assets/rawMarkup/TourneyStyles.css</code> is hand-written CSS for the bracket structure &mdash;
-            columns, match boxes, and the red connector lines &mdash; with per-column rules for connector heights.
+            <code>src/index.css</code> is the only stylesheet the application loads. It is the Tailwind 4 entry
+            point and defines the oklch design tokens for light and dark, plus the fixed Smash background image and
+            the Arial base font. Everything else is Tailwind utility classes in the components.
+        </p>
+
+        <p>
+            The shared page frame lives in <code>src/components/PageShell.tsx</code> &mdash; the centered translucent
+            panel every screen sits inside, which also owns the page <code>&lt;title&gt;</code>. It was previously
+            duplicated verbatim across eleven files.
         </p>
 
         <div class="note">
             <p>
-                <strong>The two stylesheets do not share a palette.</strong> <code>TourneyStyles.css</code> hardcodes
-                <code>#222</code> / <code>#ddd</code> and a literal <code>red</code>, while <code>index.css</code>
-                drives everything else from oklch custom properties. Bracket connector heights are also fixed per
-                column via <code>nth-child</code> rules up to five columns, which will not follow a bracket deeper
-                than that.
+                <strong><code>src/assets/rawMarkup/</code> is not part of the running app.</strong> It holds static
+                design mockups &mdash; <code>HomePage.html</code>, <code>signup.html</code>, <code>Ongoing.html</code>
+                and others &mdash; alongside <code>TourneyStyles.css</code>, a hand-written bracket stylesheet with a
+                hardcoded <code>#222</code>/<code>#ddd</code>/<code>red</code> palette. Nothing imports any of it, so
+                its palette never reaches a user. Worth knowing before treating it as live styling to reconcile.
             </p>
         </div>
 

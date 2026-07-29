@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import DrawWinnersBracket from "@/components/brackets/DynamicBracket";
 import { useGameData } from "@/hooks/useGameData";
@@ -23,18 +23,6 @@ const ShowBracket = () =>
         currentMatch &&
         (currentMatch.playerOneId === playerId || currentMatch.playerTwoId === playerId)
     );
-
-    // Builds ordered participant labels for first-round bracket rendering.
-    const bracketPlayerNames = useMemo(() =>
-    {
-        if (!snapshot)
-        {
-            return [] as string[];
-        }
-
-        const orderedPlayers = [...snapshot.players].sort((left, right) => left.seed - right.seed);
-        return orderedPlayers.map((player) => player.displayName);
-    }, [snapshot]);
 
     // Loads and refreshes bracket, current match, and flow-state view data.
     useEffect(() =>
@@ -126,9 +114,8 @@ const ShowBracket = () =>
                 <title>Current Score</title>
                 <div className='flex-1 min-h-0 w-full p-4'>
                     <DrawWinnersBracket
-                        numPlayers={snapshot ? snapshot.players.length : 16}
-                        playerNames={bracketPlayerNames}
-                        mode={snapshot?.mode}
+                        snapshot={snapshot}
+                        currentMatchId={currentMatch?.matchId ?? gameState?.currentMatchId}
                     />
                 </div>
                 {isPlayerInCurrentMatch && secondsUntilMatch !== null && (
