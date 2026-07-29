@@ -47,9 +47,10 @@ public static class GameRouter
         // deliberately thin enough that being on it gives nothing away beyond
         // "this game exists and has this many people in it".
         //
-        // The stale sweep runs here because this application has no scheduler to
-        // hang one off, and this is the request where dead games would otherwise
-        // be seen.
+        // Retiring stale games is not this route's job. It used to sweep here,
+        // which made drawing a menu delete rows and left cleanup dependent on
+        // somebody happening to open the browser. StaleGameSweeper runs it on a
+        // timer instead, so this stays a read.
         gameRoutes.MapGet("/GetActiveGames", async (HttpContext context, IGameService gameService) =>
         {
             Log.Information("Request Type: Get \n URL: '/Games/GetActiveGames' \n Time:{Timestamp}", DateTime.UtcNow);
@@ -59,8 +60,6 @@ public static class GameRouter
             {
                 return Results.Unauthorized();
             }
-
-            await gameService.PruneStaleGamesAsync();
 
             var gameSummaries = await gameService.GetGameSummariesAsync(userId);
 

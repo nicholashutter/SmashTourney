@@ -286,6 +286,33 @@ public class MultiGameTest : IClassFixture<CustomWebApplicationFactory<Program>>
         Assert.Equal(EndGameStatus.GAME_NOT_FOUND, status);
     }
 
+    // Confirms listing games deletes nothing.
+    //
+    // The sweep used to run inside the listing route, which made a read delete
+    // rows and tied cleanup to somebody opening the browser. A timer owns it
+    // now, and this pins listing down as a pure read: a game well past its
+    // silence window is still there afterwards, because only the sweeper retires
+    // games.
+    [Fact]
+    public async Task ListingGamesRetiresNothing()
+    {
+        var game = await CreateGameAsync(2);
+        var caller = game.Participants[0].User;
+
+        using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var storedGame = await dbContext.Games.FirstAsync(current => current.Id == game.GameId);
+            storedGame.LastActivityUtc = DateTime.UtcNow.AddDays(-3);
+            await dbContext.SaveChangesAsync();
+        }
+
+        var summaries = await _gameService.GetGameSummariesAsync(caller.Id);
+
+        Assert.Contains(summaries, summary => summary.GameId == game.GameId);
+        Assert.NotNull(await _gameService.GetGameByIdAsync(game.GameId));
+    }
+
     // Confirms a live tournament is never swept as stale.
     [Fact]
     public async Task PruningLeavesActiveTournamentsAlone()

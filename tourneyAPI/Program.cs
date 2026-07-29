@@ -51,6 +51,9 @@ builder.Services.AddScoped<IUserManager, UserManager>();
 // Registers the game orchestrator as a singleton service.
 builder.Services.AddSingleton<IGameService, GameService>();
 
+// Retires finished and abandoned games on a timer rather than from a GET.
+builder.Services.AddHostedService<StaleGameSweeper>();
+
 // Connects ASP.NET logging to Serilog.
 builder.Services.AddSerilog();
 
