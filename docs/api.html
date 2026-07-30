@@ -96,14 +96,16 @@
         <h2>How identity is enforced</h2>
 
         <p>
-            Enforcement is not uniform, and the difference matters when reasoning about what an unauthenticated caller
-            can do. Three distinct mechanisms are in use:
+            Enforcement runs in layers, and the distinction matters because being signed in is the weakest of them. On a
+            host anyone can register against, an authenticated stranger is the caller to design for &mdash; not an
+            anonymous one.
         </p>
 
         <ul>
             <li>
                 <span class="pill pill-required">RequireAuthorization</span>
-                &mdash; the endpoint is gated by the authorization middleware.
+                &mdash; the group is gated by the authorization middleware. Establishes only that
+                <em>somebody</em> is signed in.
             </li>
             <li>
                 <span class="pill pill-claims">Claims check</span>
@@ -111,18 +113,35 @@
                 <code>401</code> when it is absent.
             </li>
             <li>
+                <span class="pill pill-member">Member</span>
+                &mdash; the caller must have a player row in this game, or host it. Checked per request against
+                storage, never taken from the client. Failure is <code>404</code>.
+            </li>
+            <li>
+                <span class="pill pill-host">Host</span>
+                &mdash; the caller's id must match the game's stored <code>HostUserId</code>. A non-member gets
+                <code>404</code>; a member who simply is not the host gets <code>403</code>.
+            </li>
+            <li>
                 <span class="pill pill-open">Open</span>
-                &mdash; no identity check in the handler and no authorization filter.
+                &mdash; any signed-in caller, no per-game check.
             </li>
         </ul>
 
         <div class="note">
             <p>
-                <strong>Most <code>/Games</code> routes are open.</strong> Only <code>AddPlayer</code> and
-                <code>SubmitMatchVote</code> verify a caller. Creating a game, starting a game, and reading bracket,
-                current match, player list, or flow state all succeed without a session. The whole <code>/Players</code>
-                router is open as well. That is accurate as of this writing rather than a recommendation &mdash; it is
-                recorded here so the gap is visible.
+                <strong>Non-membership answers <code>404</code>, not <code>403</code>.</strong> A <code>403</code>
+                confirms the game exists, which is the one fact somebody walking game ids is trying to collect. An
+                outsider and a game that was never created are deliberately indistinguishable.
+            </p>
+            <p>
+                A game id is <em>not</em> a credential. It travels in URLs, gets pasted into chats and read aloud across
+                rooms, so knowing one authorizes nothing on its own. That is why <code>StartGame</code> and
+                <code>EndGame</code> check the host rather than trusting whoever turned up with the id.
+            </p>
+            <p>
+                Joining is the one action deliberately open to any signed-in caller: that is what a session code
+                <em>is</em>. It rests on a v4 GUID being unguessable, not on the id being secret from people who have it.
             </p>
         </div>
 
@@ -144,49 +163,70 @@
                     <tr>
                         <td><span class="method method-post">POST</span></td>
                         <td><code>/Games/CreateGameWithMode</code></td>
-                        <td><span class="pill pill-open">Open</span></td>
-                        <td>Creates a game from <code>CreateGameOptions</code>; returns the new game id and mode.</td>
+                        <td><span class="pill pill-claims">Claims check</span></td>
+                        <td>
+                            Creates a game from <code>CreateGameOptions</code>; returns the new game id and mode. The
+                            caller is recorded as host from their claims, never from the body.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-get">GET</span></td>
+                        <td><code>/Games/GetActiveGames</code></td>
+                        <td><span class="pill pill-claims">Claims check</span></td>
+                        <td>
+                            Lists only the tournaments the caller plays in or hosts. Not a directory of the server &mdash;
+                            see <em>What the listing does not show</em> below.
+                        </td>
                     </tr>
                     <tr>
                         <td><span class="method method-post">POST</span></td>
                         <td><code>/Games/GetPlayersInGame/{gameId}</code></td>
-                        <td><span class="pill pill-open">Open</span></td>
-                        <td>Returns <code>currentPlayers</code> for the game, or <code>404</code> if unknown.</td>
+                        <td><span class="pill pill-member">Member</span></td>
+                        <td>Returns <code>currentPlayers</code> for the game. <code>404</code> to anyone not in it.</td>
                     </tr>
                     <tr>
                         <td><span class="method method-post">POST</span></td>
                         <td><code>/Games/AddPlayer/{gameId}</code></td>
                         <td><span class="pill pill-claims">Claims check</span></td>
-                        <td>Binds the caller's user id to a <code>Player</code> and adds it to the game.</td>
+                        <td>
+                            Binds the caller's user id to a <code>Player</code> and adds it to the game. Open to any
+                            signed-in caller by design &mdash; this is what joining by session code is.
+                        </td>
                     </tr>
                     <tr>
                         <td><span class="method method-post">POST</span></td>
                         <td><code>/Games/StartGame/{gameId}</code></td>
-                        <td><span class="pill pill-open">Open</span></td>
+                        <td><span class="pill pill-host">Host</span></td>
                         <td>Generates the bracket and broadcasts <code>GameStarted</code> to the game group.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/Games/EndGame/{gameId}</code></td>
+                        <td><span class="pill pill-host">Host</span></td>
+                        <td>Deletes the game and its players. A game with no recorded host cannot be ended by anyone.</td>
                     </tr>
                     <tr>
                         <td><span class="method method-get">GET</span></td>
                         <td><code>/Games/GetBracket/{gameId}</code></td>
-                        <td><span class="pill pill-open">Open</span></td>
+                        <td><span class="pill pill-member">Member</span></td>
                         <td>Returns a <code>BracketSnapshotResponse</code> for rendering.</td>
                     </tr>
                     <tr>
                         <td><span class="method method-get">GET</span></td>
                         <td><code>/Games/GetCurrentMatch/{gameId}</code></td>
-                        <td><span class="pill pill-open">Open</span></td>
+                        <td><span class="pill pill-member">Member</span></td>
                         <td>Returns the active <code>CurrentMatchResponse</code> when one exists.</td>
                     </tr>
                     <tr>
                         <td><span class="method method-get">GET</span></td>
                         <td><code>/Games/GetFlowState/{gameId}</code></td>
-                        <td><span class="pill pill-open">Open</span></td>
+                        <td><span class="pill pill-member">Member</span></td>
                         <td>Returns the authoritative <code>GameStateResponse</code> the client routes on.</td>
                     </tr>
                     <tr>
                         <td><span class="method method-get">GET</span></td>
                         <td><code>/Games/GetPlayerSession/{gameId}</code></td>
-                        <td><span class="pill pill-claims">Claims check</span></td>
+                        <td><span class="pill pill-member">Member</span></td>
                         <td>
                             Rebuilds a returning player's session &mdash; their player id, display name, whether they
                             host, and the state their game is in. Everything comes from the game id and the caller's
@@ -198,7 +238,10 @@
                         <td><span class="method method-post">POST</span></td>
                         <td><code>/Games/SubmitMatchVote/{gameId}</code></td>
                         <td><span class="pill pill-claims">Claims check</span></td>
-                        <td>Records one participant vote and commits the match on consensus.</td>
+                        <td>
+                            Records one participant vote and commits the match on consensus. The service additionally
+                            requires the voter to be one of the two players in the active match.
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -256,6 +299,36 @@
             calls <code>AppSetup.HandleUserSession</code> to attach a server-side session record to the user.
         </p>
 
+        <h2>What the listing does not show</h2>
+
+        <p>
+            <code>GetActiveGames</code> briefly returned every game on the server. That is harmless on a laptop at a
+            party and wrong on a public host: it handed any account that completed registration a roll-call of every
+            tournament running, its size, and its state. It now returns only games where the caller has a player row or
+            is the recorded host.
+        </p>
+
+        <p>
+            Hosts are included before they take a player slot, because somebody who creates a game and has not joined it
+            yet still has to be able to find it. Membership is read from storage on every request rather than cached, so
+            a player whose row is removed loses access with it.
+        </p>
+
+        <p>
+            Discovery does not depend on the listing. Joining happens through a session code or a shared link, which is
+            the model the app is built around &mdash; you are given a room rather than going looking through other
+            people's. The client screen is <em>My Tourneys</em>, and its job is getting back into a game after a phone
+            drops.
+        </p>
+
+        <div class="note">
+            <p>
+                <strong>Being signed in is not an authorization decision.</strong> Every check that matters here asks
+                something narrower: are you in this game, do you host it, are you one of the two players in this match.
+                Registration is open, so an authenticated stranger is the ordinary case rather than the exotic one.
+            </p>
+        </div>
+
         <h2>Player routes</h2>
 
         <p>Mapped by <code>PlayerRouter</code> under <code>/Players</code>. Straight CRUD over the player entity.</p>
@@ -271,10 +344,10 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td><span class="method method-get">GET</span></td><td><code>/Players</code></td><td><span class="pill pill-open">Open</span></td><td>Lists players.</td></tr>
-                    <tr><td><span class="method method-post">POST</span></td><td><code>/Players</code></td><td><span class="pill pill-open">Open</span></td><td>Creates a player.</td></tr>
-                    <tr><td><span class="method method-put">PUT</span></td><td><code>/Players</code></td><td><span class="pill pill-open">Open</span></td><td>Updates a player.</td></tr>
-                    <tr><td><span class="method method-delete">DELETE</span></td><td><code>/Players/{Id}</code></td><td><span class="pill pill-open">Open</span></td><td>Deletes a player by id.</td></tr>
+                    <tr><td><span class="method method-get">GET</span></td><td><code>/Players</code></td><td><span class="pill pill-claims">Claims check</span></td><td>Lists only the caller's own player records.</td></tr>
+                    <tr><td><span class="method method-post">POST</span></td><td><code>/Players</code></td><td><span class="pill pill-claims">Claims check</span></td><td>Creates a player owned by the caller; the owning user id is taken from claims and overwrites the body.</td></tr>
+                    <tr><td><span class="method method-put">PUT</span></td><td><code>/Players</code></td><td><span class="pill pill-claims">Claims check</span></td><td>Updates a player the caller owns. Ownership is read from storage, never the payload. <code>404</code> otherwise.</td></tr>
+                    <tr><td><span class="method method-delete">DELETE</span></td><td><code>/Players/{Id}</code></td><td><span class="pill pill-claims">Claims check</span></td><td>Deletes a player the caller owns. <code>404</code> otherwise.</td></tr>
                 </tbody>
             </table>
         </div>

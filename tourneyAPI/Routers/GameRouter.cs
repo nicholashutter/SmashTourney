@@ -11,6 +11,39 @@ using System.Security.Claims;
 // Maps game lifecycle and bracket progression endpoints.
 public static class GameRouter
 {
+    // Returns a rejection when the caller does not belong to the game, or null
+    // when they do and the handler should carry on.
+    //
+    // Group authorization only establishes that somebody is signed in. That was
+    // the whole gate on every read of a game, which meant one registered account
+    // could walk any game id and read the bracket, the live match and the roster
+    // of every tournament on the server. Belonging to the game is the actual
+    // requirement, and it is checked per request rather than trusted from the
+    // client.
+    //
+    // Non-membership answers 404, not 403. A 403 would confirm the game exists,
+    // which is exactly the fact an outsider should not be able to harvest by
+    // walking ids.
+    private static async Task<IResult?> RejectNonMembersAsync(
+        HttpContext context,
+        IGameService gameService,
+        Guid gameId)
+    {
+        var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!await gameService.IsUserInGameAsync(gameId, userId))
+        {
+            Log.Warning("Refused access to game {GameId} for user {UserId} who is not in it", gameId, userId);
+            return Results.NotFound();
+        }
+
+        return null;
+    }
+
     // Registers all game API endpoints.
     public static void Map(WebApplication app)
     {
@@ -94,9 +127,19 @@ public static class GameRouter
             };
         });
 
+        // Returns the roster of a game the caller belongs to.
+        //
+        // This used to answer for any game id any signed-in account asked about,
+        // handing out the display names of everyone in a stranger's tournament.
         gameRoutes.MapPost("/GetPlayersInGame/{gameId}", async (HttpContext context, Guid gameId, IGameService gameService) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/GetPlayersInGame' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var membershipFailure = await RejectNonMembersAsync(context, gameService, gameId);
+            if (membershipFailure is not null)
+            {
+                return membershipFailure;
+            }
 
             Game? game = await gameService.GetGameByIdAsync(gameId);
 
@@ -135,9 +178,34 @@ public static class GameRouter
             return Results.Ok($"Players Added to Game {gameId}");
         });
 
+        // Starts a tournament. Host only.
+        //
+        // This had no check of any kind beyond being signed in, so any account
+        // that knew a game id could start somebody else's tournament — locking
+        // the lobby and seeding the bracket around whoever happened to have
+        // joined at that moment. Starting is the host's call.
         gameRoutes.MapPost("/StartGame/{gameId}", async (HttpContext context, IGameService gameService, IHubContext<ConnectionHub> hubContext, Guid gameId) =>
         {
             Log.Information("Request Type: Post \n URL: '/Games/StartGame' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var userId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!await gameService.IsUserHostOfGameAsync(gameId, userId))
+            {
+                // A non-member learns only that there is nothing here for them;
+                // a member who simply is not the host is told plainly.
+                if (!await gameService.IsUserInGameAsync(gameId, userId))
+                {
+                    return Results.NotFound();
+                }
+
+                Log.Warning("Refused StartGame for game {GameId} because user {UserId} does not host it", gameId, userId);
+                return Results.Json("Only the host can start this game.", statusCode: 403);
+            }
 
             bool success = await gameService.StartGameAsync(gameId);
 
@@ -155,6 +223,12 @@ public static class GameRouter
         {
             Log.Information("Request Type: Get \n URL: '/Games/GetBracket' \n Time:{Timestamp}", DateTime.UtcNow);
 
+            var membershipFailure = await RejectNonMembersAsync(context, gameService, gameId);
+            if (membershipFailure is not null)
+            {
+                return membershipFailure;
+            }
+
             var snapshot = await gameService.GetBracketSnapshotAsync(gameId);
             if (snapshot is null)
             {
@@ -167,6 +241,12 @@ public static class GameRouter
         gameRoutes.MapGet("/GetCurrentMatch/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Get \n URL: '/Games/GetCurrentMatch' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var membershipFailure = await RejectNonMembersAsync(context, gameService, gameId);
+            if (membershipFailure is not null)
+            {
+                return membershipFailure;
+            }
 
             var currentMatch = await gameService.GetCurrentMatchAsync(gameId);
             if (currentMatch is null)
@@ -206,6 +286,12 @@ public static class GameRouter
         gameRoutes.MapGet("/GetFlowState/{gameId}", async (HttpContext context, IGameService gameService, Guid gameId) =>
         {
             Log.Information("Request Type: Get \n URL: '/Games/GetFlowState' \n Time:{Timestamp}", DateTime.UtcNow);
+
+            var membershipFailure = await RejectNonMembersAsync(context, gameService, gameId);
+            if (membershipFailure is not null)
+            {
+                return membershipFailure;
+            }
 
             var flowState = await gameService.GetGameStateAsync(gameId);
             if (flowState is null)

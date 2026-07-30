@@ -21,7 +21,12 @@ export type EndTournamentOutcome =
     | { kind: "notFound" }
     | { kind: "failed" };
 
-// Asks the server which tournaments exist and how they relate to this user.
+// Asks the server for the tournaments this user belongs to.
+//
+// Not every tournament on the server. This briefly listed all of them, which is
+// a roll-call of other people's games and is not something a public host should
+// hand to anybody who registers. New games are found through a session code or a
+// shared link; this list is the caller's own rooms.
 export const fetchActiveGames = async (): Promise<GameSummary[]> =>
 {
     const games = await RequestService<"getActiveGames", never, GameSummary[]>("getActiveGames");
@@ -56,9 +61,10 @@ export const resolveGameAction = (game: GameSummary): GameBrowserAction =>
 // Resolves where selecting a tournament should take this user.
 //
 // Someone already in the game goes wherever the server says their game is,
-// which is the same rule the reconnect path uses. Everyone else goes to the
-// join screen with the id already in the URL — the whole point of the browser
-// is that nobody has to read a GUID off someone else's phone.
+// which is the same rule the reconnect path uses. The remaining case is a host
+// who made a game and has not taken a player slot in it yet: they go to the join
+// screen with the id already filled in, so hosting and playing is one path
+// rather than two.
 export const gameBrowserDestination = (game: GameSummary): string | null =>
 {
     const action = resolveGameAction(game);
@@ -79,9 +85,9 @@ export const gameBrowserDestination = (game: GameSummary): string | null =>
 // Orders tournaments so the ones a player can act on are at the top.
 //
 // On a phone the list is read from the top and abandoned quickly, so games the
-// player already belongs to come first, then ones still taking entrants, then
-// everything they can only look at. Newest first within each band, because the
-// game somebody just made is almost always the one being talked about.
+// player is already in come first, then ones they host but have not joined, then
+// finished or closed ones. Newest first within each band, because the game
+// somebody just made is almost always the one being talked about.
 export const sortGamesForBrowsing = (games: GameSummary[]): GameSummary[] =>
 {
     const actionRank: Record<GameBrowserAction, number> = {

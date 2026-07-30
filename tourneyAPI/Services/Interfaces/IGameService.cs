@@ -23,8 +23,16 @@ public interface IGameService
     // Ends a game on behalf of a specific user, refusing anyone but its host.
     Task<EndGameStatus> EndGameAsync(Guid gameId, string requestingUserId);
 
-    // Returns a lightweight description of every game, as seen by one user.
+    // Returns a lightweight description of the games one user belongs to.
     Task<List<GameSummaryResponse>> GetGameSummariesAsync(string userId);
+
+    // Reports whether a user plays in or hosts a game. False both for an
+    // outsider and for a game that does not exist, so a caller cannot use this
+    // to tell those two apart.
+    Task<bool> IsUserInGameAsync(Guid gameId, string userId);
+
+    // Reports whether a user hosts a game.
+    Task<bool> IsUserHostOfGameAsync(Guid gameId, string userId);
 
     // Deletes games that are finished or abandoned, returning how many went.
     Task<int> PruneStaleGamesAsync();

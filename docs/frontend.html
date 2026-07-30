@@ -54,8 +54,9 @@
                     <tr><td><code>/</code></td><td><code>HomePage</code></td><td><span class="pill pill-open">Public</span></td><td>Sign in, with a demo-account autofill in Development.</td></tr>
                     <tr><td><code>/signUp</code></td><td><code>SignUp</code></td><td><span class="pill pill-open">Public</span></td><td>Account registration.</td></tr>
                     <tr><td><code>/createTourney</code></td><td><code>CreateTourney</code></td><td><span class="pill pill-required">Guarded</span></td><td>Creates a game and picks the elimination mode.</td></tr>
-                    <tr><td><code>/joinTourney</code></td><td><code>JoinTourney</code></td><td><span class="pill pill-required">Guarded</span></td><td>Joins an existing game by id.</td></tr>
-                    <tr><td><code>/tourneyMenu</code></td><td><code>TourneyMenu</code></td><td><span class="pill pill-required">Guarded</span></td><td>Chooses between creating and joining.</td></tr>
+                    <tr><td><code>/joinTourney</code></td><td><code>JoinTourney</code></td><td><span class="pill pill-required">Guarded</span></td><td>Joins a game by session code. Prefills the code from a <code>?gameId=</code> link.</td></tr>
+                    <tr><td><code>/browseTourneys</code></td><td><code>BrowseTourneys</code></td><td><span class="pill pill-required">Guarded</span></td><td><em>My Tourneys</em> &mdash; the caller's own games only, for getting back into one. Hosts can end a game here.</td></tr>
+                    <tr><td><code>/tourneyMenu</code></td><td><code>TourneyMenu</code></td><td><span class="pill pill-required">Guarded</span></td><td>Chooses between hosting, joining by code, and the caller's own tourneys.</td></tr>
                     <tr><td><code>/lobby/:gameId</code></td><td><code>Lobby</code></td><td><span class="pill pill-required">Guarded</span></td><td>Pre-game player gathering; host starts from here.</td></tr>
                     <tr><td><code>/showBracket/:gameId</code></td><td><code>ShowBracket</code></td><td><span class="pill pill-required">Guarded</span></td><td>Bracket rendering and waiting state.</td></tr>
                     <tr><td><code>/inMatch/:gameId</code></td><td><code>InMatch</code></td><td><span class="pill pill-required">Guarded</span></td><td>Winner voting for the two active participants.</td></tr>

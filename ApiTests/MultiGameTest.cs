@@ -158,28 +158,31 @@ public class MultiGameTest : IClassFixture<CustomWebApplicationFactory<Program>>
         Assert.Equal(SubmitMatchVoteStatus.MATCH_NOT_ACTIVE, vote.Status);
     }
 
-    // Confirms the browser lists games with counts and per-caller flags.
+    // Confirms a summary describes the caller's own game accurately.
+    //
+    // This used to also assert that a stranger's game appeared in the list with
+    // its flags cleared, which is exactly the disclosure the listing was later
+    // narrowed to prevent. A second tournament is still created here, so the
+    // assertion that it stays out of the list is doing real work rather than
+    // being trivially true — GameAccessControlTest covers the isolation itself.
     [Fact]
-    public async Task GameSummariesDescribeEachTournamentForTheCaller()
+    public async Task GameSummariesDescribeTheCallersOwnTournament()
     {
         var hostedGame = await CreateGameAsync(4);
-        var otherGame = await CreateGameAsync(2);
+        var strangersGame = await CreateGameAsync(2);
 
         var host = hostedGame.Participants[0].User;
 
         var summaries = await _gameService.GetGameSummariesAsync(host.Id);
 
         var hostedSummary = summaries.Single(summary => summary.GameId == hostedGame.GameId);
-        var otherSummary = summaries.Single(summary => summary.GameId == otherGame.GameId);
 
         Assert.True(hostedSummary.IsHost);
         Assert.True(hostedSummary.HasJoined);
         Assert.Equal(4, hostedSummary.PlayerCount);
         Assert.Equal(GameState.LOBBY_WAITING, hostedSummary.State);
 
-        Assert.False(otherSummary.IsHost);
-        Assert.False(otherSummary.HasJoined);
-        Assert.Equal(2, otherSummary.PlayerCount);
+        Assert.DoesNotContain(summaries, summary => summary.GameId == strangersGame.GameId);
     }
 
     // Confirms listing games does not advance any of them.

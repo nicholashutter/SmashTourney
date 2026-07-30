@@ -21,18 +21,19 @@ import
 
 // How often the list re-reads the server while somebody is looking at it.
 //
-// Long enough not to matter, short enough that a lobby someone just created
-// appears before the person staring at this screen gives up and asks for the
-// session code out loud.
+// Long enough not to matter, short enough that a game whose state changed on
+// somebody else's phone catches up before the person reading this taps a row
+// that has moved on.
 const REFRESH_INTERVAL_MS = 4000;
 
-// Renders the list of tournaments running on the server.
+// Renders the tournaments this user belongs to.
 //
-// Joining used to mean being read a GUID and typing it into a phone, which is
-// exactly as bad as it sounds in a room of people who have been drinking. The
-// server can already say what exists and how each game relates to the caller,
-// so this shows that and lets a tap do the rest. The session code entry is
-// still there for anyone joining a game from somewhere else.
+// This is a way back in, not a way to browse. It briefly listed every
+// tournament on the server, which is fine on a laptop at a party and wrong on a
+// public host — it would hand any account that registered a roll-call of every
+// game running. Finding a new tournament happens through a session code or the
+// link somebody sent, which is the model anyway: you get given a room, you do
+// not go looking through other people's.
 const BrowseTourneys = () =>
 {
     const navigate = useNavigate();
@@ -171,14 +172,17 @@ const BrowseTourneys = () =>
     };
 
     return (
-        <PageShell pageTitle="Browse Tourneys">
+        <PageShell pageTitle="My Tourneys">
             <div className="shrink flex flex-col text-2xl p-4 m-4">
-                <BasicHeading headingText="Tourneys" headingColors="white" />
+                <BasicHeading headingText="My Tourneys" headingColors="white" />
 
-                {isLoading && <HeadingTwo headingText="Looking for tournaments..." />}
+                {isLoading && <HeadingTwo headingText="Looking for your tournaments..." />}
 
+                {/* The empty state has to point somewhere, and it cannot point at
+                    other people's games any more. Hosting and the session code
+                    are the two real ways in, and both are buttons below. */}
                 {!isLoading && games.length === 0 && (
-                    <HeadingTwo headingText="No tournaments are running. Host one to get started." />
+                    <HeadingTwo headingText="You are not in any tournaments. Host one, or join with a session code." />
                 )}
 
                 <div className="flex flex-col gap-1">

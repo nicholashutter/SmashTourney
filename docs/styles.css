@@ -271,6 +271,20 @@ pre code {
   border-color: currentColor;
 }
 
+/* Belonging to the game, and hosting it, are stricter than being signed in, so
+   they read as stronger than the pills above rather than as more of the same. */
+.pill-member {
+  color: oklch(0.65 0.17 145);
+  border-color: currentColor;
+  font-weight: 700;
+}
+
+.pill-host {
+  color: oklch(0.58 0.24 328);
+  border-color: currentColor;
+  font-weight: 700;
+}
+
 /* Callouts */
 .note {
   border-left: 3px solid var(--accent-line);

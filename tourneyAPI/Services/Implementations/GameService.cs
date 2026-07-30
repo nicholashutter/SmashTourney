@@ -579,31 +579,55 @@ public class GameService : IGameService
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        var games = await dbContext.Games.AsNoTracking().ToListAsync();
-        if (games.Count == 0)
+        if (string.IsNullOrWhiteSpace(userId))
         {
             return new List<GameSummaryResponse>();
         }
 
-        // Two flat queries rather than a per-game round trip, because this is
-        // the one route whose cost grows with the number of tournaments running.
+        // Only the caller's own games. This listed every tournament on the
+        // server, which was tolerable on a laptop at a party and is not on a
+        // public host: it handed any account that registered a roll-call of every
+        // game running and how many people were in each.
+        //
+        // Discovery does not need it. Joining a new tournament happens through a
+        // session code or a shared link, the way it always has, so this list is
+        // the caller's own rooms — the thing they need to get back into one.
+        var joinedGameIds = (await dbContext.Players
+            .AsNoTracking()
+            .Where(player => player.UserId == userId)
+            .Select(player => player.CurrentGameID)
+            .ToListAsync())
+            .ToHashSet();
+
+        // Hosts are included even before they take a player slot, because a host
+        // who created a game and has not joined it yet still has to be able to
+        // find it.
+        var hostedGameIds = (await dbContext.Games
+            .AsNoTracking()
+            .Where(game => game.HostUserId == userId)
+            .Select(game => game.Id)
+            .ToListAsync())
+            .ToHashSet();
+
+        var visibleGameIds = joinedGameIds.Union(hostedGameIds).ToList();
+        if (visibleGameIds.Count == 0)
+        {
+            return new List<GameSummaryResponse>();
+        }
+
+        var games = await dbContext.Games
+            .AsNoTracking()
+            .Where(game => visibleGameIds.Contains(game.Id))
+            .ToListAsync();
+
+        // One flat query rather than a per-game round trip, scoped to the games
+        // this caller can already see.
         var playerCountsByGame = await dbContext.Players
             .AsNoTracking()
+            .Where(player => visibleGameIds.Contains(player.CurrentGameID))
             .GroupBy(player => player.CurrentGameID)
             .Select(group => new { GameId = group.Key, PlayerCount = group.Count() })
             .ToDictionaryAsync(entry => entry.GameId, entry => entry.PlayerCount);
-
-        var joinedGameIds = new HashSet<Guid>();
-        if (!string.IsNullOrWhiteSpace(userId))
-        {
-            var callerGameIds = await dbContext.Players
-                .AsNoTracking()
-                .Where(player => player.UserId == userId)
-                .Select(player => player.CurrentGameID)
-                .ToListAsync();
-
-            joinedGameIds = callerGameIds.ToHashSet();
-        }
 
         var summaries = new List<GameSummaryResponse>();
 
@@ -611,8 +635,7 @@ public class GameService : IGameService
         {
             var playerCount = playerCountsByGame.TryGetValue(game.Id, out var count) ? count : 0;
 
-            var isHost = !string.IsNullOrWhiteSpace(game.HostUserId)
-                && string.Equals(game.HostUserId, userId, StringComparison.Ordinal);
+            var isHost = hostedGameIds.Contains(game.Id);
 
             summaries.Add(new GameSummaryResponse(
                 game.Id,
@@ -629,13 +652,60 @@ public class GameService : IGameService
             .ToList();
     }
 
+    // Reports whether a user plays in or hosts a game.
+    //
+    // Deliberately not gated: this runs on every read of a game, and queueing it
+    // behind a tournament's own lock would make checking permission wait on the
+    // match currently being voted on.
+    //
+    // A missing game and an outsider both answer false. Callers turn that into
+    // the same 404 either way, so probing this cannot be used to discover which
+    // game ids exist.
+    public async Task<bool> IsUserInGameAsync(Guid gameId, string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return false;
+        }
+
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var isPlayer = await dbContext.Players
+            .AsNoTracking()
+            .AnyAsync(player => player.CurrentGameID == gameId && player.UserId == userId);
+
+        if (isPlayer)
+        {
+            return true;
+        }
+
+        return await dbContext.Games
+            .AsNoTracking()
+            .AnyAsync(game => game.Id == gameId && game.HostUserId == userId);
+    }
+
+    // Reports whether a user hosts a game.
+    public async Task<bool> IsUserHostOfGameAsync(Guid gameId, string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return false;
+        }
+
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        return await dbContext.Games
+            .AsNoTracking()
+            .AnyAsync(game => game.Id == gameId && game.HostUserId == userId);
+    }
+
     // Deletes games that have finished or gone silent, returning how many went.
     //
     // Nothing ever removed a game before this, so every lobby anyone opened by
     // mistake stayed in the database forever and showed up in the browser next
-    // to the real ones. There is no scheduler in this application to hang a
-    // sweep off, so it is driven from the listing route instead — the moment
-    // stale games would actually be seen is a reasonable moment to remove them.
+    // to the real ones. StaleGameSweeper drives this on a timer.
     public async Task<int> PruneStaleGamesAsync()
     {
         var now = DateTime.UtcNow;
