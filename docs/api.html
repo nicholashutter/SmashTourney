@@ -61,9 +61,14 @@
                         <td>EF Core over SQLite.</td>
                     </tr>
                     <tr>
-                        <td><code>IEmailSender</code> &rarr; <code>DisabledEmailSender</code></td>
+                        <td><code>IEmailSender</code> &rarr; <code>SmtpEmailSender</code> or <code>LoggedEmailSender</code></td>
                         <td>Transient</td>
-                        <td>Stands in while no mail infrastructure exists; identity confirmation mail is inert.</td>
+                        <td>
+                            Chosen from configuration: SMTP when <code>Email:Smtp:Host</code> and
+                            <code>Email:FromAddress</code> are both set, otherwise a sender that writes the link to the
+                            log and warns that nothing was posted. Registered for both the generic and non-generic
+                            <code>IEmailSender</code>.
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -298,6 +303,120 @@
             Sign-in is intercepted by <code>ConfigureApplicationCookie</code>'s <code>OnSignedIn</code> event, which
             calls <code>AppSetup.HandleUserSession</code> to attach a server-side session record to the user.
         </p>
+
+        <h2>Accounts</h2>
+
+        <p>
+            An address has to be proved before it can sign in. Registration is open to anyone, so without confirmation an
+            account is only a claim: somebody could sign up as another person's address and nothing would ever test
+            whether the mailbox was theirs. Sign-in answers <code>403</code> until the address is confirmed, which is a
+            different thing from <code>401</code> for a wrong password and the client says different words for each.
+        </p>
+
+        <p>
+            This is only enforceable because the mail now actually leaves. The previous sender accepted every message and
+            returned success, so a missing relay was indistinguishable from a working one, and confirmation was a feature
+            the UI implied and the server never performed.
+        </p>
+
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Route</th>
+                        <th>Identity</th>
+                        <th>Purpose</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/users/register</code></td>
+                        <td><span class="pill pill-open">Anonymous</span></td>
+                        <td>
+                            Creates an account with a chosen username <em>and</em> address, then emails a confirmation
+                            link. If the send fails the account is deleted again, so the address stays free to retry
+                            rather than being held by an account that can never be confirmed.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/users/login</code></td>
+                        <td><span class="pill pill-open">Anonymous</span></td>
+                        <td>
+                            Accepts a username or an address. <code>401</code> wrong credentials, <code>403</code>
+                            unconfirmed address, <code>423</code> locked out, <code>429</code> rate limited.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-get">GET</span></td>
+                        <td><code>/confirmEmail</code></td>
+                        <td><span class="pill pill-open">Anonymous</span></td>
+                        <td>Mapped by <code>MapIdentityApi</code>. The target of the emailed link.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/resendConfirmationEmail</code></td>
+                        <td><span class="pill pill-open">Anonymous</span></td>
+                        <td>Without this a lost first email leaves an account permanently stuck.</td>
+                    </tr>
+                    <tr>
+                        <td><span class="method method-post">POST</span></td>
+                        <td><code>/forgotPassword</code> &middot; <code>/resetPassword</code></td>
+                        <td><span class="pill pill-open">Anonymous</span></td>
+                        <td>
+                            Emails a single-use reset code. An unknown address answers identically to a known one, so the
+                            form cannot be used to test who has an account here.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>What stops a guess</h3>
+
+        <ul>
+            <li>
+                <strong>Lockout</strong> &mdash; five failed attempts, then fifteen minutes, and the correct password is
+                refused too. Sign-in previously passed <code>lockoutOnFailure: false</code>, so a public login form
+                accepted unlimited guesses against any account indefinitely.
+            </li>
+            <li>
+                <strong>Rate limiting</strong> &mdash; ten requests per minute per caller address across the identity
+                surface. Lockout protects one account from many guesses; this protects every account from one password
+                tried across all of them. The bucket is per caller, not global, because a shared bucket would let one
+                flood exhaust everybody's allowance and lock a whole room out of their own tournament.
+            </li>
+            <li>
+                <strong>Password length</strong> &mdash; twelve characters. Length carries more weight than
+                character-class rules, which mostly teach people to end passwords with <code>1!</code>.
+            </li>
+        </ul>
+
+        <h3>Cookie and transport</h3>
+
+        <p>
+            The auth cookie is <code>HttpOnly</code>, <code>SameSite=Lax</code>, and <code>Secure</code> everywhere the
+            transport is not deliberately plain HTTP (a developer on localhost, or the in-memory test host).
+            <code>UseHttpsRedirection</code> and HSTS were commented out, which meant the cookie travelled in cleartext
+            and anyone on the same network could read it and become that user; both are on outside Development.
+        </p>
+
+        <p>
+            An expired session answers <code>401</code> rather than redirecting to a login page that does not exist in an
+            API — otherwise the client sees a <code>404</code> where it expected a <code>401</code>.
+        </p>
+
+        <div class="note">
+            <p>
+                <strong>Emailed links are HTML-encoded once, not twice.</strong> Identity hands confirmation and reset
+                URLs to the sender already encoded. Encoding again turned <code>&amp;code=</code> into
+                <code>&amp;amp;amp;code=</code>, which a mail client resolves such that the code arrives as part of the
+                parameter <em>name</em> — so every resend and reset link failed with a <code>400</code>. The body builder
+                decodes before encoding, so raw and pre-encoded inputs land in the same place.
+            </p>
+        </div>
 
         <h2>What the listing does not show</h2>
 

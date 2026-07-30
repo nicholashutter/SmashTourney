@@ -17,4 +17,8 @@ public static class AppConstants
     public const string DummyUserPasswordPrefix = "DummyPass!";
 
     public const string EnableDummyUsersConfigKey = "DevelopmentSeed:EnableDummyUsers";
+
+    // Rate limiter applied to sign-in, registration, and the endpoints that will
+    // send email to whatever address the caller names.
+    public const string AuthRateLimiterPolicy = "auth";
 }

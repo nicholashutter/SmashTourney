@@ -12,6 +12,7 @@ import BasicButton from "@/components/BasicButton";
 import PageShell from "@/components/PageShell";
 import StatusBanner, { StatusMessage } from "@/components/StatusBanner";
 import { readReturnPath } from "@/services/returnPath";
+import { describeSignInFailure } from "@/services/signInFeedback";
 
 // Renders the sign-in page and starts the authenticated user flow.
 const HomePage = () =>
@@ -72,8 +73,10 @@ const HomePage = () =>
     }
     catch (err)
     {
-      setStatus({ text: "Sign in failed. Check your details and try again.", tone: "error" });
       console.error(err);
+
+      const message = err instanceof Error ? err.message : "";
+      setStatus({ text: describeSignInFailure(message), tone: "error" });
     }
   }
 

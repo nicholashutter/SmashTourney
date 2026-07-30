@@ -32,61 +32,30 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         return _factory.CreateClient(options);
     }
 
-    // Generates one unique credential pair for isolated test users.
-    private RegisterRequest CreateRandomCredentials()
+    // Registers, confirms and signs in one user, returning the ready client.
+    //
+    // Registering and logging in is no longer sufficient: sign-in requires a
+    // confirmed address, so this goes through the real confirmation email.
+    private async Task<HttpClient> RegisterAndLoginAsync(string namePrefix)
     {
-        return new RegisterRequest
-        {
-            Email = $"test{Guid.NewGuid()}@email.com",
-            Password = "SecureP@ssw0rd123!"
-        };
+        var account = await AuthenticatedClientFactory.CreateAsync(_factory, namePrefix);
+        return account.Client;
     }
 
-    // Registers and logs in one user and returns the authenticated client.
-    private async Task<HttpClient> RegisterAndLoginAsync(RegisterRequest credentials, bool useCookies)
+    // Confirms that the registration endpoint creates a new user account successfully.
+    [Fact]
+    public async Task RegisterNewUser()
     {
-        var client = NewClient(handleCookies: useCookies);
+        var account = await AuthenticatedClientFactory.RegisterAsync(_factory, "register");
 
-        var registerUrl = "/register";
-        if (useCookies)
-        {
-            registerUrl = "/register?useCookies=true";
-        }
-
-        var loginUrl = "/login";
-        if (useCookies)
-        {
-            loginUrl = "/login?useCookies=true";
-        }
-
-        var registerResponse = await client.PostAsJsonAsync(registerUrl, credentials);
-        registerResponse.EnsureSuccessStatusCode();
-
-        var loginResponse = await client.PostAsJsonAsync(loginUrl, credentials);
-        loginResponse.EnsureSuccessStatusCode();
-
-        return client;
+        Assert.NotNull(_factory.SentEmail.LatestFor(account.Email));
     }
 
-    // Confirms that register endpoint creates a new user account successfully.
-    [Theory]
-    [InlineData("/register")]
-    public async Task RegisterNewUser(string url)
-    {
-        var client = NewClient();
-        var credentials = CreateRandomCredentials();
-
-        var response = await client.PostAsJsonAsync(url, credentials);
-
-        Assert.True(response.IsSuccessStatusCode);
-    }
-
-    // Confirms that login flow succeeds after a user is registered.
+    // Confirms that login flow succeeds after a user is registered and confirmed.
     [Fact]
     public async Task LoginNewUser()
     {
-        var credentials = CreateRandomCredentials();
-        var client = await RegisterAndLoginAsync(credentials, useCookies: true);
+        var client = await RegisterAndLoginAsync("login");
         Assert.NotNull(client);
     }
 
@@ -94,8 +63,7 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     [Fact]
     public async Task SecureEndpointWithCookieReturnsOk()
     {
-        var credentials = CreateRandomCredentials();
-        var client = await RegisterAndLoginAsync(credentials, useCookies: true);
+        var client = await RegisterAndLoginAsync("secure");
 
         var response = await client.GetAsync("/");
 
@@ -117,8 +85,7 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     [Fact]
     public async Task LogoutEndsSessionSuccessfully()
     {
-        var credentials = CreateRandomCredentials();
-        var client = await RegisterAndLoginAsync(credentials, useCookies: true);
+        var client = await RegisterAndLoginAsync("logout");
 
         var logoutResponse = await client.PostAsync("/users/logout", null);
         Assert.True(logoutResponse.IsSuccessStatusCode);
@@ -139,8 +106,7 @@ public class AuthServiceTest : IClassFixture<CustomWebApplicationFactory<Program
     [Fact]
     public async Task SessionEndpointReturnsOkWhenAuthenticated()
     {
-        var credentials = CreateRandomCredentials();
-        var client = await RegisterAndLoginAsync(credentials, useCookies: true);
+        var client = await RegisterAndLoginAsync("session");
 
         var response = await client.GetAsync("/users/session");
 

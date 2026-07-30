@@ -40,24 +40,14 @@ public class GameRouteAccessTest : IClassFixture<CustomWebApplicationFactory<Pro
         database.Database.EnsureCreated();
     }
 
-    // Creates a signed-in client with its own freshly registered account.
+    // Creates a signed-in client with its own freshly registered, confirmed account.
+    //
+    // Confirmation is part of the flow now, so this goes through the shared helper
+    // that registers, reads the emailed link, follows it and signs in.
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string emailPrefix)
     {
-        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            HandleCookies = true
-        });
-
-        var credentials = new RegisterRequest
-        {
-            Email = $"{emailPrefix}_{Guid.NewGuid()}@example.com",
-            Password = "SecureP@ssw0rd123!"
-        };
-
-        (await client.PostAsJsonAsync("/register?useCookies=true", credentials)).EnsureSuccessStatusCode();
-        (await client.PostAsJsonAsync("/login?useCookies=true", credentials)).EnsureSuccessStatusCode();
-
-        return client;
+        var account = await AuthenticatedClientFactory.CreateAsync(_factory, emailPrefix);
+        return account.Client;
     }
 
     // Creates a game owned by the given client.

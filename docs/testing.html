@@ -25,15 +25,18 @@
 
         <h2>Running the suites</h2>
 
-<pre><code># API — xUnit v3
-dotnet test
+<pre><code># API — xUnit v3            → 181 passing
+dotnet test ApiTests/ApiTests.csproj
 
-# Client — Vitest
+# Client — Vitest           → 173 passing
 cd tourneyClient
-npm test
+npx vitest run
+
+# Client typecheck
+npx tsc -b --noEmit
 
 # Client with coverage (v8 provider)
-npm test -- --coverage</code></pre>
+npx vitest run --coverage</code></pre>
 
         <p>
             The API side uses xUnit v3 with <code>Microsoft.AspNetCore.Mvc.Testing</code>, so integration tests run
@@ -41,6 +44,21 @@ npm test -- --coverage</code></pre>
             <code>InternalsVisibleTo("ApiTests")</code>, letting tests reach internal types without widening the
             public surface for their benefit.
         </p>
+
+        <div class="note">
+            <p>
+                <strong>Two invocation traps worth knowing.</strong> <code>dotnet test</code> exits <code>0</code> when it
+                fails to run anything at all, so piping it through <code>tail</code> or <code>Select-Object</code> and
+                trusting the exit code will report success for a suite that never executed &mdash; read the
+                <code>Passed!</code> or <code>Failed!</code> line.
+            </p>
+            <p>
+                And plain <code>npx tsc --noEmit</code> checks <em>zero files</em> here:
+                <code>tsconfig.json</code> is solution-style, with <code>"files": []</code> and project references, so only
+                the <code>-b</code> (build mode) form actually typechecks anything. <code>npm run build</code> gets this
+                right because it runs <code>tsc -b</code>.
+            </p>
+        </div>
 
         <h2>API suites</h2>
 
@@ -59,12 +77,74 @@ npm test -- --coverage</code></pre>
                         <td><code>CustomWebApplicationBuilder.cs</code></td>
                         <td>
                             Test host factory. Not a suite &mdash; it is the harness the integration tests boot the
-                            API through.
+                            API through. Swaps in <code>RecordingEmailSender</code> and raises the auth rate limit,
+                            which a suite registering hundreds of accounts would otherwise trip.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>RecordingEmailSender.cs</code></td>
+                        <td>
+                            Captures account email instead of sending it, and resolves HTML entities in links the way a
+                            mail client does. This is what makes the auth tests genuinely end to end: no test mints a
+                            confirmation token through <code>UserManager</code>, so a registration that stopped sending
+                            mail would fail them rather than pass silently.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>AuthenticatedClientFactory.cs</code></td>
+                        <td>
+                            Builds signed-in clients by walking the whole flow &mdash; register, read the emailed link,
+                            follow it, sign in. Every suite needing an authenticated caller goes through it, so the
+                            confirmation path is exercised constantly rather than once.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>AuthEndToEndTest.cs</code></td>
+                        <td>
+                            The account lifecycle as a person experiences it: confirmation required before sign-in, a
+                            tampered token refused, one account's link not confirming another, lockout after repeated
+                            wrong passwords (including refusing the correct one, and not locking bystanders), password
+                            reset with single-use codes, resend, and sign-out.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>AuthRateLimitTest.cs</code></td>
+                        <td>
+                            The limiter, over HTTP. Runs under its own <code>RateLimitTesting</code> environment because
+                            <code>Program.cs</code> reads the limit while building the host &mdash; before the test
+                            factory's configuration callbacks run &mdash; so an appsettings file is the only source that
+                            arrives in time.
                         </td>
                     </tr>
                     <tr>
                         <td><code>AuthServiceTest.cs</code></td>
                         <td>Registration, login, logout, and session validation behaviour.</td>
+                    </tr>
+                    <tr>
+                        <td><code>GameAccessControlTest.cs</code> &middot; <code>GameRouteAccessTest.cs</code></td>
+                        <td>
+                            That belonging to a game is what grants access to it, at the service layer and over HTTP.
+                            Written from the outsider's side &mdash; a real account with a real cookie &mdash; because
+                            that is the caller a signed-in-only check cannot distinguish from a participant.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>MultiGameTest.cs</code></td>
+                        <td>
+                            Isolation between concurrent tournaments, the games listing, host-only ending, and the stale
+                            sweep.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>BracketEngineTest.cs</code></td>
+                        <td>Seed order, match counts, progression links, and play-out to a single champion.</td>
+                    </tr>
+                    <tr>
+                        <td><code>SessionResumeTest.cs</code></td>
+                        <td>
+                            Rejoining from a game id, and that bracket state, reported results and half-cast votes all
+                            survive a restart.
+                        </td>
                     </tr>
                     <tr>
                         <td><code>GameRouterTest.cs</code></td>
@@ -175,12 +255,16 @@ npm test -- --coverage</code></pre>
 
         <div class="note">
             <p>
-                <strong>Authorization is under-tested relative to how it is enforced.</strong> Most
-                <code>/Games</code> routes carry no identity check at all (see
-                <a href="api.html">API &rarr; How identity is enforced</a>), so a suite asserting that unauthenticated
-                callers are refused would fail on the current implementation for every route except
-                <code>AddPlayer</code> and <code>SubmitMatchVote</code>. The absence of those assertions is why the
-                gap is not currently visible from a green run.
+                <strong>Authorization is now tested from the outsider's side.</strong> This note previously recorded the
+                opposite: most <code>/Games</code> routes carried no identity check, and no suite asserted that
+                unauthenticated callers were refused, so the gap was invisible from a green run. That is the shape these
+                gaps take &mdash; the tests agreed with the code, and both were wrong together.
+            </p>
+            <p>
+                The lesson worth keeping: a passing suite says the code does what the tests say, not what it should.
+                Every auth check added since is paired with a negative test written from the perspective of a caller who
+                should be refused, and a positive one, because guards that lock out the legitimate user are the usual
+                failure mode.
             </p>
         </div>
 

@@ -79,18 +79,8 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
 
         for (var index = 0; index < numberOfPlayers; index++)
         {
-            var client = NewClient(handleCookies: true);
-            var registerRequest = new RegisterRequest
-            {
-                Email = $"test{index}_{Guid.NewGuid()}@example.com",
-                Password = "SecureP@ssw0rd123!"
-            };
-
-            var registerResponse = await client.PostAsJsonAsync("/register?useCookies=true", registerRequest);
-            registerResponse.EnsureSuccessStatusCode();
-
-            var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", registerRequest);
-            loginResponse.EnsureSuccessStatusCode();
+            var account = await AuthenticatedClientFactory.CreateAsync(_factory, $"test{index}");
+            var client = account.Client;
 
             var player = new Player
             {
@@ -114,22 +104,15 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     }
 
     // Creates an authenticated client session that can call protected routes.
+    // Creates a signed-in client with its own registered and confirmed account.
+    //
+    // Sign-in requires a confirmed address now, so registering and logging in is
+    // no longer enough. The shared helper walks the whole flow, including reading
+    // the confirmation link out of the email the server actually sent.
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string emailPrefix)
     {
-        var client = NewClient(handleCookies: true);
-        var registerRequest = new RegisterRequest
-        {
-            Email = $"{emailPrefix}_{Guid.NewGuid()}@example.com",
-            Password = "SecureP@ssw0rd123!"
-        };
-
-        var registerResponse = await client.PostAsJsonAsync("/register?useCookies=true", registerRequest);
-        registerResponse.EnsureSuccessStatusCode();
-
-        var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", registerRequest);
-        loginResponse.EnsureSuccessStatusCode();
-
-        return client;
+        var account = await AuthenticatedClientFactory.CreateAsync(_factory, emailPrefix);
+        return account.Client;
     }
 
     // Builds a started two-player match and returns sessions mapped to current match participants.
@@ -385,18 +368,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     {
         var gameId = await CreateGameAsync(await CreateAuthenticatedClientAsync("host"));
 
-        var authenticatedClient = NewClient(handleCookies: true);
-        var registerRequest = new RegisterRequest
-        {
-            Email = $"authflow_{Guid.NewGuid()}@example.com",
-            Password = "SecureP@ssw0rd123!"
-        };
-
-        var registerResponse = await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest);
-        registerResponse.EnsureSuccessStatusCode();
-
-        var loginResponse = await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest);
-        loginResponse.EnsureSuccessStatusCode();
+        var authenticatedClient = await CreateAuthenticatedClientAsync("authflow");
 
         var sessionResponse = await authenticatedClient.GetAsync("/users/session");
         sessionResponse.EnsureSuccessStatusCode();
@@ -414,18 +386,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     {
         var gameId = await CreateGameAsync(await CreateAuthenticatedClientAsync("host"));
 
-        var authenticatedClient = NewClient(handleCookies: true);
-        var registerRequest = new RegisterRequest
-        {
-            Email = $"nouserid_{Guid.NewGuid()}@example.com",
-            Password = "SecureP@ssw0rd123!"
-        };
-
-        var registerResponse = await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest);
-        registerResponse.EnsureSuccessStatusCode();
-
-        var loginResponse = await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest);
-        loginResponse.EnsureSuccessStatusCode();
+        var authenticatedClient = await CreateAuthenticatedClientAsync("nouserid");
 
         var addPlayerPayload = new
         {
@@ -467,18 +428,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     {
         var gameId = await CreateGameAsync(await CreateAuthenticatedClientAsync("host"));
 
-        var authenticatedClient = NewClient(handleCookies: true);
-        var registerRequest = new RegisterRequest
-        {
-            Email = $"stringenum_{Guid.NewGuid()}@example.com",
-            Password = "SecureP@ssw0rd123!"
-        };
-
-        var registerResponse = await authenticatedClient.PostAsJsonAsync("/register?useCookies=true", registerRequest);
-        registerResponse.EnsureSuccessStatusCode();
-
-        var loginResponse = await authenticatedClient.PostAsJsonAsync("/login?useCookies=true", registerRequest);
-        loginResponse.EnsureSuccessStatusCode();
+        var authenticatedClient = await CreateAuthenticatedClientAsync("stringenum");
 
         var addPlayerPayload = new
         {
@@ -950,19 +900,15 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
     [Fact]
     public async Task LoginRemainsReachableWithoutSession()
     {
-        var email = $"anon_{Guid.NewGuid()}@example.com";
-        const string password = "SecureP@ssw0rd123!";
-
-        var registrationClient = NewClient();
-        var registerResponse = await registrationClient.PostAsJsonAsync(
-            "/register",
-            new RegisterRequest { Email = email, Password = password });
-        registerResponse.EnsureSuccessStatusCode();
+        // Registered and confirmed first, because an unconfirmed account is
+        // refused with 403 and that would prove nothing about reachability.
+        var account = await AuthenticatedClientFactory.RegisterAsync(_factory, "anon");
+        await AuthenticatedClientFactory.ConfirmAsync(_factory, account.Client, account.Email);
 
         var unauthenticatedClient = NewClient(handleCookies: true);
         var response = await unauthenticatedClient.PostAsJsonAsync(
             "/users/login",
-            new { UserName = email, Password = password });
+            new { UserName = account.UserName, Password = account.Password });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

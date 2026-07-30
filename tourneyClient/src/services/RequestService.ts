@@ -61,7 +61,7 @@ const RequestBuilder = {
     params: ["gameId"]
   },
 
-  register: { method: "POST", path: "/Users/Register" },
+  register: { method: "POST", path: "/users/register" },
   login: { method: "POST", path: "/users/login" },
   sessionStatus: { method: "GET", path: "/users/session" },
   logout: { method: "POST", path: "/users/logout" }

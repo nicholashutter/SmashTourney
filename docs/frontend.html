@@ -52,7 +52,7 @@
                 </thead>
                 <tbody>
                     <tr><td><code>/</code></td><td><code>HomePage</code></td><td><span class="pill pill-open">Public</span></td><td>Sign in, with a demo-account autofill in Development.</td></tr>
-                    <tr><td><code>/signUp</code></td><td><code>SignUp</code></td><td><span class="pill pill-open">Public</span></td><td>Account registration.</td></tr>
+                    <tr><td><code>/signUp</code></td><td><code>SignUp</code></td><td><span class="pill pill-open">Public</span></td><td>Account registration. Ends on a "check your email" screen rather than the sign-in form, because sign-in will not work until the address is confirmed.</td></tr>
                     <tr><td><code>/createTourney</code></td><td><code>CreateTourney</code></td><td><span class="pill pill-required">Guarded</span></td><td>Creates a game and picks the elimination mode.</td></tr>
                     <tr><td><code>/joinTourney</code></td><td><code>JoinTourney</code></td><td><span class="pill pill-required">Guarded</span></td><td>Joins a game by session code. Prefills the code from a <code>?gameId=</code> link.</td></tr>
                     <tr><td><code>/browseTourneys</code></td><td><code>BrowseTourneys</code></td><td><span class="pill pill-required">Guarded</span></td><td><em>My Tourneys</em> &mdash; the caller's own games only, for getting back into one. Hosts can end a game here.</td></tr>
@@ -236,6 +236,24 @@
             current match go to the voting screen, and everyone else stays on the bracket. That decision lives in
             <code>inMatchRouting.ts</code>, and every destination is built by <code>gameRoutes.ts</code> so no screen
             can construct a path that has lost the game id.
+        </p>
+
+        <h2>Signing up and signing in</h2>
+
+        <p>
+            Registration posted to <code>/Users/Register</code>, a path no route was ever mapped at, so every sign-up
+            returned <code>404</code>. It also sent only a username and password &mdash; the address the form collected was
+            dropped before the request left the browser. Both are fixed: the client posts all three fields to
+            <code>/users/register</code>, and the screen afterwards says to go and read the email rather than sending
+            somebody to a sign-in form they cannot yet use.
+        </p>
+
+        <p>
+            Sign-in can fail for four different reasons that need four different actions, so
+            <code>signInFeedback.ts</code> maps them: wrong credentials, an unconfirmed address, a lockout, and a rate
+            limit. One "check your details" message for all of these sends somebody to retype a password that was already
+            correct. <code>registrationService.ts</code> does the same for sign-up, surfacing the server's stated reason
+            &mdash; a rejected password is only fixable if you are told what was wrong with it.
         </p>
 
         <h2>Getting back in after a drop</h2>

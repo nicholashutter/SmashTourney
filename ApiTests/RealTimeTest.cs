@@ -59,16 +59,34 @@ public class RealTimeTest : IClassFixture<CustomWebApplicationFactory<Program>>
             BaseAddress = new Uri("https://localhost")
         };
 
-        var credentials = new
-        {
-            Email = $"realtime_{Guid.NewGuid()}@example.com",
-            Password = "SecureP@ssw0rd123!"
-        };
+        var userName = $"realtime_{Guid.NewGuid():N}";
+        var email = $"{userName}@example.com";
 
-        var registerResponse = await client.PostAsJsonAsync("/register", credentials);
+        var registerResponse = await client.PostAsJsonAsync("/users/register", new
+        {
+            userName,
+            email,
+            password = AuthenticatedClientFactory.ValidPassword
+        });
+
         registerResponse.EnsureSuccessStatusCode();
 
-        var loginResponse = await client.PostAsJsonAsync("/login?useCookies=true", credentials);
+        // The hub requires an authenticated connection, and sign-in now requires a
+        // confirmed address, so the emailed link has to be followed before there
+        // is any cookie to capture.
+        var confirmationEmail = _factory.SentEmail.LatestFor(email);
+        Assert.NotNull(confirmationEmail);
+
+        var confirmResponse = await client.GetAsync(
+            AuthenticatedClientFactory.ToRelativeUrl(confirmationEmail!.Link!));
+        confirmResponse.EnsureSuccessStatusCode();
+
+        var loginResponse = await client.PostAsJsonAsync("/users/login", new
+        {
+            userName,
+            password = AuthenticatedClientFactory.ValidPassword
+        });
+
         loginResponse.EnsureSuccessStatusCode();
 
         var setCookieValues = loginResponse.Headers.GetValues("Set-Cookie");
