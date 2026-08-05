@@ -4,6 +4,7 @@ import StatusBanner, { StatusMessage } from '@/components/StatusBanner';
 import BasicButton from '@/components/BasicButton';
 import SubmitButton from '@/components/SubmitButton';
 import HeadingTwo from "@/components/HeadingTwo";
+import { AnimatePresence, motion } from "framer-motion";
 import { Player } from "@/models/entities/Player";
 import { RequestService } from '@/services/RequestService';
 import { PersistentConnection } from "@/services/PersistentConnection";
@@ -33,6 +34,7 @@ const Lobby = () =>
     const [players, setPlayers] = useState<Player[]>([]);
     const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
     const [joinNotice, setJoinNotice] = useState<string | null>(null);
+    const [recentlyJoinedIds, setRecentlyJoinedIds] = useState<ReadonlySet<string>>(() => new Set());
     const [status, setStatus] = useState<StatusMessage | null>(null);
     const lobbyConnectionRef = useRef<PersistentConnection | null>(null);
 
@@ -153,6 +155,7 @@ const Lobby = () =>
                 if (newPlayers.length > 0)
                 {
                     setJoinNotice(buildJoinNoticeText(newPlayers));
+                    setRecentlyJoinedIds(new Set(newPlayers.map((player) => resolvePlayerIdCallback(player))));
                     scheduleJoinNoticeClear();
                 }
 
@@ -252,13 +255,24 @@ const Lobby = () =>
         <PageShell pageTitle="Lobby">
                 <div className='shrink flex flex-col text-2xl p-4 m-4 '>
                     <HeadingTwo headingText={`Lobby Players (${players.length})`} />
-                    {joinNotice && (
-                        <p className="text-base text-white bg-black/40 rounded px-3 py-2 m-2">{joinNotice}</p>
-                    )}
+                    <AnimatePresence>
+                        {joinNotice && (
+                            <motion.p
+                                key={joinNotice}
+                                initial={{ opacity: 0, y: -8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.2 }}
+                                className="text-base text-white bg-black/40 rounded px-3 py-2 m-2"
+                            >
+                                {joinNotice}
+                            </motion.p>
+                        )}
+                    </AnimatePresence>
                     {isLoadingPlayers ? (
                         <HeadingTwo headingText="Loading players..." />
                     ) : (
-                        <PlayerList players={players} />
+                        <PlayerList players={players} recentlyJoinedPlayerIds={recentlyJoinedIds} />
                     )}
                     <div className="flex flex-col items-center">
                         <label className="text-3xl text-white font-[Arial] text-shadow-lg">Session Code:</label>

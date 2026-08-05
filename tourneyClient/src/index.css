@@ -6,7 +6,115 @@
 body {
   font-family: 'Arial', sans-serif;
   background: url('./assets/images/background/smash.png') no-repeat center center fixed;
-  background-size: cover; 
+  background-size: cover;
+}
+
+/* Bracket + in-match motion primitives.
+ *
+ * These keyframes are defined as raw CSS rather than tw-animate-css classes
+ * because the bracket is SVG (where the utility plugin does not reach) and
+ * because each animation needs a very specific shape that the plugin does not
+ * ship out of the box. They are referenced from `DynamicBracket`, `InMatch`,
+ * `CelebrationOverlay`, and `WinnerCelebration`.
+ */
+@keyframes bracket-live-pulse {
+  0%, 100% {
+    stroke-width: 2.5;
+    stroke-opacity: 1;
+  }
+  50% {
+    stroke-width: 4;
+    stroke-opacity: 0.7;
+  }
+}
+
+@keyframes bracket-glow-pulse {
+  0%, 100% {
+    stroke-opacity: 0.35;
+  }
+  50% {
+    stroke-opacity: 0.7;
+  }
+}
+
+@keyframes bracket-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+@keyframes bracket-shine {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bracket-confetti-pop {
+  0% { transform: translate(0, 0) scale(0.4); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translate(var(--confetti-x, 0), var(--confetti-y, 0)) scale(1) rotate(var(--confetti-rotate, 0deg)); opacity: 0; }
+}
+
+@keyframes bracket-join-highlight {
+  0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.8); }
+  60% { box-shadow: 0 0 0 6px rgba(250, 204, 21, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+}
+
+.bracket-live-stroke {
+  animation: bracket-live-pulse 1.6s ease-in-out infinite;
+}
+
+.bracket-live-glow {
+  animation: bracket-glow-pulse 1.6s ease-in-out infinite;
+}
+
+.bracket-shake {
+  animation: bracket-shake 0.4s ease-in-out;
+}
+
+.bracket-shine {
+  background-image: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.45) 50%, transparent 65%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: bracket-shine 3s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: #fde047;
+}
+
+.bracket-confetti-particle {
+  animation: bracket-confetti-pop 1.2s ease-out forwards;
+}
+
+.bracket-join-highlight {
+  animation: bracket-join-highlight 1.2s ease-out;
+}
+
+.bracket-match-detail-enter {
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+}
+
+.bracket-match-detail-enter-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+}
+
+/* When the user has reduced motion enabled, collapse the bracket's pulse /
+ * glow / shine to a steady state and remove the shake motion. The custom
+ * utilities in `useBracketMotionConfig` already short-circuit JS-driven
+ * animations; this layer handles the keyframe animations defined here. */
+@media (prefers-reduced-motion: reduce) {
+  .bracket-live-stroke,
+  .bracket-live-glow,
+  .bracket-shine,
+  .bracket-confetti-particle,
+  .bracket-join-highlight {
+    animation: none;
+  }
 }
 
 @theme inline {

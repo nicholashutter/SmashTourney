@@ -15,6 +15,8 @@ export const inMatchPath = (gameId: string): string => `/inMatch/${gameId}`;
 
 export const showBracketPath = (gameId: string): string => `/showBracket/${gameId}`;
 
+export const tourneyMenuPath = (): string => "/tourneyMenu";
+
 // Resolves the screen a player belongs on for a given server game state.
 //
 // The server is the authority on where a returning player goes. Keeping the
