@@ -45,42 +45,5 @@ public class Game
 
     public int currentMatch { get; set; } = 0;
 
-    private Votes _currentVotes = Votes.ZERO;
-
-    private readonly object _votesLock = new object();
-
-    private readonly object _currentRoundLock = new object();
-
-    // Returns the current game vote state.
-    public Votes GetVotes()
-    {
-        return _currentVotes;
-    }
-
-    // Updates the current game vote state.
-    public void SetVotes(Votes votes)
-    {
-        lock (_votesLock)
-        {
-            _currentVotes = votes;
-        }
-    }
-
-    // Returns the current round number.
-    public int GetCurrentRound()
-    {
-        return currentRound;
-    }
-
-    // Updates the current round number.
-    public void SetCurrentRound(int newRound)
-    {
-        lock (_currentRoundLock)
-        {
-            currentRound = newRound;
-        }
-    }
-
-
     public int byes { get; set; } = 0;
 }

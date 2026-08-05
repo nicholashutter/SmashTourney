@@ -114,49 +114,6 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         Assert.IsType<Guid>(result);
     }
 
-    // Confirms ending a game does not throw for valid game state.
-    [Fact]
-    public async Task EndGameDoesNotThrow()
-    {
-        var gameSetup = await CreateGameWithPlayersAsync(0, addPlayers: false);
-
-        var exception = Record.Exception(() => _gameService.EndGame(gameSetup.GameId));
-
-        Assert.Null(exception);
-    }
-
-    // Confirms game listing returns expected game count.
-    [Fact]
-    public async Task GetAllGamesReturnsExpectedCount()
-    {
-        var baselineGames = await _gameService.GetAllGamesAsync();
-        var baselineCount = baselineGames?.Count ?? 0;
-        const int expectedCount = 10;
-
-        for (var index = 0; index < expectedCount; index++)
-        {
-            await _gameService.CreateGame();
-        }
-
-        var runningGames = await _gameService.GetAllGamesAsync();
-        Assert.Equal(baselineCount + expectedCount, runningGames?.Count ?? 0);
-    }
-
-    // Confirms creating a user session succeeds for valid user payload.
-    [Fact]
-    public void CreateUserSessionDoesNotThrow()
-    {
-        var user = new ApplicationUser
-        {
-            Id = Guid.NewGuid().ToString(),
-            UserName = "session",
-            Email = "session@mail.com"
-        };
-
-        var exception = Record.Exception(() => _gameService.CreateUserSession(user));
-        Assert.Null(exception);
-    }
-
     // Confirms retrieving a game by ID returns the same game record.
     [Fact]
     public async Task GetGameByIdAsyncReturnsSameGame()
@@ -204,70 +161,6 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
             && snapshot.Matches.Any(match => match.Status == BracketMatchStatus.READY);
 
         Assert.True(snapshotIsValid);
-    }
-
-    // Confirms reported double-elimination match state persists and reloads correctly.
-    [Fact]
-    public async Task DoubleEliminationReportMatchPersistsAndHydratesAcrossLoadGame()
-    {
-        var gameId = await _gameService.CreateGame(new CreateGameOptions(BracketMode.DOUBLE_ELIMINATION));
-        var users = await SetupDummyUsersAsync(4);
-        var players = await SetupDummyPlayersAsync(users);
-
-        for (var index = 0; index < players.Count; index++)
-        {
-            _gameService.AddPlayerToGame(players[index], gameId, users[index].Id);
-        }
-
-        var started = await _gameService.StartGameAsync(gameId);
-        if (!started)
-        {
-            throw new InvalidOperationException("StartGameAsync failed before persistence verification.");
-        }
-
-        var currentMatch = await _gameService.GetCurrentMatchAsync(gameId);
-        if (currentMatch is null)
-        {
-            throw new InvalidOperationException("Current match was not available after game start.");
-        }
-
-        var reportSuccess = await _gameService.ReportMatchResultAsync(
-            gameId,
-            new ReportMatchRequest(currentMatch.MatchId, currentMatch.PlayerOneId));
-        if (!reportSuccess)
-        {
-            throw new InvalidOperationException("ReportMatchResultAsync returned false for a valid match.");
-        }
-
-        var beforeUnloadSnapshot = await _gameService.GetBracketSnapshotAsync(gameId);
-        if (beforeUnloadSnapshot is null)
-        {
-            throw new InvalidOperationException("Bracket snapshot before unload was null.");
-        }
-
-        var completedBeforeUnload = beforeUnloadSnapshot.Matches.Count(match => match.Status == BracketMatchStatus.COMPLETE);
-        if (completedBeforeUnload < 1)
-        {
-            throw new InvalidOperationException("Expected at least one completed match before reload.");
-        }
-
-        await _gameService.UpdateGameAsync(gameId);
-
-        using var newScope = _factory.Services.CreateScope();
-        var rehydratedService = newScope.ServiceProvider.GetRequiredService<IGameService>();
-
-        var loaded = await rehydratedService.LoadGameAsync(gameId);
-        if (!loaded)
-        {
-            throw new InvalidOperationException("LoadGameAsync failed for a persisted game.");
-        }
-
-        var afterLoadSnapshot = await rehydratedService.GetBracketSnapshotAsync(gameId);
-        var afterLoadSnapshotIsValid = afterLoadSnapshot is not null
-            && afterLoadSnapshot.Mode == BracketMode.DOUBLE_ELIMINATION
-            && afterLoadSnapshot.Matches.Count(match => match.Status == BracketMatchStatus.COMPLETE) == completedBeforeUnload;
-
-        Assert.True(afterLoadSnapshotIsValid);
     }
 
     // Confirms started games return one of the valid started flow states.
@@ -451,6 +344,55 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
         Assert.True(progressionDidNotStall);
     }
 
+    // Confirms a lone entrant still reaches a completed tournament, and is named
+    // its winner, once every bye in a full-size bracket has been resolved.
+    //
+    // The existing real-vs-bye test uses a bracket of two, which is one match. A
+    // host who asked for eight and got one player has to walk a bye through
+    // several rounds - and, in double elimination, through a losers lane and a
+    // grand final made entirely of byes - before anything can complete.
+    [Theory]
+    [InlineData(BracketMode.SINGLE_ELIMINATION)]
+    [InlineData(BracketMode.DOUBLE_ELIMINATION)]
+    public async Task StartGameAsyncWithLoneEntrantCompletesAndCrownsThatPlayer(BracketMode bracketMode)
+    {
+        var gameId = await _gameService.CreateGame(new CreateGameOptions(bracketMode, TotalPlayers: 8));
+        var users = await SetupDummyUsersAsync(1);
+        var players = await SetupDummyPlayersAsync(users);
+
+        _gameService.AddPlayerToGame(players[0], gameId, users[0].Id);
+
+        var started = await _gameService.StartGameAsync(gameId);
+        Assert.True(started, $"StartGameAsync failed for lone-entrant {bracketMode} test.");
+
+        var currentMatch = await _gameService.GetCurrentMatchAsync(gameId);
+        var flowState = await _gameService.GetGameStateAsync(gameId);
+        var snapshot = await _gameService.GetBracketSnapshotAsync(gameId);
+
+        Assert.Null(currentMatch);
+        Assert.NotNull(flowState);
+        Assert.Equal(GameState.COMPLETE, flowState!.State);
+        Assert.NotNull(snapshot);
+
+        // No match may be left undecided, or the client would have nothing to
+        // declare and would sit on the bracket forever.
+        var undecided = snapshot!.Matches
+            .Where(match => match.Status != BracketMatchStatus.COMPLETE)
+            .ToList();
+
+        Assert.True(
+            undecided.Count == 0,
+            $"{undecided.Count} match(es) left undecided for {bracketMode}: " +
+            string.Join(", ", undecided.Select(match => $"{match.Lane} r{match.Round} #{match.MatchNumber} {match.Status}")));
+
+        // The terminal match is the one no winner advances out of. Its winner is
+        // the champion the client shows, so it has to be the real entrant rather
+        // than one of the byes that filled the bracket.
+        var terminalMatch = snapshot.Matches.Single(match => match.NextMatchForWinner is null);
+
+        Assert.Equal(players[0].Id, terminalMatch.WinnerId);
+    }
+
     // Confirms one real participant vote can commit real-vs-bye matches when bye metadata is missing in runtime state.
     [Fact]
     public async Task SubmitMatchVoteAsyncCommitsRealVersusByeWhenByeMetadataIsMissing()
@@ -589,8 +531,6 @@ public class GameServiceTest : IClassFixture<CustomWebApplicationFactory<Program
                     Id = byeParticipantId,
                     UserId = AppConstants.ByeUserId,
                     DisplayName = "PersistedBye",
-                    CurrentScore = 0,
-                    CurrentRound = 0,
                     CurrentGameID = gameId,
                     CurrentCharacter = new Character()
                 });

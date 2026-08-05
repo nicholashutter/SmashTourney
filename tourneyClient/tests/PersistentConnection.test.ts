@@ -48,8 +48,6 @@ const samplePlayers: Player[] = [
     {
         Id: "player-1",
         displayName: "Nick",
-        currentScore: 10,
-        currentRound: 2,
         currentGameId: "game-abc",
         currentCharacter: Marth
     }
@@ -60,163 +58,67 @@ beforeEach(() =>
     vi.clearAllMocks();
 });
 
-// Verifies SignalR connection uses credentials when building the Hub URL.
-test("createPlayerConnection configures Hub URL with credentials", async () =>
+// Verifies createPlayerConnection wires SignalR options (credentials, reconnect, build, start).
+test("createPlayerConnection configures credentials, reconnect, build, and start", async () =>
 {
     const connectionService = createPersistentConnection();
 
     await connectionService.createPlayerConnection();
 
     expect(signalrWithUrlSpy).toHaveBeenCalledWith(expect.any(String), { withCredentials: true });
-});
-
-// Verifies SignalR connection enables automatic reconnect strategy.
-test("createPlayerConnection enables automatic reconnect", async () =>
-{
-    const connectionService = createPersistentConnection();
-
-    await connectionService.createPlayerConnection();
-
     expect(signalrEnableReconnectSpy).toHaveBeenCalled();
-});
-
-// Verifies SignalR connection builder creates a concrete connection instance.
-test("createPlayerConnection builds a connection instance", async () =>
-{
-    const connectionService = createPersistentConnection();
-
-    await connectionService.createPlayerConnection();
-
     expect(signalrBuildConnectionSpy).toHaveBeenCalled();
-});
-
-// Verifies SignalR connection starts after creation.
-test("createPlayerConnection starts the connection", async () =>
-{
-    const connectionService = createPersistentConnection();
-
-    await connectionService.createPlayerConnection();
-
     expect(signalrConnectionStartSpy).toHaveBeenCalled();
 });
 
-// Verifies PlayersUpdated handler is registered.
-test("createPlayerConnection registers PlayersUpdated event", async () =>
-{
-    const connectionService = createPersistentConnection();
-
-    await connectionService.createPlayerConnection();
-
-    expect(signalrOnEventSpy).toHaveBeenCalledWith("PlayersUpdated", expect.any(Function));
-});
-
-// Verifies Successfully Joined handler is registered.
-test("createPlayerConnection registers Successfully Joined event", async () =>
-{
-    const connectionService = createPersistentConnection();
-
-    await connectionService.createPlayerConnection();
-
-    expect(signalrOnEventSpy).toHaveBeenCalledWith("Successfully Joined", expect.any(Function));
-});
-
-// Verifies GameStarted handler is registered.
-test("createPlayerConnection registers GameStarted event", async () =>
-{
-    const connectionService = createPersistentConnection();
-
-    await connectionService.createPlayerConnection();
-
-    expect(signalrOnEventSpy).toHaveBeenCalledWith("GameStarted", expect.any(Function));
-});
-
-// Verifies updateOthers sends UpdatePlayers with provided game identifier.
-test("updateOthers invokes UpdatePlayers with gameId", async () =>
-{
-    const connectionService = createPersistentConnection();
-    const gameId = "game-xyz123";
-
-    await connectionService.createPlayerConnection();
-    await connectionService.updateOthers(gameId);
-
-    expect(signalrConnectionInvokeSpy).toHaveBeenCalledWith("UpdatePlayers", gameId);
-});
-
-// Verifies createPlayerConnection joins SignalR game group when gameId is passed.
-test("createPlayerConnection joins game group", async () =>
+// Verifies createPlayerConnection registers all three event handlers and joins the game group when a gameId is provided.
+test("createPlayerConnection registers handlers and joins the game group when a gameId is provided", async () =>
 {
     const connectionService = createPersistentConnection();
     const gameId = "group-123";
 
     await connectionService.createPlayerConnection(gameId);
 
+    expect(signalrOnEventSpy).toHaveBeenCalledWith("PlayersUpdated", expect.any(Function));
+    expect(signalrOnEventSpy).toHaveBeenCalledWith("Successfully Joined", expect.any(Function));
+    expect(signalrOnEventSpy).toHaveBeenCalledWith("GameStarted", expect.any(Function));
     expect(signalrConnectionInvokeSpy).toHaveBeenCalledWith("JoinGameGroup", gameId);
 });
 
-// Verifies setOnPlayersUpdated callback runs when PlayersUpdated event is raised.
-test("PlayersUpdated event triggers callback", async () =>
-{
-    const connectionService = createPersistentConnection();
-    const onPlayersUpdatedSpy = vi.fn();
-
-    connectionService.setOnPlayersUpdated(onPlayersUpdatedSpy);
-    await connectionService.createPlayerConnection();
-
-    const playersUpdatedHandler = findRegisteredEventHandler("PlayersUpdated");
-    playersUpdatedHandler?.(samplePlayers);
-
-    expect(onPlayersUpdatedSpy).toHaveBeenCalledWith(samplePlayers);
-});
-
-// Verifies PlayersUpdated handler exists after connection initialization.
-test("PlayersUpdated event handler is defined", async () =>
-{
-    const connectionService = createPersistentConnection();
-
-    await connectionService.createPlayerConnection();
-
-    expect(findRegisteredEventHandler("PlayersUpdated")).toBeDefined();
-});
-
-// Verifies setOnGameStarted callback runs when GameStarted event is raised.
-test("GameStarted event triggers callback", async () =>
+// Verifies that PlayersUpdated and GameStarted events raise the registered callbacks with the payload.
+test("PlayersUpdated and GameStarted events raise registered callbacks", async () =>
 {
     const connectionService = createPersistentConnection();
     const gameId = "game-start-123";
+    const onPlayersUpdatedSpy = vi.fn();
     const onGameStartedSpy = vi.fn();
 
+    connectionService.setOnPlayersUpdated(onPlayersUpdatedSpy);
     connectionService.setOnGameStarted(onGameStartedSpy);
     await connectionService.createPlayerConnection(gameId);
 
-    const gameStartedHandler = findRegisteredEventHandler("GameStarted");
-    gameStartedHandler?.(gameId);
+    findRegisteredEventHandler("PlayersUpdated")?.(samplePlayers);
+    findRegisteredEventHandler("GameStarted")?.(gameId);
 
+    expect(onPlayersUpdatedSpy).toHaveBeenCalledWith(samplePlayers);
     expect(onGameStartedSpy).toHaveBeenCalledWith(gameId);
 });
 
-// Verifies GameStarted handler exists after connection initialization.
-test("GameStarted event handler is defined", async () =>
+// Verifies that updateOthers and notifyGameStarted invoke the correct hub methods.
+test("updateOthers and notifyGameStarted invoke the correct hub methods", async () =>
 {
     const connectionService = createPersistentConnection();
-
-    await connectionService.createPlayerConnection("game-start-123");
-
-    expect(findRegisteredEventHandler("GameStarted")).toBeDefined();
-});
-
-// Verifies notifyGameStarted invokes NotifyGameStarted with provided gameId.
-test("notifyGameStarted invokes hub method", async () =>
-{
-    const connectionService = createPersistentConnection();
-    const gameId = "notify-123";
+    const gameId = "game-xyz123";
 
     await connectionService.createPlayerConnection(gameId);
+    await connectionService.updateOthers(gameId);
     await connectionService.notifyGameStarted(gameId);
 
+    expect(signalrConnectionInvokeSpy).toHaveBeenCalledWith("UpdatePlayers", gameId);
     expect(signalrConnectionInvokeSpy).toHaveBeenCalledWith("NotifyGameStarted", gameId);
 });
 
-// Verifies disconnect stops SignalR connection.
+// Verifies disconnect stops the active SignalR connection.
 test("disconnect stops active connection", async () =>
 {
     const connectionService = createPersistentConnection();

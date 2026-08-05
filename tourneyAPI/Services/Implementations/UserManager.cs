@@ -71,25 +71,7 @@ public class UserManager : IUserManager
         return foundUser;
     }
 
-    // Gets all users in the identity store.
-    public async Task<List<ApplicationUser>?> GetAllUsersAsync()
-    {
-        Log.Information("Attempting to retrieve all users.");
-
-        var allUsers = await _identityUserManager.Users.ToListAsync();
-
-    // Updates a user profile and returns the identity result.
-        if (allUsers.Count == 0)
-        {
-
-            Log.Information("No users found in the database.");
-        }
-
-        return allUsers;
-    }
-
-
-
+    // Updates an existing user profile and returns the identity result.
     public async Task<IdentityResult> UpdateUserAsync(ApplicationUser updateUser)
     {
         Log.Information("Attempting to update user with ID: {UserId}", updateUser?.Id);
@@ -110,11 +92,6 @@ public class UserManager : IUserManager
 
         existingUser.Email = updateUser.Email;
         existingUser.UserName = updateUser.UserName;
-        existingUser.RegistrationDate = updateUser.RegistrationDate;
-        existingUser.LastLoginDate = updateUser.LastLoginDate;
-        existingUser.AllTimeMatches = updateUser.AllTimeMatches;
-        existingUser.AllTimeWins = updateUser.AllTimeWins;
-        existingUser.AllTimeLosses = updateUser.AllTimeLosses;
 
         var result = await _identityUserManager.UpdateAsync(existingUser);
 

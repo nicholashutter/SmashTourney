@@ -87,7 +87,7 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
                 Id = Guid.NewGuid(),
                 UserId = string.Empty,
                 DisplayName = $"Player{index}",
-                CurrentCharacter = new Mario(),
+                CurrentCharacter = new Character(),
                 CurrentGameID = gameId
             };
 
@@ -158,8 +158,6 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         {
             id = Guid.NewGuid(),
             displayName,
-            currentScore = 0,
-            currentRound = 0,
             currentCharacter = new
             {
                 id = Guid.NewGuid(),
@@ -392,8 +390,6 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         {
             id = Guid.NewGuid(),
             displayName = "NoUserIdBody",
-            currentScore = 0,
-            currentRound = 0,
             currentCharacter = new
             {
                 id = Guid.NewGuid(),
@@ -434,8 +430,6 @@ public class GameRouterTest : IClassFixture<CustomWebApplicationFactory<Program>
         {
             id = Guid.NewGuid(),
             displayName = "StringEnumPlayer",
-            currentScore = 0,
-            currentRound = 0,
             currentCharacter = new
             {
                 id = Guid.NewGuid(),

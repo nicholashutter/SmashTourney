@@ -132,86 +132,6 @@ public class GameService : IGameService
         await dbContext.SaveChangesAsync();
     }
 
-    // Persists current runtime bracket state for a specific game.
-    public async Task UpdateGameAsync(Guid gameId)
-    {
-        using var scope = _serviceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        var dbGame = await dbContext.Games.FindAsync(gameId);
-        if (dbGame is null)
-        {
-            throw new InvalidOperationException($"Game with ID {gameId} does not exist.");
-        }
-
-        if (_bracketStates.ContainsKey(gameId))
-        {
-            var bracketState = _bracketStates[gameId];
-            dbGame.BracketMode = bracketState.Mode;
-            dbGame.BracketStateJson = JsonSerializer.Serialize(bracketState);
-        }
-
-        await dbContext.SaveChangesAsync();
-    }
-
-    // Loads a game's persisted bracket runtime state into memory.
-    public async Task<bool> LoadGameAsync(Guid gameId)
-    {
-        Log.Information("Load game {GameId}", gameId);
-
-        var game = await GetGameByIdAsync(gameId);
-        if (game is null)
-        {
-            Log.Warning("Unable to load game {GameId} because it does not exist", gameId);
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(game.BracketStateJson))
-        {
-            return true;
-        }
-
-        try
-        {
-            var hydratedState = JsonSerializer.Deserialize<BracketRuntimeState>(game.BracketStateJson);
-            if (hydratedState is not null)
-            {
-                _bracketStates[gameId] = hydratedState;
-            }
-        }
-        catch (JsonException exception)
-        {
-            Log.Warning(exception, "Unable to hydrate bracket runtime state for game {GameId}", gameId);
-            return false;
-        }
-
-        return true;
-    }
-
-    // Returns all games with their currently assigned players.
-    public async Task<List<Game>?> GetAllGamesAsync()
-    {
-        using var scope = _serviceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        var games = await dbContext.Games.ToListAsync();
-        if (games.Count == 0)
-        {
-            Log.Warning("GetAllGames returned zero games");
-            return null;
-        }
-
-        foreach (var game in games)
-        {
-            game.currentPlayers = await dbContext.Players
-                .Include(player => player.CurrentCharacter)
-                .Where(player => player.CurrentGameID == game.Id)
-                .ToListAsync();
-        }
-
-        return games;
-    }
-
     // Returns a single game and its currently assigned players.
     public async Task<Game?> GetGameByIdAsync(Guid gameId)
     {
@@ -410,8 +330,6 @@ public class GameService : IGameService
         {
             existingPlayer.UserId = userId;
             existingPlayer.DisplayName = player.DisplayName;
-            existingPlayer.CurrentScore = player.CurrentScore;
-            existingPlayer.CurrentRound = player.CurrentRound;
             existingPlayer.CurrentGameID = gameId;
 
             if (existingPlayer.CurrentCharacter is null)
@@ -437,8 +355,6 @@ public class GameService : IGameService
             Id = resolvedPlayerId,
             UserId = userId,
             DisplayName = player.DisplayName,
-            CurrentScore = player.CurrentScore,
-            CurrentRound = player.CurrentRound,
             CurrentGameID = gameId,
             CurrentCharacter = CreateDetachedCharacter(player.CurrentCharacter)
         };
@@ -491,32 +407,6 @@ public class GameService : IGameService
         var gameState = ResolveGameState(initializedState, currentMatch);
         Log.Information("Game {GameId} flow state after start => {FlowState}", gameId, gameState);
 
-        return true;
-    }
-
-    // Deletes a game and all of its associated players.
-    public bool EndGame(Guid gameId)
-    {
-        using var scope = _serviceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-        var game = dbContext.Games.FirstOrDefault(currentGame => currentGame.Id == gameId);
-        if (game is null)
-        {
-            return false;
-        }
-
-        var gamePlayers = dbContext.Players.Where(player => player.CurrentGameID == gameId).ToList();
-        if (gamePlayers.Count > 0)
-        {
-            dbContext.Players.RemoveRange(gamePlayers);
-        }
-
-        dbContext.Games.Remove(game);
-        dbContext.SaveChanges();
-
-        _bracketStates.Remove(gameId);
-        _gameGates.TryRemove(gameId, out _);
         return true;
     }
 
@@ -889,13 +779,6 @@ public class GameService : IGameService
             currentMatch?.PlayerTwoId);
     }
 
-    // Applies a reported match result and advances bracket state.
-    public async Task<bool> ReportMatchResultAsync(Guid gameId, ReportMatchRequest request)
-    {
-        using var gate = await LockGameAsync(gameId);
-        return await ReportMatchResultCoreAsync(gameId, request);
-    }
-
     // Applies a reported match result. Callers must already hold the game gate.
     private async Task<bool> ReportMatchResultCoreAsync(Guid gameId, ReportMatchRequest request)
     {
@@ -1242,8 +1125,6 @@ public class GameService : IGameService
                 Id = Guid.NewGuid(),
                 UserId = AppConstants.ByeUserId,
                 DisplayName = $"BYE {byeIndex + 1}",
-                CurrentScore = 0,
-                CurrentRound = 0,
                 CurrentGameID = gameId,
                 CurrentCharacter = new Character()
             });

@@ -102,10 +102,15 @@ public class MultiGameTest : IClassFixture<CustomWebApplicationFactory<Program>>
         var firstMatch = await _gameService.GetCurrentMatchAsync(firstGame.GameId);
         Assert.NotNull(firstMatch);
 
-        var applied = await _gameService.ReportMatchResultAsync(
-            firstGame.GameId,
-            new ReportMatchRequest(firstMatch!.MatchId, firstMatch.PlayerOneId));
-        Assert.True(applied);
+        var firstMatchPlayerOne = firstGame.Participants.Single(participant => participant.Player.Id == firstMatch!.PlayerOneId);
+        var firstMatchPlayerTwo = firstGame.Participants.Single(participant => participant.Player.Id == firstMatch.PlayerTwoId);
+        var firstMatchVoteRequest = new SubmitMatchVoteRequest(firstMatch.MatchId, firstMatch.PlayerOneId);
+
+        var firstPendingVote = await _gameService.SubmitMatchVoteAsync(firstGame.GameId, firstMatchPlayerOne.User.Id, firstMatchVoteRequest);
+        Assert.Equal(SubmitMatchVoteStatus.PENDING, firstPendingVote.Status);
+
+        var firstCommittingVote = await _gameService.SubmitMatchVoteAsync(firstGame.GameId, firstMatchPlayerTwo.User.Id, firstMatchVoteRequest);
+        Assert.Equal(SubmitMatchVoteStatus.COMMITTED, firstCommittingVote.Status);
 
         var secondAfter = await _gameService.GetBracketSnapshotAsync(secondGame.GameId);
         var secondMatchAfter = await _gameService.GetCurrentMatchAsync(secondGame.GameId);

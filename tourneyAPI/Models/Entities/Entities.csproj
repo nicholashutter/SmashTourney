@@ -1,9 +1,15 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Entities.csproj was orphaned and removed during the 2026-08-06 prune pass.
+  The project had no source files (empty <ItemGroup>) and was not referenced
+  by tourneyAPI.sln, tourneyAPI.csproj, or ApiTests.csproj. It was harmless
+  but pointless.
 
+  The file is kept as an empty stub so the directory still contains a tracked
+  file for git history. Safe to delete with: rm tourneyAPI/Models/Entities/Entities.csproj
+-->
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
   </PropertyGroup>
-
 </Project>

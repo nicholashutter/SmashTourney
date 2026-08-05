@@ -12,9 +12,6 @@ public interface IUserManager
     // Returns one user by identifier.
     Task<ApplicationUser?> GetUserByIdAsync(string Id);
 
-    // Returns all users.
-    Task<List<ApplicationUser>?> GetAllUsersAsync();
-
     // Updates an existing user profile.
     Task<IdentityResult> UpdateUserAsync(ApplicationUser user);
 

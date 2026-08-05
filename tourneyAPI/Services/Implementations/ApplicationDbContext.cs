@@ -54,6 +54,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         return dbPath;
     }
 
-    
+
 }
 

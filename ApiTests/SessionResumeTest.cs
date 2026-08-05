@@ -216,15 +216,22 @@ public class SessionResumeTest : IClassFixture<CustomWebApplicationFactory<Progr
     [Fact]
     public async Task ReportedMatchResultsSurviveAServiceRestart()
     {
-        var (gameId, _) = await CreateGameWithParticipantsAsync(4);
+        var (gameId, participants) = await CreateGameWithParticipantsAsync(4);
         await _gameService.StartGameAsync(gameId);
 
         var firstMatch = await _gameService.GetCurrentMatchAsync(gameId);
         Assert.NotNull(firstMatch);
 
         var winnerId = firstMatch!.PlayerOneId;
-        var applied = await _gameService.ReportMatchResultAsync(gameId, new ReportMatchRequest(firstMatch.MatchId, winnerId));
-        Assert.True(applied);
+        var playerOne = participants.Single(participant => participant.Player.Id == firstMatch.PlayerOneId);
+        var playerTwo = participants.Single(participant => participant.Player.Id == firstMatch.PlayerTwoId);
+        var voteRequest = new SubmitMatchVoteRequest(firstMatch.MatchId, winnerId);
+
+        var pendingVote = await _gameService.SubmitMatchVoteAsync(gameId, playerOne.User.Id, voteRequest);
+        Assert.Equal(SubmitMatchVoteStatus.PENDING, pendingVote.Status);
+
+        var committingVote = await _gameService.SubmitMatchVoteAsync(gameId, playerTwo.User.Id, voteRequest);
+        Assert.Equal(SubmitMatchVoteStatus.COMMITTED, committingVote.Status);
 
         var coldService = CreateColdGameService();
         var snapshot = await coldService.GetBracketSnapshotAsync(gameId);

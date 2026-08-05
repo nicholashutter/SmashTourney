@@ -177,7 +177,7 @@ public class BracketEngineTest
 
         Assert.Equal(playerCount - 1, played);
         Assert.NotNull(state.WinnersChampionId);
-        Assert.Single(state.Players.Where(player => !player.Eliminated));
+        Assert.Single(state.Players, player => !player.Eliminated);
     }
 
     [Theory]
@@ -195,7 +195,7 @@ public class BracketEngineTest
         var state = engine.Initialize(Guid.NewGuid(), BuildPlayers(playerCount));
 
         Assert.Equal(expectedMatches, state.Matches.Count);
-        Assert.Single(state.Matches.Where(match => match.Lane == BracketLane.GRAND_FINALS));
+        Assert.Single(state.Matches, match => match.Lane == BracketLane.GRAND_FINALS);
     }
 
     [Fact]
@@ -245,7 +245,7 @@ public class BracketEngineTest
         PlayOutBracket(new EngineHarness(engine, state));
 
         Assert.Null(engine.BuildCurrentMatch(state));
-        Assert.Single(state.Players.Where(player => !player.Eliminated));
+        Assert.Single(state.Players, player => !player.Eliminated);
     }
 
     [Fact]
