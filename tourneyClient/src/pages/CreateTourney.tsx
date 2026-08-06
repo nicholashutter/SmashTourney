@@ -190,8 +190,6 @@ const CreateTourney = () =>
         const hostPlayerPayload: AddPlayerPayload = {
           Id: hostPlayerId,
           displayName: hostDisplayName,
-          currentScore: 0,
-          currentRound: 0,
           currentCharacter: {
             id: uuidv4(),
             characterName: mappedCharacter.characterName as keyof typeof CharacterName,

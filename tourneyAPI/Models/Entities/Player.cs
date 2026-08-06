@@ -14,8 +14,6 @@ public class Player
 
     [Required]
     public string DisplayName { get; set; } = "";
-    public int CurrentScore { get; set; } = 0;
-    public int CurrentRound { get; set; } = 0;
 
     [Required]
     public Character CurrentCharacter { get; set; } = new Character();

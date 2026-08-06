@@ -16,8 +16,6 @@ export type BackendCharacterPayload = {
 export type AddPlayerPayload = {
     Id: string;
     displayName: string;
-    currentScore: number;
-    currentRound: number;
     currentCharacter: BackendCharacterPayload;
     currentGameId: string;
 };

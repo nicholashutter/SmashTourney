@@ -94,9 +94,7 @@ public static class UserRouter
             {
                 UserName = registerRequest.UserName.Trim(),
                 Email = registerRequest.Email.Trim(),
-                EmailConfirmed = false,
-                RegistrationDate = DateTime.UtcNow,
-                LastLoginDate = DateTime.UtcNow
+                EmailConfirmed = false
             };
 
             var creationResult = await identityUserManager.CreateAsync(newUser, registerRequest.Password);

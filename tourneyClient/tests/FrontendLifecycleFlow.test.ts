@@ -409,8 +409,6 @@ const runFrontendLifecycle = async (mode: BracketMode, playerCount: number): Pro
             body: {
                 Id: `player-${index + 1}`,
                 displayName: `Player ${index + 1}`,
-                currentScore: 0,
-                currentRound: 0,
                 currentCharacter: Marth,
                 currentGameId: gameId
             }

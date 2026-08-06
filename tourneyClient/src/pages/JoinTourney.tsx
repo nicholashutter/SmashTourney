@@ -156,8 +156,6 @@ const JoinTourney = () =>
     {
       Id: resolvedPlayerId,
       displayName: displayName.trim(),
-      currentScore: 0,
-      currentRound: 0,
       currentCharacter:
       {
         id: currentCharacter.id,

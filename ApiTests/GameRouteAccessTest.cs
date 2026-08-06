@@ -72,8 +72,6 @@ public class GameRouteAccessTest : IClassFixture<CustomWebApplicationFactory<Pro
         {
             id = Guid.NewGuid(),
             displayName,
-            currentScore = 0,
-            currentRound = 0,
             currentCharacter = new
             {
                 id = Guid.NewGuid(),
