@@ -82,6 +82,12 @@ Business outcomes:
 - `POST /Games/StartGame/{gameId}`
   - Starts bracket progression for a game.
 
+- `POST /Games/EndGame/{gameId}`
+  - Ends a game in progress (host-only).
+
+- `GET /Games/GetActiveGames`
+  - Returns the list of games currently in progress for the authenticated user.
+
 - `GET /Games/GetBracket/{gameId}`
   - Returns bracket snapshot data for UI rendering.
 
@@ -91,19 +97,38 @@ Business outcomes:
 - `GET /Games/GetFlowState/{gameId}`
   - Returns high-level game state used by frontend routing.
 
+- `GET /Games/GetPlayerSession/{gameId}`
+  - Returns the authenticated player's session view of a specific game.
+
 - `POST /Games/SubmitMatchVote/{gameId}`
   - Accepts one authenticated participant vote and commits the match when participant votes agree.
 
 ## Supporting Game Routes
 
 - `POST /Games/GetPlayersInGame/{gameId}`
-  - Returns players assigned to one game.
+  - Returns players assigned to one game. (Implemented as `POST` because the player list can be large and the path parameter alone is not always enough; the frontend treats this as a polling-safe read.) The per-player response shape follows the client `Player` type in `tourneyClient/src/models/entities/Player.ts`; only fields the client consumes are populated. SignalR `PlayersUpdated` broadcasts the same shape.
+
+## Player Routes
+
+- `GET /Players`, `GET /Players/{id}`, `POST /Players`, `PUT /Players/{id}`, `DELETE /Players/{id}`
+  - Standard CRUD for the player entity. Most client flows use the game-scoped routes above; the `/Players` group is for tooling and admin.
+
+## Realtime
+
+- `GET /hubs/GameServiceHub` (SignalR negotiate/connect)
+  - Hub broadcasts lobby and game-start events to all clients in the same game group.
 
 ## User Routes
 
-- Identity routes from ASP.NET Identity are mapped for register and login.
+- Identity routes from ASP.NET Identity (`MapIdentityApi`) are mapped for register and login:
+  - `POST /register` (custom wrapper for the default `register`)
+  - `POST /login` (custom wrapper for the default `login`)
+  - `POST /forgotPassword`
+  - `POST /resetPassword`
+  - `POST /resendConfirmationEmail`
 - Extended user routes under `/users` include:
   - `POST /users/login`
+  - `POST /users/register`
   - `GET /users/demo-credentials` (development only)
   - `GET /users/session` (authenticated)
   - `POST /users/logout` (authenticated)

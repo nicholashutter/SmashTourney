@@ -36,12 +36,16 @@ Primary location:
 - `ApiTests/GameServiceTest.cs`
 - `ApiTests/PlayerRepositoryTests.cs`
 - `ApiTests/UserServiceTest.cs`
+- `ApiTests/BracketEngineTest.cs`
+- `ApiTests/SessionResumeTest.cs`
 
 Business focus:
 
 - service workflows produce correct game, player, and user outcomes
 - bracket mode behavior is initialized correctly
 - vote-ledger and bracket progression state persists and reloads correctly
+- bracket engine produces expected structures for power-of-two and odd player counts in both single and double elimination
+- sessions can be resumed after disconnect/reload without losing bracket state
 - odd-player brackets auto-resolve bye-involved matches so real-player flow does not stall
 
 ## 3) Realtime Contract Tests
@@ -56,7 +60,25 @@ Business focus:
 - connected clients receive join acknowledgments
 - game-start broadcasts reach all clients in the same game group
 
-## 4) Frontend Flow Tests
+## 4) End-to-End & Route-Coverage Tests
+
+Primary location:
+
+- `ApiTests/AuthEndToEndTest.cs`
+- `ApiTests/AuthRateLimitTest.cs` (uses `appsettings.RateLimitTesting.json` — start the API with that profile to exercise the suite)
+- `ApiTests/GameAccessControlTest.cs`
+- `ApiTests/GameRouteAccessTest.cs`
+- `ApiTests/GameRouterTest.cs`
+- `ApiTests/MultiGameTest.cs`
+
+Business focus:
+
+- full register → login → create → join → vote → completion flows across both real and in-memory hosts
+- route-level authorization and access enforcement across the full game router
+- multiple concurrent games do not interfere with each other
+- rate-limit behavior matches the configured policy under load
+
+## 5) Frontend Flow Tests
 
 Primary location:
 
@@ -65,6 +87,14 @@ Primary location:
 - `tourneyClient/tests/FrontendLifecycleFlow.test.ts`
 - `tourneyClient/tests/matchVoteFeedback.test.ts`
 - `tourneyClient/tests/ValidationService.test.ts`
+- `tourneyClient/tests/GameBrowserService.test.ts`
+- `tourneyClient/tests/GameRoutes.test.ts`
+- `tourneyClient/tests/InMatchRouting.test.ts`
+- `tourneyClient/tests/PlayerSessionService.test.ts`
+- `tourneyClient/tests/ReturnPath.test.ts`
+- `tourneyClient/tests/SignInFeedback.test.ts`
+- `tourneyClient/tests/soundService.test.ts`
+- `tourneyClient/tests/useBracketMotionConfig.test.ts`
 
 Business focus:
 
@@ -74,6 +104,10 @@ Business focus:
 - odd-player matrices verify bye auto-resolution for single and double elimination modes
 - vote-ledger status and error feedback is validated for happy-path and critical outcomes
 - input validation rules consistently reject unsafe or malformed client input
+- game-route and in-match routing logic moves the user to the correct screen for the current `GameState`
+- sign-in feedback and return-path bookkeeping handle redirect-after-login correctly
+- sound service honours mute preference and the autoplay policy (plays only from user gestures or after sufficient mount time)
+- bracket motion config returns the reduced-motion timings when `prefers-reduced-motion` is set
 
 ## Alignment With System Modules
 
@@ -85,6 +119,11 @@ This testing structure maps directly to the modules in `docs/full-stack-system-o
 - Bracket Flow Module → flow state, bracket, current match tests
 - Match Voting Module → submit-match-vote consensus and completion tests
 - Realtime + Recovery Module → hub broadcast and state polling tests
+- Auth Limits & Multi-Game Isolation → rate-limit and multi-game tests
+
+## Test Configuration Files
+
+- `appsettings.RateLimitTesting.json` (under `tourneyAPI/`) — the rate-limit configuration profile consumed by `AuthRateLimitTest`. The API must be started with this profile (e.g. `--launch-profile http-rate-limit-testing`) for that suite to exercise real rate limiting.
 
 ## Operational Quality Gates
 
@@ -94,6 +133,7 @@ Recommended quality gates before merge:
 - all frontend tests pass
 - tournament matrix tests pass for both power-of-two and odd player counts in single and double elimination
 - no unauthorized access regressions in auth/session routes
+- rate-limit suite passes against the rate-limit testing profile
 
 ## Business Outcome
 

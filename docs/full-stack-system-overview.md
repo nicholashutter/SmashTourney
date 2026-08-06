@@ -127,13 +127,22 @@ System outcomes:
 - `GET /Games/GetFlowState/{gameId}`
   - Returns authoritative overall `GameState` (`LOBBY_WAITING`, `BRACKET_VIEW`, `IN_MATCH_ACTIVE`, `COMPLETE`).
 
+- `POST /Games/EndGame/{gameId}`
+  - Ends a game in progress (host-only).
+
+- `GET /Games/GetActiveGames`
+  - Lists games currently in progress for the authenticated user.
+
+- `GET /Games/GetPlayerSession/{gameId}`
+  - Returns the authenticated player's session view of a specific game.
+
 - `POST /Games/SubmitMatchVote/{gameId}`
   - Records one authenticated participant vote and commits progression only after participant consensus.
 
 ## Supporting Routes
 
 - `POST /Games/GetPlayersInGame/{gameId}`
-  - Returns players currently assigned to a session.
+  - Returns players currently assigned to a session. (Implemented as `POST`; the frontend treats it as a polling-safe read.)
 
 ## User/Session Routes
 
@@ -145,3 +154,8 @@ System outcomes:
 - Realtime updates improve responsiveness, while polling endpoints provide reliability and recovery.
 - Tournament progression is driven by participant-vote consensus and bracket state transitions, not by manual round toggles.
 - Odd-sized tournaments progress through backend bye auto-resolution until the next real player-votable match.
+- The SignalR hub at `/hubs/GameServiceHub` broadcasts lobby and game-start events to all clients in the same game group; clients fall back to polling when realtime updates are missed.
+
+## Data Model Maintenance
+
+- The backend persists game, player, and identity state via Entity Framework Core. Schema changes go through `dotnet ef migrations add <Name> -p tourneyAPI`; migrations are kept under `tourneyAPI/Migrations/` in timestamp-prefixed files. The current snapshot is `ApplicationDbContextModelSnapshot.cs` in the same folder.
