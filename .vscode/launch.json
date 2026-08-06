@@ -23,10 +23,14 @@
             }
         },
         {
-            // Same as above, plus the dummy-user seed the "http-dummy-users"
-            // launchSettings profile turns on (AppConstants.EnableDummyUsersConfigKey =
-            // "DevelopmentSeed:EnableDummyUsers"; the "__" form is the env-var spelling).
-            "name": "SmashTourney: API (dev + dummy users)",
+            // Dev-only auth bypass: the API starts in Development and seeds the 16
+            // dummy users (dummy01..dummy16) with a blank password, so the client
+            // can sign in as any dummy by submitting an empty password field.
+            // Use this to exercise the app without knowing or typing credentials.
+            // The "http-dummy-users" launchSettings profile turns on the seed
+            // (AppConstants.EnableDummyUsersConfigKey = "DevelopmentSeed:EnableDummyUsers";
+            // the "__" form is the env-var spelling).
+            "name": "SmashTourney: API (dev, blank-password dummies)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "SmashTourney: Build API",
@@ -46,9 +50,12 @@
             // hard-codes as AppConstants.ClientUrl.
             // The preLaunchTask starts Vite in the background and releases the launch
             // as soon as Vite prints "ready in ...".
-            // Debugging in Edge instead: change "type" to "msedge".
+            // Edge, not Chrome: Chrome is not installed on this machine, and js-debug
+            // fails the launch outright ("no browser found") rather than falling back.
+            // Both types ship with js-debug, so no extension is needed either way -
+            // switch "type" back to "chrome" if you install it.
             "name": "SmashTourney: Client (Vite)",
-            "type": "chrome",
+            "type": "msedge",
             "request": "launch",
             "preLaunchTask": "SmashTourney: Client Dev Server (Vite)",
             "url": "http://localhost:5173",
@@ -87,9 +94,9 @@
             }
         },
         {
-            "name": "SmashTourney: Full Stack (dummy users)",
+            "name": "SmashTourney: Full Stack (blank-password dummies)",
             "configurations": [
-                "SmashTourney: API (dev + dummy users)",
+                "SmashTourney: API (dev, blank-password dummies)",
                 "SmashTourney: Client (Vite)"
             ],
             "stopAll": true,

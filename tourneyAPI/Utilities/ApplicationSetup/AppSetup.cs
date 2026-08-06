@@ -2,7 +2,7 @@ namespace Helpers;
 
 using Serilog;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Helpers; 
+using Helpers;
 using Services;
 using CustomExceptions;
 using Microsoft.AspNetCore.Identity;
@@ -84,9 +84,7 @@ public class AppSetup
             {
                 UserName = AppConstants.DemoUserName,
                 Email = AppConstants.DemoUserEmail,
-                EmailConfirmed = true,
-                RegistrationDate = DateTime.UtcNow,
-                LastLoginDate = DateTime.UtcNow,
+                EmailConfirmed = true
             };
 
             var creationResult = await identityUserManager.CreateAsync(demoUser, AppConstants.DemoUserPassword);
@@ -149,7 +147,6 @@ public class AppSetup
         {
             var suffix = i.ToString("00");
             var userName = $"{AppConstants.DummyUserNamePrefix}{suffix}";
-            var password = $"{AppConstants.DummyUserPasswordPrefix}{suffix}";
 
             var existingDummyUser = await identityUserManager.FindByNameAsync(userName);
             if (existingDummyUser is not null)
@@ -158,16 +155,20 @@ public class AppSetup
                 continue;
             }
 
+            // Dev-only blank-password seed: bypass the production password validators
+            // (12 chars + mixed classes) by writing the hash directly. See
+            // AppConstants.DummyUserPassword for the rationale.
             var dummyUser = new ApplicationUser
             {
                 UserName = userName,
                 Email = $"{userName}@smashtourney.local",
                 EmailConfirmed = true,
-                RegistrationDate = DateTime.UtcNow,
-                LastLoginDate = DateTime.UtcNow,
+                PasswordHash = identityUserManager.PasswordHasher.HashPassword(
+                    new ApplicationUser(),
+                    AppConstants.DummyUserPassword)
             };
 
-            var dummyCreationResult = await identityUserManager.CreateAsync(dummyUser, password);
+            var dummyCreationResult = await identityUserManager.CreateAsync(dummyUser);
             if (dummyCreationResult.Succeeded)
             {
                 seededCount++;
@@ -185,11 +186,10 @@ public class AppSetup
         }
 
         Log.Information(
-            "Development dummy-user seed complete. Seeded={SeededCount}, Existing={ExistingCount}, Pattern={UserPattern}/{PasswordPattern}",
+            "Development dummy-user seed complete. Seeded={SeededCount}, Existing={ExistingCount}, Pattern={UserPattern}, Password=(blank — dev-only auth bypass)",
             seededCount,
             existingCount,
-            "dummy01..dummy16",
-            "DummyPass!01..DummyPass!16");
+            "dummy01..dummy16");
     }
 
     // Brings the database up to the current schema, creating it if absent.
