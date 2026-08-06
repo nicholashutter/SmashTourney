@@ -277,7 +277,7 @@ const renderMatch = (
                 strokeWidth={isCurrent ? 2.5 : 1}
             />
 
-            {containsViewer && (
+            {containsViewer && !viewerEliminated && (
                 <rect
                     x={x + YOU_INSET}
                     y={y - MATCH_HEIGHT / 2 + YOU_INSET}
@@ -307,7 +307,7 @@ const renderMatch = (
                 fill={rowFill(playerOneWon, playerOneName)}
                 fontSize="12"
                 fontWeight={
-                    playerOneIsViewer
+                    playerOneIsViewer && !viewerEliminated
                         ? "700"
                         : playerOneWon
                             ? "700"
@@ -323,7 +323,7 @@ const renderMatch = (
                 fill={rowFill(playerTwoWon, playerTwoName)}
                 fontSize="12"
                 fontWeight={
-                    playerTwoIsViewer
+                    playerTwoIsViewer && !viewerEliminated
                         ? "700"
                         : playerTwoWon
                             ? "700"
@@ -333,7 +333,7 @@ const renderMatch = (
                 {playerTwoName}
             </text>
 
-            {containsViewer && (
+            {containsViewer && !viewerEliminated && (
                 <g pointerEvents="none">
                     <rect
                         x={x + MATCH_WIDTH - 28}

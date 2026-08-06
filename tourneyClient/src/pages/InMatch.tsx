@@ -6,7 +6,6 @@ import HeadingTwo from "@/components/HeadingTwo";
 import SubmitButton, { SubmitButtonTone } from "@/components/SubmitButton";
 import PageShell from "@/components/PageShell";
 import StatusBanner, { StatusMessage } from "@/components/StatusBanner";
-import CelebrationOverlay from "@/components/CelebrationOverlay";
 import { useGameData } from "@/hooks/useGameData";
 import { RequestService } from "@/services/RequestService";
 import
@@ -23,7 +22,6 @@ import { fetchInMatchViewData } from "@/services/gameFlowService";
 import { getVoteFeedbackFromError, getVoteFeedbackFromResponse } from "@/services/matchVoteFeedback";
 import { resolveInMatchRedirect } from "@/services/inMatchRouting";
 import { playSound } from "@/services/soundService";
-import { BasicButton } from "@/components/BasicButton";
 
 // Length of the in-match redirect countdown, kept in sync with the
 // corresponding timer on the bracket page.
@@ -52,7 +50,6 @@ const InMatch = () =>
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [shakeKey, setShakeKey] = useState(0);
     const [secondsUntilMatch, setSecondsUntilMatch] = useState<number | null>(null);
-    const [celebrationWinnerName, setCelebrationWinnerName] = useState<string | null>(null);
     const activeMatchIdRef = useRef<string | null>(null);
     const activeCountdownMatchIdRef = useRef<string | null>(null);
     const activeMatchDeadlineRef = useRef<number | null>(null);
@@ -211,17 +208,6 @@ const InMatch = () =>
 
     useEffect(() =>
     {
-        const handler = () =>
-        {
-            setCelebrationWinnerName(null);
-        };
-
-        window.addEventListener("smash-tourney:celebration-done", handler);
-        return () => window.removeEventListener("smash-tourney:celebration-done", handler);
-    }, []);
-
-    useEffect(() =>
-    {
         if (!isParticipantInCurrentMatch || !canCurrentUserVote)
         {
             setSecondsUntilMatch(null);
@@ -318,16 +304,6 @@ const InMatch = () =>
                 if (voteResult.status === "COMMITTED")
                 {
                     playSound("voteCommit", { startOffsetSeconds: 0.4 });
-                    const winnerId = voteResult.committedWinnerPlayerId;
-                    if (winnerId)
-                    {
-                        const name = playersById.get(winnerId) ?? "the match winner";
-                        setCelebrationWinnerName(name);
-                    }
-                    else
-                    {
-                        setCelebrationWinnerName("Match complete");
-                    }
                 }
                 await loadMatchData();
             }
@@ -554,16 +530,6 @@ const InMatch = () =>
                     )}
                     <StatusBanner status={status} />
                 </div>
-                <CelebrationOverlay
-                    show={celebrationWinnerName !== null}
-                    winnerName={celebrationWinnerName ?? ""}
-                    footer={
-                        <BasicButton
-                            buttonLabel="View bracket"
-                            href={gameId ? `/bracket/${gameId}` : "/tourneyMenu"}
-                        />
-                    }
-                />
         </PageShell>
 
     );
